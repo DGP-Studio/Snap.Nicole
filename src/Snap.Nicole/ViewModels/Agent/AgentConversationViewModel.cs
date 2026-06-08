@@ -69,7 +69,7 @@ internal sealed partial class AgentConversationViewModel(IAgentService agentServ
     public partial AgentConversationStatisticsViewModel ConversationStatistics { get; private set; } = new();
 
     [JsonIgnore]
-    public ChatClientAgent? Agent { get; set; }
+    public HarnessAgent? Agent { get; set; }
 
     [JsonIgnore]
     public ExtendedAgentOptions? AgentOptions { get; set; }
@@ -162,7 +162,7 @@ internal sealed partial class AgentConversationViewModel(IAgentService agentServ
             return;
         }
 
-        ChatClientAgent? agent = null;
+        HarnessAgent? agent = null;
         AgentSession? session = null;
         if (!string.IsNullOrWhiteSpace(requestOptions.ApiKey))
         {

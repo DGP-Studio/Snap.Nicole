@@ -1,16 +1,9 @@
-using Anthropic;
-using Anthropic.Core;
 using Microsoft.Agents.AI;
-using Microsoft.Agents.AI.Compaction;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
-using OpenAI;
 using OpenAI.Chat;
-using OpenAI.Responses;
-using Snap.Nicole.Core;
 using Snap.Nicole.Services.AI.Compatibility.OpenAIChatCompletion;
-using System.ClientModel;
 using System.Collections.Generic;
 using System.Text;
 
@@ -18,6 +11,9 @@ namespace Snap.Nicole.Services.AI.Models;
 
 internal sealed class ExtendedAgentOptions
 {
+    private const int DefaultMaxInputTokens = 204800;
+    private const int DefaultMaxOutputTokens = 4096;
+
     public ModelProviderType ProviderType { get; init; } = ModelProviderType.OpenAIChatCompletion;
 
     public string? Endpoint { get; init; }
@@ -38,6 +34,8 @@ internal sealed class ExtendedAgentOptions
 
     public int? MaxInputTokens { get; init; }
 
+    public int? MaxContextWindowTokens { get; init; }
+
     public int? MaxOutputTokens { get; init; }
 
     public string? SystemPrompt { get; init; }
@@ -57,6 +55,7 @@ internal sealed class ExtendedAgentOptions
             ThinkingEnabled = agentOptions.ThinkingEnabled,
             OmitReasoningEffortWhenThinkingDisabled = agentOptions.OmitReasoningEffortWhenThinkingDisabled,
             MaxInputTokens = NormalizeTokenLimit(agentOptions.MaxInputTokens),
+            MaxContextWindowTokens = NormalizeTokenLimit(agentOptions.MaxContextWindowTokens),
             MaxOutputTokens = NormalizeTokenLimit(agentOptions.MaxOutputTokens),
             SystemPrompt = NormalizeSystemPrompt(agentOptions.SystemPrompt),
         };
@@ -70,7 +69,6 @@ internal sealed class ExtendedAgentOptions
             ModelId = ModelId,
             Temperature = Temperature,
             TopP = TopP,
-            MaxOutputTokens = MaxOutputTokens,
             ToolMode = ChatToolMode.Auto,
         };
 
@@ -85,18 +83,41 @@ internal sealed class ExtendedAgentOptions
         return new(chatOptions);
     }
 
-    public ChatClientAgent CreateAIAgent(IList<AITool>? tools, IServiceProvider serviceProvider)
+    public HarnessAgent CreateHarnessAgent(IChatClient chatClient, IList<AITool>? tools, IServiceProvider serviceProvider)
     {
-        return ProviderType switch
+        int maxOutputTokens = Math.Clamp(MaxOutputTokens ?? DefaultMaxOutputTokens, 1, int.MaxValue - 1);
+        if (MaxContextWindowTokens is int maxContextWindowTokens)
         {
-            ModelProviderType.OpenAIChatCompletion => CreateOpenAIChatCompletionAgent(tools, serviceProvider),
-            ModelProviderType.OpenAIResponses => CreateOpenAIResponsesAgent(tools, serviceProvider),
-            ModelProviderType.Anthropic => CreateAnthropicAgent(tools, serviceProvider),
-            _ => throw new NotSupportedException($"Unsupported model provider type: {ProviderType}"),
+            maxContextWindowTokens = Math.Clamp(maxContextWindowTokens, maxOutputTokens + 1, int.MaxValue);
+        }
+        else
+        {
+            maxContextWindowTokens = Math.Clamp(MaxInputTokens ?? DefaultMaxInputTokens, 1, int.MaxValue - maxOutputTokens) + maxOutputTokens;
+        }
+
+        HarnessAgentOptions harnessOptions = CreateHarnessAgentOptions(tools, serviceProvider, maxOutputTokens);
+        return chatClient.AsHarnessAgent(maxContextWindowTokens, maxOutputTokens, harnessOptions, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>(), services: serviceProvider);
+    }
+
+    private HarnessAgentOptions CreateHarnessAgentOptions(IList<AITool>? tools, IServiceProvider serviceProvider, int maxOutputTokens)
+    {
+        return new()
+        {
+            ChatOptions = CreateHarnessChatOptions(tools, maxOutputTokens),
+            ChatHistoryProvider = CreateChatHistoryProvider(serviceProvider),
+            HarnessInstructions = string.Empty,
+            DisableToolApproval = true,
+            DisableFileMemory = true,
+            DisableFileAccess = true,
+            DisableWebSearch = true,
+            DisableTodoProvider = true,
+            DisableAgentModeProvider = true,
+            DisableAgentSkillsProvider = true,
+            DisableOpenTelemetry = true,
         };
     }
 
-    public ChatHistoryProvider CreateChatHistoryProvider(IServiceProvider serviceProvider)
+    private ChatHistoryProvider CreateChatHistoryProvider(IServiceProvider serviceProvider)
     {
         return ProviderType switch
         {
@@ -106,130 +127,39 @@ internal sealed class ExtendedAgentOptions
         };
     }
 
-    private ChatClientAgent CreateOpenAIChatCompletionAgent(IList<AITool>? tools, IServiceProvider serviceProvider)
+    private ChatOptions CreateHarnessChatOptions(IList<AITool>? tools, int maxOutputTokens)
     {
         string? thinkingEnabled = ThinkingEnabled.HasValue
             ? ThinkingEnabled.Value ? "enabled" : "disabled"
             : null;
 
-        return CreateOpenAIClient(serviceProvider)
-            .GetChatClient(ModelId)
-            .AsIChatClient()
-            .AsBuilder()
-            .Use(innerClient => new UsageContentRectifyDelegatingChatClient(innerClient))
-            .BuildAIAgent(new ChatClientAgentOptions
+        ChatOptions chatOptions = new()
+        {
+            ModelId = ModelId,
+            Instructions = SystemPrompt,
+            Temperature = Temperature,
+            TopP = TopP,
+            MaxOutputTokens = maxOutputTokens,
+            ToolMode = ChatToolMode.Auto,
+            Tools = tools,
+        };
+
+        if (ProviderType is ModelProviderType.OpenAIChatCompletion)
+        {
+            chatOptions.RawRepresentationFactory = client =>
             {
-                ChatOptions = new()
+                ChatCompletionOptions options = new();
+                if (!string.IsNullOrEmpty(thinkingEnabled))
                 {
-                    RawRepresentationFactory = client =>
-                    {
-                        ChatCompletionOptions options = new();
-                        if (!string.IsNullOrEmpty(thinkingEnabled))
-                        {
-                            // "thinking": { "type": "enabled" } | "thinking": { "type": "disabled" }
-                            options.Patch.Set("$.thinking.type"u8, thinkingEnabled);
-                        }
+                    // "thinking": { "type": "enabled" } | "thinking": { "type": "disabled" }
+                    options.Patch.Set("$.thinking.type"u8, thinkingEnabled);
+                }
 
-                        return options;
-                    },
-                    Instructions = SystemPrompt,
-                    Tools = tools,
-                },
-                ChatHistoryProvider = CreateChatHistoryProvider(serviceProvider),
-                AIContextProviders = CreateAIContextProviders(serviceProvider),
-                RequirePerServiceCallChatHistoryPersistence = true,
-            }, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>());
-    }
-
-    private ChatClientAgent CreateOpenAIResponsesAgent(IList<AITool>? tools, IServiceProvider serviceProvider)
-    {
-        ResponsesClient client = CreateOpenAIClient().GetResponsesClient();
-        return client.AsAIAgent(CreateAgentOptions(tools, CreateChatHistoryProvider(serviceProvider), serviceProvider), model: ModelId, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>());
-    }
-
-    private ChatClientAgent CreateAnthropicAgent(IList<AITool>? tools, IServiceProvider serviceProvider)
-    {
-        AnthropicClient client = CreateAnthropicClient();
-
-        return client.AsAIAgent(CreateAgentOptions(tools, CreateChatHistoryProvider(serviceProvider), serviceProvider), loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>());
-    }
-
-    private ChatClientAgentOptions CreateAgentOptions(IList<AITool>? tools, ChatHistoryProvider chatHistoryProvider, IServiceProvider serviceProvider)
-    {
-        return new()
-        {
-            ChatOptions = new()
-            {
-                ModelId = ModelId,
-                Instructions = SystemPrompt,
-                Tools = tools,
-            },
-            ChatHistoryProvider = chatHistoryProvider,
-            AIContextProviders = CreateAIContextProviders(serviceProvider),
-            RequirePerServiceCallChatHistoryPersistence = true,
-        };
-    }
-
-    private IEnumerable<AIContextProvider>? CreateAIContextProviders(IServiceProvider serviceProvider)
-    {
-        if (MaxInputTokens is not int maxInputTokens)
-        {
-            return null;
-        }
-
-        CompactionStrategy strategy = CreateContextWindowCompactionStrategy(CreateSummarizationChatClient(serviceProvider), maxInputTokens);
-        return [new CompactionProvider(strategy, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>())];
-    }
-
-    private IChatClient CreateSummarizationChatClient(IServiceProvider serviceProvider)
-    {
-        return ProviderType switch
-        {
-            ModelProviderType.OpenAIChatCompletion => CreateOpenAIClient(serviceProvider).GetChatClient(ModelId).AsIChatClient(),
-            ModelProviderType.OpenAIResponses => CreateOpenAIClient().GetResponsesClient().AsIChatClient(ModelId),
-            ModelProviderType.Anthropic => CreateAnthropicClient().AsIChatClient(ModelId, MaxOutputTokens),
-            _ => throw new NotSupportedException($"Unsupported model provider type: {ProviderType}"),
-        };
-    }
-
-    private static CompactionStrategy CreateContextWindowCompactionStrategy(IChatClient summarizationChatClient, int maxInputTokens)
-    {
-        CompactionTrigger trigger = CompactionTriggers.TokensExceed(maxInputTokens);
-        CompactionStrategy[] strategies =
-        [
-            new SummarizationCompactionStrategy(summarizationChatClient, trigger),
-            new TruncationCompactionStrategy(trigger, minimumPreservedGroups: 2),
-        ];
-
-        return new PipelineCompactionStrategy(strategies);
-    }
-
-    private OpenAIClient CreateOpenAIClient(IServiceProvider? serviceProvider = null)
-    {
-        OpenAIClientOptions clientOptions = new()
-        {
-            Endpoint = Endpoint.ToUri(),
-        };
-
-        if (serviceProvider is not null)
-        {
-            clientOptions.ClientLoggingOptions = new()
-            {
-                LoggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>(),
-                EnableMessageContentLogging = true,
+                return options;
             };
         }
 
-        return new(new ApiKeyCredential(ApiKey!), clientOptions);
-    }
-
-    private AnthropicClient CreateAnthropicClient()
-    {
-        return new(new ClientOptions
-        {
-            ApiKey = ApiKey,
-            BaseUrl = string.IsNullOrWhiteSpace(Endpoint) ? EnvironmentUrl.Production : Endpoint,
-        });
+        return chatOptions;
     }
 
     private static int? NormalizeTokenLimit(int? value)

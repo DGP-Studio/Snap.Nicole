@@ -13,32 +13,34 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI;
 
-internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentService
+internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatClientFactory chatClientFactory) : IAgentService
 {
     private readonly IServiceProvider serviceProvider = serviceProvider;
+    private readonly AgentChatClientFactory chatClientFactory = chatClientFactory;
     private readonly JsonSerializerOptions functionContentJsonOptions = serviceProvider.GetRequiredKeyedService<JsonSerializerOptions>(JsonSerializerOptionsKey.AIFunctionContent);
 
-    public ValueTask<ChatClientAgent> CreateAgentAsync(ExtendedAgentOptions options, CancellationToken cancellationToken = default)
+    public ValueTask<HarnessAgent> CreateAgentAsync(ExtendedAgentOptions options, CancellationToken cancellationToken = default)
     {
-        return ValueTask.FromResult(options.CreateAIAgent(CreateBuiltInTools(), serviceProvider));
+        IChatClient chatClient = chatClientFactory.Create(options, serviceProvider);
+        return ValueTask.FromResult(options.CreateHarnessAgent(chatClient, CreateBuiltInTools(), serviceProvider));
     }
 
-    public ValueTask<AgentSession> CreateSessionAsync(ChatClientAgent agent, CancellationToken cancellationToken = default)
+    public ValueTask<AgentSession> CreateSessionAsync(HarnessAgent agent, CancellationToken cancellationToken = default)
     {
         return agent.CreateSessionAsync(cancellationToken);
     }
 
-    public ValueTask<AgentSession> DeserializeSessionAsync(ChatClientAgent agent, JsonElement serializedState, CancellationToken cancellationToken = default)
+    public ValueTask<AgentSession> DeserializeSessionAsync(HarnessAgent agent, JsonElement serializedState, CancellationToken cancellationToken = default)
     {
         return agent.DeserializeSessionAsync(serializedState, cancellationToken: cancellationToken);
     }
 
-    public ValueTask<JsonElement> SerializeSessionAsync(ChatClientAgent agent, AgentSession session, CancellationToken cancellationToken = default)
+    public ValueTask<JsonElement> SerializeSessionAsync(HarnessAgent agent, AgentSession session, CancellationToken cancellationToken = default)
     {
         return agent.SerializeSessionAsync(session, cancellationToken: cancellationToken);
     }
 
-    public async ValueTask<SpanStatus> RunStreamingAsync(ChatClientAgent agent, ChatMessage message, ObservableChatMessageCollection collection, ExtendedAgentOptions options, AgentSession session, TaskScheduler taskScheduler, CancellationToken cancellationToken = default)
+    public async ValueTask<SpanStatus> RunStreamingAsync(HarnessAgent agent, ChatMessage message, ObservableChatMessageCollection collection, ExtendedAgentOptions options, AgentSession session, TaskScheduler taskScheduler, CancellationToken cancellationToken = default)
     {
         using SentryDiagnosticSpan span = SentryDiagnostics.StartSpan(SentryOperations.AIChatStream, "Run streaming chat completion");
         span.SetTag(SentryTags.AIProvider, options.ProviderType.ToString());

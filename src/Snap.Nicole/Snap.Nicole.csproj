@@ -59,6 +59,7 @@
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Converters" Version="8.2.251219" />
     <PackageReference Include="Microsoft.Agents.AI.Anthropic" Version="1.9.0-preview.260603.1" />
+    <PackageReference Include="Microsoft.Agents.AI.Harness" Version="1.9.0-preview.260603.1" />
     <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.9.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.8" />
     <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="10.0.8" />

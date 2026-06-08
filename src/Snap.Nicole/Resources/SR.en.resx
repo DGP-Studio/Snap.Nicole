@@ -374,6 +374,9 @@
   <data name="UIXamlPagesSettingsPageLabelModelMaxInputTokens" xml:space="preserve">
     <value>Input Token Limit</value>
   </data>
+  <data name="UIXamlPagesSettingsPageLabelModelMaxContextWindowTokens" xml:space="preserve">
+    <value>Context Window Length</value>
+  </data>
   <data name="UIXamlPagesSettingsPageLabelModelMaxOutputTokens" xml:space="preserve">
     <value>Output Token Limit</value>
   </data>

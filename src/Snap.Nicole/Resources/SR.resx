@@ -418,25 +418,28 @@
     <value>模型参数</value>
   </data>
   <data name="UIXamlPagesSettingsPageLabelModelTemperature" xml:space="preserve">
-    <value>Temperature</value>
+    <value>温度采样</value>
   </data>
   <data name="UIXamlPagesSettingsPageLabelModelTopP" xml:space="preserve">
-    <value>Top P</value>
+    <value>核采样 Top P</value>
   </data>
   <data name="UIXamlPagesSettingsPageLabelModelReasoningEffort" xml:space="preserve">
     <value>推理强度</value>
   </data>
   <data name="UIXamlPagesSettingsPageLabelModelThinkingEnabled" xml:space="preserve">
-    <value>启用 Thinking</value>
+    <value>启用思考推理</value>
   </data>
   <data name="UIXamlPagesSettingsPageLabelModelOmitReasoningEffortWhenThinkingDisabled" xml:space="preserve">
-    <value>Thinking 关闭时省略推理强度</value>
+    <value>思考推理关闭时省略推理强度</value>
   </data>
   <data name="UIXamlPagesSettingsPageLabelModelMaxInputTokens" xml:space="preserve">
-    <value>输入 Token 上限</value>
+    <value>最大输入长度</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageLabelModelMaxContextWindowTokens" xml:space="preserve">
+    <value>上下文窗口长度</value>
   </data>
   <data name="UIXamlPagesSettingsPageLabelModelMaxOutputTokens" xml:space="preserve">
-    <value>输出 Token 上限</value>
+    <value>最大输出长度</value>
   </data>
   <data name="UIXamlPagesSettingsPageLabelModelSystemPrompt" xml:space="preserve">
     <value>系统提示词</value>

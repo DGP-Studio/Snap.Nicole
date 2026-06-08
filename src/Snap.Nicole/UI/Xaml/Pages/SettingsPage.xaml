@@ -369,7 +369,7 @@
                                                                 Minimum="0"
                                                                 PlaceholderText="{snuxm:StringResource Name=UIXamlPagesSettingsPagePlaceholderProviderDefault}"
                                                                 SmallChange="0.1"
-                                                                SpinButtonPlacementMode="Compact"
+                                                                SpinButtonPlacementMode="Inline"
                                                                 Value="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.AgentOptions.Temperature, Mode=TwoWay, Converter={StaticResource NullableNumberBoxValueConverter}}" />
                                                         </cwcont:SettingsCard>
                                                         <cwcont:SettingsCard Padding="16,8,44,8" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelModelTopP}">
@@ -379,7 +379,7 @@
                                                                 Minimum="0"
                                                                 PlaceholderText="{snuxm:StringResource Name=UIXamlPagesSettingsPagePlaceholderProviderDefault}"
                                                                 SmallChange="0.05"
-                                                                SpinButtonPlacementMode="Compact"
+                                                                SpinButtonPlacementMode="Inline"
                                                                 Value="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.AgentOptions.TopP, Mode=TwoWay, Converter={StaticResource NullableNumberBoxValueConverter}}" />
                                                         </cwcont:SettingsCard>
                                                         <cwcont:SettingsCard Padding="16,8,44,8" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelModelReasoningEffort}">
@@ -402,6 +402,16 @@
                                                         <cwcont:SettingsCard Padding="16,8,44,8" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelModelOmitReasoningEffortWhenThinkingDisabled}">
                                                             <ToggleSwitch IsOn="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.AgentOptions.OmitReasoningEffortWhenThinkingDisabled, Mode=TwoWay}" />
                                                         </cwcont:SettingsCard>
+                                                        <cwcont:SettingsCard Padding="16,8,44,8" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelModelMaxContextWindowTokens}">
+                                                            <NumberBox
+                                                                LargeChange="1024"
+                                                                Maximum="2147483647"
+                                                                Minimum="0"
+                                                                PlaceholderText="{snuxm:StringResource Name=UIXamlPagesSettingsPagePlaceholderProviderDefault}"
+                                                                SmallChange="1024"
+                                                                SpinButtonPlacementMode="Inline"
+                                                                Value="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.AgentOptions.MaxContextWindowTokens, Mode=TwoWay, Converter={StaticResource NullableNumberBoxValueConverter}}" />
+                                                        </cwcont:SettingsCard>
                                                         <cwcont:SettingsCard Padding="16,8,44,8" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelModelMaxInputTokens}">
                                                             <NumberBox
                                                                 LargeChange="1024"
@@ -409,7 +419,7 @@
                                                                 Minimum="0"
                                                                 PlaceholderText="{snuxm:StringResource Name=UIXamlPagesSettingsPagePlaceholderProviderDefault}"
                                                                 SmallChange="1024"
-                                                                SpinButtonPlacementMode="Compact"
+                                                                SpinButtonPlacementMode="Inline"
                                                                 Value="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.AgentOptions.MaxInputTokens, Mode=TwoWay, Converter={StaticResource NullableNumberBoxValueConverter}}" />
                                                         </cwcont:SettingsCard>
                                                         <cwcont:SettingsCard Padding="16,8,44,8" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelModelMaxOutputTokens}">
@@ -419,7 +429,7 @@
                                                                 Minimum="0"
                                                                 PlaceholderText="{snuxm:StringResource Name=UIXamlPagesSettingsPagePlaceholderProviderDefault}"
                                                                 SmallChange="1024"
-                                                                SpinButtonPlacementMode="Compact"
+                                                                SpinButtonPlacementMode="Inline"
                                                                 Value="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.AgentOptions.MaxOutputTokens, Mode=TwoWay, Converter={StaticResource NullableNumberBoxValueConverter}}" />
                                                         </cwcont:SettingsCard>
                                                         <cwcont:SettingsCard Padding="16,8,44,8" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelModelSystemPrompt}">
@@ -466,7 +476,6 @@
                             </Grid>
                         </StackPanel>
                     </Border>
-
                 </StackPanel>
             </ScrollViewer>
         </PivotItem>

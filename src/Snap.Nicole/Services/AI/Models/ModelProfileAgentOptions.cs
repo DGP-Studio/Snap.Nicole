@@ -28,6 +28,9 @@ internal sealed partial class ModelProfileAgentOptions : ObservableObject, ICopy
     public partial int? MaxInputTokens { get; set; }
 
     [ObservableProperty]
+    public partial int? MaxContextWindowTokens { get; set; }
+
+    [ObservableProperty]
     public partial int? MaxOutputTokens { get; set; }
 
     [ObservableProperty]

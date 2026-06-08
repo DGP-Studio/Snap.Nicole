@@ -11,7 +11,7 @@ internal sealed class AgentConversationRuntimeCoordinator(IAgentService agentSer
 {
     private readonly IAgentService agentService = agentService;
 
-    public async ValueTask<ChatClientAgent> EnsureConversationAgentAsync(AgentConversationViewModel conversation, ExtendedAgentOptions requestOptions, CancellationToken cancellationToken)
+    public async ValueTask<HarnessAgent> EnsureConversationAgentAsync(AgentConversationViewModel conversation, ExtendedAgentOptions requestOptions, CancellationToken cancellationToken)
     {
         if (conversation.Agent is not null && IsConversationAgentCurrent(conversation, requestOptions))
         {
@@ -24,7 +24,7 @@ internal sealed class AgentConversationRuntimeCoordinator(IAgentService agentSer
         return conversation.Agent;
     }
 
-    public async ValueTask<AgentSession> EnsureConversationSessionAsync(AgentConversationViewModel conversation, ChatClientAgent agent, CancellationToken cancellationToken)
+    public async ValueTask<AgentSession> EnsureConversationSessionAsync(AgentConversationViewModel conversation, HarnessAgent agent, CancellationToken cancellationToken)
     {
         if (conversation.Session is not null)
         {
@@ -43,7 +43,7 @@ internal sealed class AgentConversationRuntimeCoordinator(IAgentService agentSer
         return conversation.Session;
     }
 
-    public async ValueTask PersistConversationSessionAsync(AgentConversationViewModel conversation, ChatClientAgent agent, AgentSession session, CancellationToken cancellationToken)
+    public async ValueTask PersistConversationSessionAsync(AgentConversationViewModel conversation, HarnessAgent agent, AgentSession session, CancellationToken cancellationToken)
     {
         JsonElement serializedState = await agentService.SerializeSessionAsync(agent, session, cancellationToken);
         conversation.SerializedSessionState = serializedState.Clone();
@@ -61,6 +61,7 @@ internal sealed class AgentConversationRuntimeCoordinator(IAgentService agentSer
             && string.Equals(agentOptions.ApiKey, requestOptions.ApiKey, StringComparison.Ordinal)
             && string.Equals(agentOptions.ModelId, requestOptions.ModelId, StringComparison.Ordinal)
             && agentOptions.ThinkingEnabled == requestOptions.ThinkingEnabled
+            && agentOptions.MaxContextWindowTokens == requestOptions.MaxContextWindowTokens
             && agentOptions.MaxInputTokens == requestOptions.MaxInputTokens
             && agentOptions.MaxOutputTokens == requestOptions.MaxOutputTokens
             && string.Equals(agentOptions.SystemPrompt, requestOptions.SystemPrompt, StringComparison.Ordinal);

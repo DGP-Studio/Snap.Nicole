@@ -63,6 +63,7 @@ internal static class Program
                     .AddSingleton<IMessenger>(WeakReferenceMessenger.Default)
                     .AddSingleton<INavigationService, NavigationService>()
                     .AddSingleton<INotifyIcon, NotifyIcon>()
+                    .AddSingleton<AgentChatClientFactory>()
                     .AddSingleton<IAgentService, AgentService>()
                     .AddSingleton<IAgentConversationProvider, AgentConversationFileProvider>()
                     .AddSingleton<IModelProfileService, ModelProfileService>()
