@@ -156,7 +156,7 @@ internal sealed partial class AgentConversationViewModel(IAgentService agentServ
             return;
         }
 
-        ExtendedAgentOptions? requestOptions = AgentConversationProfileCoordinator.CreateRequestOptions(this);
+        ExtendedAgentOptions? requestOptions = conversationProfileCoordinator.CreateRequestOptions(this);
         if (requestOptions is null)
         {
             return;

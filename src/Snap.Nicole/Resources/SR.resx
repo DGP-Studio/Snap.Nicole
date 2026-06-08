@@ -378,6 +378,15 @@
   <data name="UIXamlPagesSettingsPageLabelModelProviderProfiles" xml:space="preserve">
     <value>模型配置</value>
   </data>
+  <data name="UIXamlPagesSettingsPageLabelAgentGlobalOptions" xml:space="preserve">
+    <value>全局配置</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageLabelAgentMaximumIterationsPerRequest" xml:space="preserve">
+    <value>最大工具调用次数</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageDescriptionAgentMaximumIterationsPerRequest" xml:space="preserve">
+    <value>限制智能体在单个用户消息轮次中的工具调用次数，防止无限循环</value>
+  </data>
   <data name="UIXamlPagesSettingsPageDescriptionSelectModelProviderProfileToEdit" xml:space="preserve">
     <value>请选择左侧的模型提供商配置进行编辑</value>
   </data>

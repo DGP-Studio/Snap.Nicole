@@ -190,6 +190,27 @@
                     <Border
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        CornerRadius="{ThemeResource ControlCornerRadius}">
+                        <StackPanel Padding="16" Spacing="16">
+                            <TextBlock
+                                Margin="1,0,0,0"
+                                Style="{ThemeResource BaseTextBlockStyle}"
+                                Text="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelAgentGlobalOptions}" />
+                            <cwcont:SettingsCard Description="{snuxm:StringResource Name=UIXamlPagesSettingsPageDescriptionAgentMaximumIterationsPerRequest}" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelAgentMaximumIterationsPerRequest}">
+                                <NumberBox
+                                    LargeChange="1"
+                                    Maximum="2147483647"
+                                    Minimum="1"
+                                    SmallChange="1"
+                                    SpinButtonPlacementMode="Inline"
+                                    Value="{Binding Settings.AgentOptions.MaximumIterationsPerRequest, Mode=TwoWay, Converter={StaticResource NullableNumberBoxValueConverter}}" />
+                            </cwcont:SettingsCard>
+                        </StackPanel>
+                    </Border>
+
+                    <Border
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         CornerRadius="{ThemeResource ControlCornerRadius}"
                         DataContext="{Binding ModelConfiguration}">
                         <StackPanel Padding="16" Spacing="16">

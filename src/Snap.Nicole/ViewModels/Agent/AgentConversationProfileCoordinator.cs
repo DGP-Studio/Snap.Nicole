@@ -8,7 +8,7 @@ internal sealed class AgentConversationProfileCoordinator(AppSettings settings)
 {
     private readonly AppSettings settings = settings;
 
-    public static ExtendedAgentOptions? CreateRequestOptions(AgentConversationViewModel conversation)
+    public ExtendedAgentOptions? CreateRequestOptions(AgentConversationViewModel conversation)
     {
         if (conversation.ModelProviderProfile is not { } providerProfile)
         {
@@ -20,7 +20,7 @@ internal sealed class AgentConversationProfileCoordinator(AppSettings settings)
             return null;
         }
 
-        return ExtendedAgentOptions.Create(providerProfile, modelProfile);
+        return ExtendedAgentOptions.Create(providerProfile, modelProfile, settings.AgentOptions);
     }
 
     public void ResolveConversationProfile(AgentConversationViewModel conversation, Guid? providerProfileId, Guid? modelProfileId)

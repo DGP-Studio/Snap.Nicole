@@ -40,7 +40,34 @@ internal sealed class ExtendedAgentOptions
 
     public string? SystemPrompt { get; init; }
 
-    public static ExtendedAgentOptions Create(ModelProviderProfile providerProfile, ModelProfile modelProfile)
+    public int? MaximumIterationsPerRequest { get; init; }
+
+    public bool AgentEquals(ExtendedAgentOptions? other)
+    {
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        if (other is null)
+        {
+            return false;
+        }
+
+        // For any properties that are used in AsAgentRunOptions method, ignore them in comparison.
+        return ProviderType == other.ProviderType
+            && string.Equals(Endpoint, other.Endpoint, StringComparison.Ordinal)
+            && string.Equals(ApiKey, other.ApiKey, StringComparison.Ordinal)
+            && ThinkingEnabled == other.ThinkingEnabled
+            && OmitReasoningEffortWhenThinkingDisabled == other.OmitReasoningEffortWhenThinkingDisabled
+            && MaxContextWindowTokens == other.MaxContextWindowTokens
+            && MaxInputTokens == other.MaxInputTokens
+            && MaxOutputTokens == other.MaxOutputTokens
+            && MaximumIterationsPerRequest == other.MaximumIterationsPerRequest
+            && string.Equals(SystemPrompt, other.SystemPrompt, StringComparison.Ordinal);
+    }
+
+    public static ExtendedAgentOptions Create(ModelProviderProfile providerProfile, ModelProfile modelProfile, AppAgentOptions appAgentOptions)
     {
         ModelProfileAgentOptions agentOptions = modelProfile.AgentOptions;
         return new()
@@ -54,10 +81,11 @@ internal sealed class ExtendedAgentOptions
             ReasoningEffort = agentOptions.ReasoningEffort,
             ThinkingEnabled = agentOptions.ThinkingEnabled,
             OmitReasoningEffortWhenThinkingDisabled = agentOptions.OmitReasoningEffortWhenThinkingDisabled,
-            MaxInputTokens = NormalizeTokenLimit(agentOptions.MaxInputTokens),
-            MaxContextWindowTokens = NormalizeTokenLimit(agentOptions.MaxContextWindowTokens),
-            MaxOutputTokens = NormalizeTokenLimit(agentOptions.MaxOutputTokens),
-            SystemPrompt = NormalizeSystemPrompt(agentOptions.SystemPrompt),
+            MaxInputTokens = AgentOptionsNormalizer.NormalizeTokenLimit(agentOptions.MaxInputTokens),
+            MaxContextWindowTokens = AgentOptionsNormalizer.NormalizeTokenLimit(agentOptions.MaxContextWindowTokens),
+            MaxOutputTokens = AgentOptionsNormalizer.NormalizeTokenLimit(agentOptions.MaxOutputTokens),
+            SystemPrompt = AgentOptionsNormalizer.NormalizeSystemPrompt(agentOptions.SystemPrompt),
+            MaximumIterationsPerRequest = AgentOptionsNormalizer.NormalizeMaximumIterationsPerRequest(appAgentOptions.MaximumIterationsPerRequest),
         };
     }
 
@@ -106,6 +134,7 @@ internal sealed class ExtendedAgentOptions
             ChatOptions = CreateHarnessChatOptions(tools, maxOutputTokens),
             ChatHistoryProvider = CreateChatHistoryProvider(serviceProvider),
             HarnessInstructions = string.Empty,
+            MaximumIterationsPerRequest = MaximumIterationsPerRequest,
             DisableToolApproval = true,
             DisableFileMemory = true,
             DisableFileAccess = true,
@@ -160,20 +189,5 @@ internal sealed class ExtendedAgentOptions
         }
 
         return chatOptions;
-    }
-
-    private static int? NormalizeTokenLimit(int? value)
-    {
-        return value is > 0 ? value : null;
-    }
-
-    private static string? NormalizeSystemPrompt(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        return value.Trim();
     }
 }

@@ -21,20 +21,8 @@ internal sealed partial class ModelProfile : ObservableObject, IIdentifiable<Gui
     [NotifyPropertyChangedFor(nameof(DisplayName))]
     public partial string ModelId { get; set; } = string.Empty;
 
-    public ModelProfileAgentOptions AgentOptions
-    {
-        get;
-        set
-        {
-            ModelProfileAgentOptions options = new();
-            if (value is not null)
-            {
-                options.CopyFrom(value);
-            }
-
-            SetProperty(ref field, options);
-        }
-    } = new();
+    [JsonInclude]
+    public ModelProfileAgentOptions AgentOptions { get; private set => SetProperty(ref field, value ?? new()); } = new();
 
     [JsonIgnore]
     public string DisplayName

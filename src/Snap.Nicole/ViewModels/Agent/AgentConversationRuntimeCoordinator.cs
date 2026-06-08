@@ -13,7 +13,7 @@ internal sealed class AgentConversationRuntimeCoordinator(IAgentService agentSer
 
     public async ValueTask<HarnessAgent> EnsureConversationAgentAsync(AgentConversationViewModel conversation, ExtendedAgentOptions requestOptions, CancellationToken cancellationToken)
     {
-        if (conversation.Agent is not null && IsConversationAgentCurrent(conversation, requestOptions))
+        if (conversation.Agent is not null && requestOptions.AgentEquals(conversation.AgentOptions))
         {
             return conversation.Agent;
         }
@@ -47,24 +47,6 @@ internal sealed class AgentConversationRuntimeCoordinator(IAgentService agentSer
     {
         JsonElement serializedState = await agentService.SerializeSessionAsync(agent, session, cancellationToken);
         conversation.SerializedSessionState = serializedState.Clone();
-    }
-
-    public static bool IsConversationAgentCurrent(AgentConversationViewModel conversation, ExtendedAgentOptions requestOptions)
-    {
-        if (conversation.AgentOptions is not { } agentOptions)
-        {
-            return false;
-        }
-
-        return agentOptions.ProviderType == requestOptions.ProviderType
-            && string.Equals(agentOptions.Endpoint, requestOptions.Endpoint, StringComparison.Ordinal)
-            && string.Equals(agentOptions.ApiKey, requestOptions.ApiKey, StringComparison.Ordinal)
-            && string.Equals(agentOptions.ModelId, requestOptions.ModelId, StringComparison.Ordinal)
-            && agentOptions.ThinkingEnabled == requestOptions.ThinkingEnabled
-            && agentOptions.MaxContextWindowTokens == requestOptions.MaxContextWindowTokens
-            && agentOptions.MaxInputTokens == requestOptions.MaxInputTokens
-            && agentOptions.MaxOutputTokens == requestOptions.MaxOutputTokens
-            && string.Equals(agentOptions.SystemPrompt, requestOptions.SystemPrompt, StringComparison.Ordinal);
     }
 
     public static void ResetConversationRuntime(AgentConversationViewModel conversation)

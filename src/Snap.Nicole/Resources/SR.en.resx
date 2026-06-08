@@ -317,6 +317,15 @@
   <data name="UIXamlPagesSettingsPageLabelModelProviderProfiles" xml:space="preserve">
     <value>Model Provider Profiles</value>
   </data>
+  <data name="UIXamlPagesSettingsPageLabelAgentGlobalOptions" xml:space="preserve">
+    <value>Agent Global Options</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageLabelAgentMaximumIterationsPerRequest" xml:space="preserve">
+    <value>Maximum Tool Iterations Per Request</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageDescriptionAgentMaximumIterationsPerRequest" xml:space="preserve">
+    <value>Limits the FunctionInvokingChatClient tool invocation loop for one request to avoid runaway tool cycles</value>
+  </data>
   <data name="UIXamlPagesSettingsPageDescriptionSelectModelProviderProfileToEdit" xml:space="preserve">
     <value>Select a model provider profile on the left to edit it</value>
   </data>

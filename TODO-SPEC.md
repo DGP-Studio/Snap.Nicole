@@ -1,7 +1,8 @@
-**已随 Harness 接入但还没有产品化控制面**
+**已随 Harness 接入，部分已有产品化控制面**
 1. `FunctionInvokingChatClient`
    Harness 默认启用自动 function/tool invocation。当前实际传入的工具只有 `BuiltInFunctions.GetCurrentTime`。
-   建议：先加 `MaximumIterationsPerRequest` 配置，避免工具循环；再做工具调用日志、失败重试策略和每轮调用上限。
+   已接入：`MaximumIterationsPerRequest` 作为全局应用配置保存在 `AppSettings.AgentOptions`，设置页“智能体全局配置”可调整，默认值为 8。
+   后续：工具调用日志、失败重试策略和每轮调用上限。
 
 2. `MessageInjectingChatClient`
    Harness 管线里有“运行中注入消息”的能力，但我们现在没有任何 UI/API 使用它。
@@ -61,23 +62,19 @@
    可挂自定义上下文提供器。
    建议用于接入应用内上下文：当前设置、Git 状态、Sentry issue、workspace 文件摘要、MCP 资源。每个 provider 都要有 token 预算和刷新时机。
 
-6. `MaximumIterationsPerRequest`
-   控制 function invocation loop 最大轮数。
-   建议立即接入为隐藏/高级配置，默认值保守，例如 8 或 12，避免工具循环失控。
-
-7. `FileMemoryStore` / `FileAccessStore`
+6. `FileMemoryStore` / `FileAccessStore`
    可替换默认文件存储。
    建议实现 app-owned store：根目录来自设置服务，不依赖 process cwd；按 conversation/profile 分区。
 
-8. `AgentModeProviderOptions`
+7. `AgentModeProviderOptions`
    自定义 agent mode。
    建议初期用默认 plan/execute；等 UI 稳定后支持自定义 mode。
 
-9. `AgentSkillsSource`
+8. `AgentSkillsSource`
    自定义 skill source。
    建议先用显式注册 source，不做自动发现；后续可以加插件目录和用户目录。
 
-10. `Id` / `Name` / `Description`
+9. `Id` / `Name` / `Description`
    Harness agent metadata。
    建议用 conversation/profile 派生，尤其 `Name` 对 background agents 和 handoff 很重要。
 
@@ -94,4 +91,4 @@
    已有 `ObservableInputRequestContent` / `ObservableInputResponseContent`。
    建议可复用给 tool approval、人机确认、补充参数请求。先统一交互协议，再分别接具体功能。
 
-建议实际路线：`MaximumIterationsPerRequest` -> ToolApproval UI -> Todo/Mode -> WebSearch -> FileMemory -> FileAccess -> Skills -> BackgroundAgents -> ShellExecutor
+建议实际路线：ToolApproval UI -> Todo/Mode -> WebSearch -> FileMemory -> FileAccess -> Skills -> BackgroundAgents -> ShellExecutor
