@@ -40,6 +40,8 @@ internal class ObservableAIContent : ObservableObject
             TextReasoningContent reasoningContent when !string.IsNullOrEmpty(reasoningContent.Text) => ObservableTextReasoningContent.Create(reasoningContent),
             FunctionCallContent functionCallContent => ObservableFunctionCallContent.Create(functionCallContent, jsonOptions),
             FunctionResultContent functionResultContent => ObservableFunctionResultContent.Create(functionResultContent, jsonOptions),
+            ToolApprovalRequestContent toolApprovalRequestContent => ObservableToolApprovalRequestContent.Create(toolApprovalRequestContent, jsonOptions),
+            ToolApprovalResponseContent toolApprovalResponseContent => ObservableToolApprovalResponseContent.Create(toolApprovalResponseContent),
             UsageContent usageContent => ObservableUsageContent.Create(usageContent),
             _ => null,
         };

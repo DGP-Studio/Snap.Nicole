@@ -24,6 +24,12 @@ internal sealed partial class ObservableFunctionResultContent : ObservableToolRe
         };
     }
 
+    public void Update(ObservableFunctionResultContent functionResultContent)
+    {
+        Result = functionResultContent.Result;
+        Exception = functionResultContent.Exception;
+    }
+
     private static string? SerializeResult(object? value, JsonSerializerOptions jsonOptions)
     {
         if (value is JsonElement { ValueKind: JsonValueKind.String } stringElement)

@@ -552,6 +552,24 @@
   <data name="UIXamlControlsChatFunctionResultSegmentViewLabelTitle" xml:space="preserve">
     <value>工具结果</value>
   </data>
+  <data name="UIXamlControlsChatToolApprovalRequestSegmentViewLabelTitle" xml:space="preserve">
+    <value>需要批准工具调用</value>
+  </data>
+  <data name="UIXamlControlsChatToolApprovalRequestSegmentViewLabelPending" xml:space="preserve">
+    <value>等待批准</value>
+  </data>
+  <data name="UIXamlControlsChatToolApprovalRequestSegmentViewLabelApproved" xml:space="preserve">
+    <value>已允许</value>
+  </data>
+  <data name="UIXamlControlsChatToolApprovalRequestSegmentViewLabelRejected" xml:space="preserve">
+    <value>已拒绝</value>
+  </data>
+  <data name="UIXamlControlsChatToolApprovalRequestSegmentViewLabelAllow" xml:space="preserve">
+    <value>允许</value>
+  </data>
+  <data name="UIXamlControlsChatToolApprovalRequestSegmentViewLabelDeny" xml:space="preserve">
+    <value>拒绝</value>
+  </data>
   <data name="UIXamlControlsChatMarkdownSegmentViewToolTipCopyText" xml:space="preserve">
     <value>复制文本</value>
   </data>

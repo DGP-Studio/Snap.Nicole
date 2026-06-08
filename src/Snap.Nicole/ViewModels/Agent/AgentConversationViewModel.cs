@@ -42,26 +42,22 @@ internal sealed partial class AgentConversationViewModel(IAgentService agentServ
 
     [ObservableProperty]
     [JsonIgnore]
-    [NotifyPropertyChangedFor(nameof(CanSendMessage))]
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand))]
     public partial ModelProviderProfile? ModelProviderProfile { get; set; }
 
     [ObservableProperty]
     [JsonIgnore]
-    [NotifyPropertyChangedFor(nameof(CanSendMessage))]
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand))]
     public partial ModelProfile? ModelProfile { get; set; }
 
     [ObservableProperty]
     [JsonIgnore]
-    [NotifyPropertyChangedFor(nameof(CanSendMessage))]
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand))]
     public partial string InputText { get; set; } = string.Empty;
 
     [ObservableProperty]
     [JsonIgnore]
-    [NotifyPropertyChangedFor(nameof(CanSendMessage), nameof(CanDeleteConversation))]
-    [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(DeleteConversationCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(DeleteConversationCommand), nameof(ApproveToolApprovalCommand), nameof(DenyToolApprovalCommand))]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
@@ -83,14 +79,12 @@ internal sealed partial class AgentConversationViewModel(IAgentService agentServ
     [ObservableProperty]
     public partial ObservableChatMessageCollection Messages { get; private set; } = [];
 
-    [JsonIgnore]
-    public bool CanSendMessage { get => !disposed && generationCts is null && !IsBusy && ModelProviderProfile is not null && !string.IsNullOrWhiteSpace(InputText) && !string.IsNullOrWhiteSpace(ModelProfile?.ModelId); }
+    private bool CanSendMessage { get => !disposed && generationCts is null && !IsBusy && ModelProviderProfile is not null && !string.IsNullOrWhiteSpace(InputText) && !string.IsNullOrWhiteSpace(ModelProfile?.ModelId); }
 
     [JsonIgnore]
     public bool CanStopGeneration { get => !disposed && generationCts is not null; }
 
-    [JsonIgnore]
-    public bool CanDeleteConversation { get => !disposed && !IsBusy; }
+    private bool CanDeleteConversation { get => !disposed && !IsBusy; }
 
     public StringResourceValue TitleDisplay { get => string.IsNullOrWhiteSpace(Title) ? SRName.UIXamlPagesAgentPageLabelNewConversation : Title; }
 
@@ -204,7 +198,18 @@ internal sealed partial class AgentConversationViewModel(IAgentService agentServ
                     throw new InvalidOperationException("Agent runtime must be initialized before streaming chat.");
                 }
 
-                result = await agentService.RunStreamingAsync(agent, userMessage, Messages, requestOptions, session, taskScheduler, linkedCts.Token);
+                AgentRunStreamingContext streamingContext = new()
+                {
+                    Agent = agent,
+                    Message = userMessage,
+                    Collection = Messages,
+                    Options = requestOptions,
+                    Session = session,
+                    TaskScheduler = taskScheduler,
+                    ConfigureContent = ConfigureObservableContent,
+                    CancellationToken = linkedCts.Token,
+                };
+                result = await agentService.RunStreamingAsync(streamingContext);
             }
 
             span.Finish(result);
@@ -271,6 +276,20 @@ internal sealed partial class AgentConversationViewModel(IAgentService agentServ
         conversationOwner.DeleteConversation(this);
     }
 
+    [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
+    private Task ApproveToolApprovalAsync(ObservableToolApprovalRequestContent request, CancellationToken cancellationToken)
+    {
+        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
+        return RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(true), cancellationToken);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
+    private Task DenyToolApprovalAsync(ObservableToolApprovalRequestContent request, CancellationToken cancellationToken)
+    {
+        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
+        return RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(false, "Rejected by user"), cancellationToken);
+    }
+
     public void Dispose()
     {
         if (Interlocked.Exchange(ref disposed, true))
@@ -296,6 +315,118 @@ internal sealed partial class AgentConversationViewModel(IAgentService agentServ
     partial void OnModelProfileChanged(ModelProfile? value)
     {
         AgentConversationRuntimeCoordinator.ResetConversationRuntime(this);
+    }
+
+    private bool CanRespondToToolApproval(ObservableToolApprovalRequestContent? request)
+    {
+        return !disposed && !IsBusy && request?.CanRespond is true && Agent is not null && Session is not null && AgentOptions is not null;
+    }
+
+    private async Task RespondToToolApprovalAsync(ObservableToolApprovalRequestContent request, AIContent responseContent, CancellationToken cancellationToken)
+    {
+        if (!CanRespondToToolApproval(request) || Agent is not { } agent || Session is not { } session || AgentOptions is not { } requestOptions)
+        {
+            return;
+        }
+
+        ToolApprovalResponseContent response = responseContent switch
+        {
+            ToolApprovalResponseContent toolApprovalResponseContent => toolApprovalResponseContent,
+            _ => throw new InvalidOperationException("Unsupported tool approval response content."),
+        };
+
+        request.IsHandled = true;
+        request.Approved = response.Approved;
+        request.Reason = response.Reason;
+        NotifyToolApprovalCommandCanExecuteChanged();
+        ObservableChatMessage? targetResponseMessage = FindMessageContaining(request);
+
+        ChatMessage responseMessage = new(ChatRole.User, [responseContent])
+        {
+            CreatedAt = DateTimeOffset.Now,
+            AuthorName = "You",
+        };
+
+        using SentryDiagnosticSpan span = SentryDiagnostics.StartSpan(SentryOperations.AIChatSend, "Respond to tool approval");
+        span.SetTag(SentryTags.AIProvider, requestOptions.ProviderType.ToString());
+        span.SetTag(SentryTags.AIModel, requestOptions.ModelId);
+
+        IsBusy = true;
+        CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        SetGenerationCancellationTokenSource(linkedCts);
+
+        try
+        {
+            TaskScheduler taskScheduler = App.Current.Threading.TaskScheduler;
+            AgentRunStreamingContext streamingContext = new()
+            {
+                Agent = agent,
+                Message = responseMessage,
+                Collection = Messages,
+                Options = requestOptions,
+                Session = session,
+                TaskScheduler = taskScheduler,
+                ConfigureContent = ConfigureObservableContent,
+                CancellationToken = linkedCts.Token,
+                AddInputMessage = false,
+                TargetResponseMessage = targetResponseMessage,
+            };
+            SpanStatus result = await agentService.RunStreamingAsync(streamingContext);
+            span.Finish(result);
+
+            UpdatedAt = DateTimeOffset.Now;
+            await conversationRuntimeCoordinator.PersistConversationSessionAsync(this, agent, session, linkedCts.Token);
+            conversationOwner.SaveConversation(this);
+        }
+        catch (OperationCanceledException)
+        {
+            span.Finish(SpanStatus.Cancelled);
+        }
+        catch (Exception ex)
+        {
+            SentryDiagnostics.CaptureException(ex, span, SentryOperations.AIChatSend);
+            throw;
+        }
+        finally
+        {
+            SetGenerationCancellationTokenSource(null);
+            RebuildConversationStatistics();
+            linkedCts.Dispose();
+            IsBusy = false;
+            SendMessageCommand.NotifyCanExecuteChanged();
+            StopGenerationCommand.NotifyCanExecuteChanged();
+            NotifyToolApprovalCommandCanExecuteChanged();
+        }
+    }
+
+    private ObservableChatMessage? FindMessageContaining(ObservableAIContent content)
+    {
+        foreach (ObservableChatMessage message in Messages)
+        {
+            if (message.Contents.Contains(content))
+            {
+                return message;
+            }
+        }
+
+        return null;
+    }
+
+    private void NotifyToolApprovalCommandCanExecuteChanged()
+    {
+        ApproveToolApprovalCommand.NotifyCanExecuteChanged();
+        DenyToolApprovalCommand.NotifyCanExecuteChanged();
+    }
+
+    private void ConfigureObservableContent(ObservableAIContent content)
+    {
+        if (content is not ObservableToolApprovalRequestContent request)
+        {
+            return;
+        }
+
+        request.ApproveCommand = ApproveToolApprovalCommand;
+        request.DenyCommand = DenyToolApprovalCommand;
     }
 
     private static async ValueTask<SpanStatus> AddMissingApiKeyMessagesAsync(string input, DateTimeOffset? createdAt, string? authorName, ObservableChatMessageCollection collection, TaskScheduler taskScheduler, CancellationToken cancellationToken)
@@ -331,10 +462,10 @@ internal sealed partial class AgentConversationViewModel(IAgentService agentServ
             return previous;
         }
 
-        OnPropertyChanged(nameof(CanSendMessage));
         OnPropertyChanged(nameof(CanStopGeneration));
         SendMessageCommand.NotifyCanExecuteChanged();
         StopGenerationCommand.NotifyCanExecuteChanged();
+        NotifyToolApprovalCommandCanExecuteChanged();
         return previous;
     }
 }

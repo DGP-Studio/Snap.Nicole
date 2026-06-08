@@ -54,6 +54,10 @@
             <snuxcc:ChatFunctionResultSegmentView FunctionResult="{Binding}" />
         </DataTemplate>
 
+        <DataTemplate x:Key="ToolApprovalRequestContentTemplate" x:DataType="snsao:ObservableToolApprovalRequestContent">
+            <snuxcc:ChatToolApprovalRequestSegmentView ToolApprovalRequest="{Binding}" />
+        </DataTemplate>
+
         <DataTemplate x:Key="UsageContentTemplate" x:DataType="snsao:ObservableUsageContent">
             <StackPanel
                 Margin="1,0,0,0"
@@ -141,6 +145,7 @@
             FunctionResultTemplate="{StaticResource FunctionResultContentTemplate}"
             ReasoningTemplate="{StaticResource ReasoningContentTemplate}"
             TextTemplate="{StaticResource TextContentTemplate}"
+            ToolApprovalRequestTemplate="{StaticResource ToolApprovalRequestContentTemplate}"
             UsageTemplate="{StaticResource UsageContentTemplate}" />
     </UserControl.Resources>
 

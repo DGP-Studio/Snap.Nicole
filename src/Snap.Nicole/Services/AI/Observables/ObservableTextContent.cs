@@ -23,4 +23,9 @@ internal sealed partial class ObservableTextContent : ObservableAIContent
             Text = text,
         };
     }
+
+    public void Update(ObservableTextContent textContent)
+    {
+        Text += textContent.Text;
+    }
 }

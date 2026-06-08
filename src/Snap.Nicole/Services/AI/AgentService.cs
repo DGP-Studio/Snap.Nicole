@@ -40,27 +40,31 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
         return agent.SerializeSessionAsync(session, cancellationToken: cancellationToken);
     }
 
-    public async ValueTask<SpanStatus> RunStreamingAsync(HarnessAgent agent, ChatMessage message, ObservableChatMessageCollection collection, ExtendedAgentOptions options, AgentSession session, TaskScheduler taskScheduler, CancellationToken cancellationToken = default)
+    public async ValueTask<SpanStatus> RunStreamingAsync(AgentRunStreamingContext context)
     {
         using SentryDiagnosticSpan span = SentryDiagnostics.StartSpan(SentryOperations.AIChatStream, "Run streaming chat completion");
-        span.SetTag(SentryTags.AIProvider, options.ProviderType.ToString());
-        span.SetTag(SentryTags.AIModel, options.ModelId);
+        span.SetTag(SentryTags.AIProvider, context.Options.ProviderType.ToString());
+        span.SetTag(SentryTags.AIModel, context.Options.ModelId);
 
         try
         {
-            ObservableChatMessage inputMessage = ObservableChatMessage.Create(message, functionContentJsonOptions);
-            await taskScheduler.Run(ObservableChatMessageCollection.Add, collection, inputMessage, cancellationToken);
+            if (context.AddInputMessage)
+            {
+                ObservableChatMessage inputMessage = ObservableChatMessage.Create(context.Message, functionContentJsonOptions);
+                await context.TaskScheduler.Run(ObservableChatMessageCollection.Add, context.Collection, inputMessage, context.CancellationToken);
+            }
 
-            ObservableChatMessage? responseMessage = null;
-            bool responseAdded = false;
+            ObservableChatMessage? responseMessage = context.TargetResponseMessage;
+            bool responseAdded = context.TargetResponseMessage is not null;
 
-            await foreach (AgentResponseUpdate update in agent.RunStreamingAsync([message], session, options.AsAgentRunOptions(), cancellationToken))
+            await foreach (AgentResponseUpdate update in context.Agent.RunStreamingAsync([context.Message], context.Session, context.Options.AsAgentRunOptions(), context.CancellationToken))
             {
                 List<ObservableAIContent> observableContents = [];
                 foreach (AIContent content in update.Contents)
                 {
                     if (ObservableAIContent.Create(content, functionContentJsonOptions) is { } observableContent)
                     {
+                        context.ConfigureContent?.Invoke(observableContent);
                         observableContents.Add(observableContent);
                     }
                 }
@@ -71,9 +75,9 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
                     continue;
                 }
 
-                State state = new(collection, options, observableContents, responseMessage, responseAdded);
+                State state = new(context.Collection, context.Options, observableContents, responseMessage, responseAdded);
 
-                await taskScheduler.Run(static (state) =>
+                await context.TaskScheduler.Run(static (state) =>
                 {
                     // TODOO: this should be possible to lift out of the UI thread dispatch,
                     // but currently if this is created on a background thread, the UI gets stuck and doesn't update at all.
@@ -89,7 +93,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
                     {
                         state.ResponseMessage.Contents.AddOrUpdate(observableContent);
                     }
-                }, state, cancellationToken);
+                }, state, context.CancellationToken);
 
                 responseMessage = state.ResponseMessage;
                 responseAdded = state.ResponseAdded;
@@ -98,7 +102,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
             span.SetData(SentryData.AIResponseAdded, responseAdded);
             return SpanStatus.Ok;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
         {
             span.Finish(SpanStatus.Cancelled);
             throw;
@@ -107,15 +111,24 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
         {
             SentryDiagnostics.CaptureException(ex, span, SentryOperations.AIChatStream);
 
-            ObservableChatMessage errorMessage = ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, content: ObservableTextContent.Create($"Error: {ex.Message}"));
-            await taskScheduler.Run(ObservableChatMessageCollection.Add, collection, errorMessage, cancellationToken);
+            ObservableTextContent errorContent = ObservableTextContent.Create($"Error: {ex.Message}");
+            if (context.TargetResponseMessage is not null)
+            {
+                await context.TaskScheduler.Run(static (message, content) => message.Contents.AddOrUpdate(content), context.TargetResponseMessage, errorContent, context.CancellationToken);
+            }
+            else
+            {
+                ObservableChatMessage errorMessage = ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, content: errorContent);
+                await context.TaskScheduler.Run(ObservableChatMessageCollection.Add, context.Collection, errorMessage, context.CancellationToken);
+            }
+
             return SpanStatus.InternalError;
         }
     }
 
     private static IList<AITool> CreateBuiltInTools()
     {
-        return [AIFunctionFactory.Create(BuiltInFunctions.GetCurrentTime)];
+        return [new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.GetCurrentTime))];
     }
 
     private sealed class State(ObservableChatMessageCollection collection, ExtendedAgentOptions options, List<ObservableAIContent> observableContents, ObservableChatMessage? responseMessage, bool responseAdded)

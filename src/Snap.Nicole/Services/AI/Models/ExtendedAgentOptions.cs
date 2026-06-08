@@ -135,7 +135,7 @@ internal sealed class ExtendedAgentOptions
             ChatHistoryProvider = CreateChatHistoryProvider(serviceProvider),
             HarnessInstructions = string.Empty,
             MaximumIterationsPerRequest = MaximumIterationsPerRequest,
-            DisableToolApproval = true,
+            DisableToolApproval = false,
             DisableFileMemory = true,
             DisableFileAccess = true,
             DisableWebSearch = true,

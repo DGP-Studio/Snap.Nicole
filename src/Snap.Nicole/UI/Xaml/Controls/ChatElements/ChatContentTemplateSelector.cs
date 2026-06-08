@@ -14,6 +14,8 @@ internal sealed class ChatContentTemplateSelector : DataTemplateSelector
 
     public DataTemplate? FunctionResultTemplate { get; set; }
 
+    public DataTemplate? ToolApprovalRequestTemplate { get; set; }
+
     public DataTemplate? UsageTemplate { get; set; }
 
     public DataTemplate? FallbackTemplate { get; set; }
@@ -26,6 +28,7 @@ internal sealed class ChatContentTemplateSelector : DataTemplateSelector
             ObservableTextReasoningContent => ReasoningTemplate,
             ObservableFunctionCallContent => FunctionCallTemplate,
             ObservableFunctionResultContent => FunctionResultTemplate,
+            ObservableToolApprovalRequestContent => ToolApprovalRequestTemplate,
             ObservableUsageContent => UsageTemplate,
             _ => FallbackTemplate,
         };

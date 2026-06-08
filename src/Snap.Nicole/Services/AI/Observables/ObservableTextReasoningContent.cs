@@ -18,4 +18,9 @@ internal sealed partial class ObservableTextReasoningContent : ObservableAIConte
             Text = textReasoningContent.Text,
         };
     }
+
+    public void Update(ObservableTextReasoningContent textReasoningContent)
+    {
+        Text += textReasoningContent.Text;
+    }
 }

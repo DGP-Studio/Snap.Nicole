@@ -1,7 +1,6 @@
 **已随 Harness 接入，部分已有产品化控制面**
 1. `FunctionInvokingChatClient`
    Harness 默认启用自动 function/tool invocation。当前实际传入的工具只有 `BuiltInFunctions.GetCurrentTime`。
-   已接入：`MaximumIterationsPerRequest` 作为全局应用配置保存在 `AppSettings.AgentOptions`，设置页“智能体全局配置”可调整，默认值为 8。
    后续：工具调用日志、失败重试策略和每轮调用上限。
 
 2. `MessageInjectingChatClient`

@@ -42,17 +42,25 @@ internal sealed class ObservableAIContentCollection : ObservableCollection<Obser
         switch (lastContent)
         {
             case ObservableTextContent lastText when newContent is ObservableTextContent newText:
-                lastText.Text += newText.Text;
+                lastText.Update(newText);
                 return;
             case ObservableTextReasoningContent lastReasoning when newContent is ObservableTextReasoningContent newReasoning:
-                lastReasoning.Text += newReasoning.Text;
+                lastReasoning.Update(newReasoning);
                 return;
             case ObservableFunctionCallContent lastFunctionCall when newContent is ObservableFunctionCallContent newFunctionCall && lastFunctionCall.CallId == newFunctionCall.CallId:
-                lastFunctionCall.Name = newFunctionCall.Name;
-                lastFunctionCall.Arguments = newFunctionCall.Arguments;
+                lastFunctionCall.Update(newFunctionCall);
                 return;
             case ObservableFunctionResultContent lastFunctionResult when newContent is ObservableFunctionResultContent newFunctionResult && lastFunctionResult.CallId == newFunctionResult.CallId:
-                lastFunctionResult.Result = newFunctionResult.Result;
+                lastFunctionResult.Update(newFunctionResult);
+                return;
+            case ObservableToolApprovalRequestContent lastApprovalRequest when newContent is ObservableToolApprovalRequestContent newApprovalRequest && lastApprovalRequest.RequestId == newApprovalRequest.RequestId:
+                lastApprovalRequest.Update(newApprovalRequest);
+                return;
+            case ObservableToolApprovalRequestContent lastApprovalRequest when newContent is ObservableToolApprovalResponseContent newApprovalResponse && lastApprovalRequest.RequestId == newApprovalResponse.RequestId:
+                lastApprovalRequest.Update(newApprovalResponse);
+                return;
+            case ObservableToolApprovalResponseContent lastApprovalResponse when newContent is ObservableToolApprovalResponseContent newApprovalResponse && lastApprovalResponse.RequestId == newApprovalResponse.RequestId:
+                lastApprovalResponse.Update(newApprovalResponse);
                 return;
             case ObservableUsageContent lastUsage when newContent is ObservableUsageContent newUsage:
                 lastUsage.Update(newUsage);

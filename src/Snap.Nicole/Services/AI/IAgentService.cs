@@ -1,11 +1,9 @@
 using Snap.Nicole.Services.AI.Models;
-using Snap.Nicole.Services.AI.Observables;
 using System.Threading;
 using Microsoft.Agents.AI;
-using Microsoft.Extensions.AI;
-using Sentry;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Sentry;
 
 namespace Snap.Nicole.Services.AI;
 
@@ -19,5 +17,5 @@ internal interface IAgentService
 
     ValueTask<JsonElement> SerializeSessionAsync(HarnessAgent agent, AgentSession session, CancellationToken cancellationToken = default);
 
-    ValueTask<SpanStatus> RunStreamingAsync(HarnessAgent agent, ChatMessage message, ObservableChatMessageCollection collection, ExtendedAgentOptions options, AgentSession session, TaskScheduler taskScheduler, CancellationToken cancellationToken = default);
+    ValueTask<SpanStatus> RunStreamingAsync(AgentRunStreamingContext context);
 }

@@ -1,4 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.Extensions.AI;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Snap.Nicole.Services.AI.Observables;
@@ -12,5 +14,24 @@ namespace Snap.Nicole.Services.AI.Observables;
 internal partial class ObservableToolCallContent : ObservableAIContent
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayName))]
     public partial string CallId { get; set; }
+
+    [JsonIgnore]
+    public virtual string DisplayName { get => CallId; }
+
+    [JsonIgnore]
+    public virtual string? DisplayArguments { get => null; }
+
+    public static ObservableToolCallContent Create(ToolCallContent toolCallContent, JsonSerializerOptions jsonOptions)
+    {
+        return toolCallContent switch
+        {
+            FunctionCallContent functionCallContent => ObservableFunctionCallContent.Create(functionCallContent, jsonOptions),
+            _ => new()
+            {
+                CallId = toolCallContent.CallId,
+            },
+        };
+    }
 }
