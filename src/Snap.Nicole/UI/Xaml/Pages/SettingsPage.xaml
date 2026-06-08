@@ -8,7 +8,6 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:mxi="using:Microsoft.Xaml.Interactivity"
     xmlns:snuxb="using:Snap.Nicole.UI.Xaml.Behaviors"
-    xmlns:snuxc="using:Snap.Nicole.UI.Xaml.Controls"
     xmlns:snuxd="using:Snap.Nicole.UI.Xaml.Data"
     xmlns:snuxm="using:Snap.Nicole.UI.Xaml.Markup"
     xmlns:snvs="using:Snap.Nicole.ViewModels.Settings"
@@ -304,11 +303,14 @@
                                             </ComboBox>
                                             <TextBox Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelProfileEndpoint}" Text="{Binding Settings.ModelProviderProfiles.CurrentItem.Endpoint, Mode=TwoWay}" />
                                             <PasswordBox
-                                                snuxc:PasswordBoxExtensions.Password="{Binding Settings.ModelProviderProfiles.CurrentItem.ApiKey, Mode=TwoWay}"
                                                 Description="{snuxm:StringResource Name=UIXamlPagesSettingsPageDescriptionProfileApiKey}"
                                                 Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelProfileApiKey}"
                                                 PasswordChar="&#x2022;"
-                                                PasswordRevealMode="Peek" />
+                                                PasswordRevealMode="Peek">
+                                                <mxi:Interaction.Behaviors>
+                                                    <snuxb:PasswordBoxBindingBehavior Password="{Binding Settings.ModelProviderProfiles.CurrentItem.ApiKey, Mode=TwoWay}" />
+                                                </mxi:Interaction.Behaviors>
+                                            </PasswordBox>
 
                                             <StackPanel Spacing="3">
                                                 <cwcont:SettingsCard Description="{snuxm:StringResource Name=UIXamlPagesSettingsPageDescriptionModelListDocumentationLink}" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelModelListDocumentationLink}">
