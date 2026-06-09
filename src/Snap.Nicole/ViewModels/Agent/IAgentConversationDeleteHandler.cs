@@ -1,8 +1,6 @@
 namespace Snap.Nicole.ViewModels.Agent;
 
-internal interface IAgentConversationOwner
+internal interface IAgentConversationDeleteHandler
 {
-    void SaveConversation(AgentConversationViewModel conversation);
-
     bool DeleteConversation(AgentConversationViewModel conversation);
 }

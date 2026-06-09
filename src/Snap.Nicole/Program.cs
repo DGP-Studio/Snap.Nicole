@@ -71,10 +71,16 @@ internal static class Program
                     .AddTransient<NotifyIconContextMenuFlyoutViewModel>()
                     .AddTransient<MainViewModel>()
                     .AddTransient<HomeViewModel>()
-                    .AddTransient<SettingsGitSyncViewModel>()
-                    .AddTransient<SettingsModelConfigurationViewModel>()
+                    .AddTransient<AgentViewModel>()
+                    .AddTransient<AgentConversationPersistenceController>()
+                    .AddTransient<AgentConversationProfileController>()
+                    .AddTransient<AgentConversationRuntimeController>()
+                    .AddTransient<AgentConversationTurnController>()
+                    .AddTransient<AgentConversationViewModelFactory>()
+                    .AddTransient<AgentConversationCollectionController>()
                     .AddTransient<SettingsViewModel>()
-                    .AddTransient<AgentViewModel>();
+                    .AddTransient<SettingsGitSyncViewModel>()
+                    .AddTransient<SettingsModelConfigurationViewModel>();
 
                 services
                     .AddSingleton<ObjectPoolProvider, DefaultObjectPoolProvider>()

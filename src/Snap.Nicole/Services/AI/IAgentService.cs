@@ -17,5 +17,5 @@ internal interface IAgentService
 
     ValueTask<JsonElement> SerializeSessionAsync(HarnessAgent agent, AgentSession session, CancellationToken cancellationToken = default);
 
-    ValueTask<SpanStatus> RunStreamingAsync(AgentRunStreamingContext context);
+    ValueTask<SpanStatus> RunStreamingAsync(AgentRunStreamingContext context, TaskScheduler taskScheduler, CancellationToken cancellationToken);
 }

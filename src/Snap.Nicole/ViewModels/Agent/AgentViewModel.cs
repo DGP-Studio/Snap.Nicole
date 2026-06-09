@@ -1,7 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Snap.Nicole.Core.Collections.ObjectModel;
-using Snap.Nicole.Services.AI;
 using Snap.Nicole.Services.Settings;
 using System.Threading;
 
@@ -13,15 +12,11 @@ internal sealed partial class AgentViewModel : ObservableObject, IDisposable
 
     private bool disposed;
 
-    public AgentViewModel(IServiceProvider serviceProvider)
+    public AgentViewModel(IOptionsProvider<AppSettings> settingsProvider, AgentConversationCollectionController conversationCollectionController)
     {
-        Settings = serviceProvider.GetRequiredService<IOptionsProvider<AppSettings>>().CurrentValue;
-
-        IAgentConversationProvider conversationProvider = serviceProvider.GetRequiredService<IAgentConversationProvider>();
-        IAgentService agentService = serviceProvider.GetRequiredService<IAgentService>();
-        conversationCollectionController = new(conversationProvider, agentService, Settings);
-
-        conversationCollectionController.LoadConversations();
+        Settings = settingsProvider.CurrentValue;
+        this.conversationCollectionController = conversationCollectionController;
+        this.conversationCollectionController.LoadConversations();
     }
 
     public AppSettings Settings { get; }

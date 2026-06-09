@@ -1,20 +1,17 @@
 using Snap.Nicole.Core.Collections.ObjectModel;
 using Snap.Nicole.Core.Diagnostics;
-using Snap.Nicole.Services.AI;
 using Snap.Nicole.Services.AI.Models;
-using Snap.Nicole.Services.Settings;
 using System.Linq;
 using System.Threading;
 
 namespace Snap.Nicole.ViewModels.Agent;
 
-internal sealed class AgentConversationCollectionController(IAgentConversationProvider conversationProvider, IAgentService agentService, AppSettings settings)
-    : IAgentConversationOwner, IDisposable
+internal sealed class AgentConversationCollectionController(IServiceProvider serviceProvider)
+    : IAgentConversationDeleteHandler, IDisposable
 {
-    private readonly IAgentConversationProvider conversationProvider = conversationProvider;
-    private readonly IAgentService agentService = agentService;
-    private readonly AgentConversationRuntimeCoordinator runtimeCoordinator = new(agentService);
-    private readonly AgentConversationProfileCoordinator profileCoordinator = new(settings);
+    private readonly AgentConversationPersistenceController persistenceController = serviceProvider.GetRequiredService<AgentConversationPersistenceController>();
+    private readonly AgentConversationProfileController profileController = serviceProvider.GetRequiredService<AgentConversationProfileController>();
+    private readonly AgentConversationViewModelFactory conversationFactory = serviceProvider.GetRequiredService<AgentConversationViewModelFactory>();
 
     private bool disposed;
 
@@ -57,10 +54,11 @@ internal sealed class AgentConversationCollectionController(IAgentConversationPr
             }
         }
 
-        conversationProvider.DeleteConversation(conversation.Id);
+        persistenceController.DeleteConversation(conversation);
         Conversations.Remove(conversation);
         conversation.Dispose();
 
+        // Ensure there is always a conversation
         if (Conversations.Count is 0)
         {
             AgentConversationViewModel newConversation = CreateConversationCore();
@@ -71,17 +69,12 @@ internal sealed class AgentConversationCollectionController(IAgentConversationPr
         return true;
     }
 
-    public void SaveConversation(AgentConversationViewModel conversation)
-    {
-        conversationProvider.SaveConversation(conversation.ToData());
-    }
-
     public void LoadConversations()
     {
-        foreach (AgentConversation conversation in conversationProvider.LoadConversations().OrderByDescending(static item => item.UpdatedAt))
+        foreach (AgentConversation conversation in persistenceController.LoadConversations().OrderByDescending(static item => item.UpdatedAt))
         {
-            AgentConversationViewModel viewModel = AgentConversationViewModel.Create(conversation, agentService, runtimeCoordinator, profileCoordinator, this);
-            profileCoordinator.ResolveConversationProfile(viewModel, conversation.ModelProviderProfileId, conversation.ModelProfileId);
+            AgentConversationViewModel viewModel = conversationFactory.Create(conversation, this);
+            ApplyConversationProfile(viewModel, conversation.ModelProviderProfileId, conversation.ModelProfileId);
             Conversations.Add(viewModel);
         }
 
@@ -98,14 +91,21 @@ internal sealed class AgentConversationCollectionController(IAgentConversationPr
         AgentConversationViewModel conversation = CreateConversationCore();
         Conversations.Insert(0, conversation);
         Conversations.CurrentItem = conversation;
-        SaveConversation(conversation);
+        persistenceController.SaveConversation(conversation);
         return conversation;
     }
 
     private AgentConversationViewModel CreateConversationCore()
     {
-        AgentConversationViewModel conversation = new(agentService, runtimeCoordinator, profileCoordinator, this);
-        profileCoordinator.ResolveConversationProfile(conversation, null, null);
+        AgentConversationViewModel conversation = conversationFactory.Create(this);
+        ApplyConversationProfile(conversation, null, null);
         return conversation;
+    }
+
+    private void ApplyConversationProfile(AgentConversationViewModel conversation, Guid? providerProfileId, Guid? modelProfileId)
+    {
+        ModelProviderProfile? providerProfile = profileController.ResolveModelProviderProfile(providerProfileId);
+        conversation.ModelProviderProfile = providerProfile;
+        conversation.ModelProfile = profileController.ResolveModelProfile(providerProfile, modelProfileId);
     }
 }

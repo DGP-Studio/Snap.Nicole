@@ -40,7 +40,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
         return agent.SerializeSessionAsync(session, cancellationToken: cancellationToken);
     }
 
-    public async ValueTask<SpanStatus> RunStreamingAsync(AgentRunStreamingContext context)
+    public async ValueTask<SpanStatus> RunStreamingAsync(AgentRunStreamingContext context, TaskScheduler taskScheduler, CancellationToken cancellationToken)
     {
         using SentryDiagnosticSpan span = SentryDiagnostics.StartSpan(SentryOperations.AIChatStream, "Run streaming chat completion");
         span.SetTag(SentryTags.AIProvider, context.Options.ProviderType.ToString());
@@ -48,16 +48,16 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
 
         try
         {
-            if (context.AddInputMessage)
+            if (ShouldAddInputMessage(context.Message))
             {
                 ObservableChatMessage inputMessage = ObservableChatMessage.Create(context.Message, functionContentJsonOptions);
-                await context.TaskScheduler.Run(ObservableChatMessageCollection.Add, context.Collection, inputMessage, context.CancellationToken);
+                await taskScheduler.Run(ObservableChatMessageCollection.Add, context.Collection, inputMessage, cancellationToken);
             }
 
             ObservableChatMessage? responseMessage = context.TargetResponseMessage;
             bool responseAdded = context.TargetResponseMessage is not null;
 
-            await foreach (AgentResponseUpdate update in context.Agent.RunStreamingAsync([context.Message], context.Session, context.Options.AsAgentRunOptions(), context.CancellationToken))
+            await foreach (AgentResponseUpdate update in context.Agent.RunStreamingAsync([context.Message], context.Session, context.Options.AsAgentRunOptions(), cancellationToken))
             {
                 List<ObservableAIContent> observableContents = [];
                 foreach (AIContent content in update.Contents)
@@ -77,7 +77,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
 
                 State state = new(context.Collection, context.Options, observableContents, responseMessage, responseAdded);
 
-                await context.TaskScheduler.Run(static (state) =>
+                await taskScheduler.Run(static (state) =>
                 {
                     // TODOO: this should be possible to lift out of the UI thread dispatch,
                     // but currently if this is created on a background thread, the UI gets stuck and doesn't update at all.
@@ -93,7 +93,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
                     {
                         state.ResponseMessage.Contents.AddOrUpdate(observableContent);
                     }
-                }, state, context.CancellationToken);
+                }, state, cancellationToken);
 
                 responseMessage = state.ResponseMessage;
                 responseAdded = state.ResponseAdded;
@@ -102,7 +102,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
             span.SetData(SentryData.AIResponseAdded, responseAdded);
             return SpanStatus.Ok;
         }
-        catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             span.Finish(SpanStatus.Cancelled);
             throw;
@@ -114,16 +114,22 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
             ObservableTextContent errorContent = ObservableTextContent.Create($"Error: {ex.Message}");
             if (context.TargetResponseMessage is not null)
             {
-                await context.TaskScheduler.Run(static (message, content) => message.Contents.AddOrUpdate(content), context.TargetResponseMessage, errorContent, context.CancellationToken);
+                await taskScheduler.Run(static (message, content) => message.Contents.AddOrUpdate(content), context.TargetResponseMessage, errorContent, cancellationToken);
             }
             else
             {
                 ObservableChatMessage errorMessage = ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, content: errorContent);
-                await context.TaskScheduler.Run(ObservableChatMessageCollection.Add, context.Collection, errorMessage, context.CancellationToken);
+                await taskScheduler.Run(ObservableChatMessageCollection.Add, context.Collection, errorMessage, cancellationToken);
             }
 
             return SpanStatus.InternalError;
         }
+    }
+
+    private static bool ShouldAddInputMessage(ChatMessage message)
+    {
+        // This method is lifted out for future extensibility
+        return message.Contents is not [ToolApprovalResponseContent];
     }
 
     private static IList<AITool> CreateBuiltInTools()
