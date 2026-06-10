@@ -6,6 +6,7 @@ using Snap.Nicole.Resources;
 using Snap.Nicole.Services.AI;
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.AI.Observables;
+using Snap.Nicole.Services.Settings;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -16,9 +17,12 @@ namespace Snap.Nicole.ViewModels.Agent;
 internal sealed class AgentConversationTurnController(IServiceProvider serviceProvider)
 {
     private readonly IAgentService agentService = serviceProvider.GetRequiredService<IAgentService>();
+    private readonly AppSettings settings = serviceProvider.GetRequiredService<IOptionsProvider<AppSettings>>().CurrentValue;
     private readonly AgentConversationProfileController profileController = serviceProvider.GetRequiredService<AgentConversationProfileController>();
     private readonly AgentConversationRuntimeController runtimeController = serviceProvider.GetRequiredService<AgentConversationRuntimeController>();
     private readonly AgentConversationPersistenceController persistenceController = serviceProvider.GetRequiredService<AgentConversationPersistenceController>();
+
+    public string UserName { get => AgentOptionsNormalizer.NormalizeUserName(settings.AgentOptions.UserName); }
 
     public bool CanRespondToToolApproval(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent? request, [NotNullWhen(true)] out HarnessAgent? agent, [NotNullWhen(true)] out AgentSession? session, [NotNullWhen(true)] out ExtendedAgentOptions? agentOptions)
     {
@@ -67,11 +71,10 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         HarnessAgent agent = await runtimeController.EnsureConversationAgentAsync(conversation.Runtime, requestOptions, cancellationToken);
         AgentSession session = await runtimeController.EnsureConversationSessionAsync(conversation.Runtime, agent, cancellationToken);
 
-        // TODO: Add a global authorName configuration for the user.
         ChatMessage userMessage = new(ChatRole.User, input)
         {
             CreatedAt = DateTimeOffset.Now,
-            AuthorName = "You",
+            AuthorName = UserName,
         };
 
         AgentConversationTurnOperation operation = new()
@@ -114,7 +117,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         ChatMessage responseMessage = new(ChatRole.User, [responseContent])
         {
             CreatedAt = DateTimeOffset.Now,
-            AuthorName = "You",
+            AuthorName = UserName,
         };
 
         AgentConversationTurnOperation operation = new()

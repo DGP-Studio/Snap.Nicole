@@ -2,7 +2,14 @@ namespace Snap.Nicole.Services.AI.Models;
 
 internal static class AgentOptionsNormalizer
 {
+    public const string DefaultUserName = "You";
+
     public const int DefaultMaximumIterationsPerRequest = 500;
+
+    public static string NormalizeUserName(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? DefaultUserName : value.Trim();
+    }
 
     public static int? NormalizeTokenLimit(int? value)
     {

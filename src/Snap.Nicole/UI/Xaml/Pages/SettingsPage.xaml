@@ -195,6 +195,12 @@
                                 Margin="1,0,0,0"
                                 Style="{ThemeResource BaseTextBlockStyle}"
                                 Text="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelAgentGlobalOptions}" />
+                            <cwcont:SettingsCard Description="{snuxm:StringResource Name=UIXamlPagesSettingsPageDescriptionAgentUserName}" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelAgentUserName}">
+                                <TextBox
+                                    MinWidth="240"
+                                    PlaceholderText="{snuxm:StringResource Name=UIXamlPagesSettingsPagePlaceholderAgentUserName}"
+                                    Text="{Binding Settings.AgentOptions.UserName, Mode=TwoWay}" />
+                            </cwcont:SettingsCard>
                             <cwcont:SettingsCard Description="{snuxm:StringResource Name=UIXamlPagesSettingsPageDescriptionAgentMaximumIterationsPerRequest}" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelAgentMaximumIterationsPerRequest}">
                                 <NumberBox
                                     LargeChange="1"

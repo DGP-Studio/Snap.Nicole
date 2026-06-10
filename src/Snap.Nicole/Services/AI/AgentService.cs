@@ -57,6 +57,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
             ObservableChatMessage? responseMessage = context.TargetResponseMessage;
             bool responseAdded = context.TargetResponseMessage is not null;
 
+            await Task.Yield();
             await foreach (AgentResponseUpdate update in context.Agent.RunStreamingAsync([context.Message], context.Session, context.Options.AsAgentRunOptions(), cancellationToken))
             {
                 List<ObservableAIContent> observableContents = [];

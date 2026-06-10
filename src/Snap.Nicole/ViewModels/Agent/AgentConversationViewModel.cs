@@ -251,7 +251,8 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
 
     private void AddExceptionMessages(string input, AgentConversationException ex)
     {
-        ObservableChatMessage inputMessage = ObservableChatMessage.Create(ChatRole.User, DateTimeOffset.Now, "You", ObservableTextContent.Create(input));
+        // TODO: move logic to AgentConversationTurnController
+        ObservableChatMessage inputMessage = ObservableChatMessage.Create(ChatRole.User, DateTimeOffset.Now, conversationTurnController.UserName, ObservableTextContent.Create(input));
         Messages.Add(inputMessage);
 
         ObservableErrorContent errorContent = ObservableErrorContent.Create(ex.Message);

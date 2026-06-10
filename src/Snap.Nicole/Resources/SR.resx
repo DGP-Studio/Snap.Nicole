@@ -381,6 +381,15 @@
   <data name="UIXamlPagesSettingsPageLabelAgentGlobalOptions" xml:space="preserve">
     <value>全局配置</value>
   </data>
+  <data name="UIXamlPagesSettingsPageLabelAgentUserName" xml:space="preserve">
+    <value>用户名称</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageDescriptionAgentUserName" xml:space="preserve">
+    <value>用于标记你发送的消息</value>
+  </data>
+  <data name="UIXamlPagesSettingsPagePlaceholderAgentUserName" xml:space="preserve">
+    <value>You</value>
+  </data>
   <data name="UIXamlPagesSettingsPageLabelAgentMaximumIterationsPerRequest" xml:space="preserve">
     <value>最大工具调用次数</value>
   </data>

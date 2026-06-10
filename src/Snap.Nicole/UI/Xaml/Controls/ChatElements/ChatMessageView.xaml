@@ -201,12 +201,20 @@
         Visibility="{Binding Message, ElementName=Root, Converter={StaticResource MessageVisibilityConverter}}">
         <StackPanel HorizontalAlignment="Stretch" Spacing="4">
             <Grid Margin="1,0,0,0">
-                <TextBlock
-                    FontSize="12"
-                    FontWeight="SemiBold"
-                    Opacity="0.7"
-                    Text="{snuxm:StringResource Name=UIXamlControlsChatMessageViewLabelUser}"
-                    Visibility="{Binding Message.Role, ElementName=Root, Converter={StaticResource UserMessageVisibilityConverter}}" />
+                <Grid Visibility="{Binding Message.Role, ElementName=Root, Converter={StaticResource UserMessageVisibilityConverter}}">
+                    <TextBlock
+                        FontSize="12"
+                        FontWeight="SemiBold"
+                        Opacity="0.7"
+                        Text="{Binding Message.AuthorName, ElementName=Root}"
+                        Visibility="{Binding Message.AuthorName, ElementName=Root, Converter={StaticResource AuthorNameVisibilityConverter}}" />
+                    <TextBlock
+                        FontSize="12"
+                        FontWeight="SemiBold"
+                        Opacity="0.7"
+                        Text="{snuxm:StringResource Name=UIXamlControlsChatMessageViewLabelUser}"
+                        Visibility="{Binding Message.AuthorName, ElementName=Root, Converter={StaticResource EmptyAuthorNameVisibilityConverter}}" />
+                </Grid>
                 <Grid Visibility="{Binding Message.Role, ElementName=Root, Converter={StaticResource NonUserMessageVisibilityConverter}}">
                     <TextBlock
                         FontSize="12"
