@@ -2,12 +2,12 @@ namespace Snap.Nicole.Core;
 
 internal ref struct BooleanTrueScope : IDisposable
 {
-    private ref bool value;
+    private ref bool storage;
 
-    public BooleanTrueScope(ref bool value)
+    public BooleanTrueScope(ref bool storage)
     {
-        this.value = ref value;
-        value = true;
+        this.storage = ref storage;
+        storage = true;
     }
 
     public static BooleanTrueScope Create(ref bool value)
@@ -17,6 +17,6 @@ internal ref struct BooleanTrueScope : IDisposable
 
     public void Dispose()
     {
-        value = false;
+        storage = false;
     }
 }

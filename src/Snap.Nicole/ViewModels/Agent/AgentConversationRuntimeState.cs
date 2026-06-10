@@ -6,9 +6,9 @@ namespace Snap.Nicole.ViewModels.Agent;
 
 internal sealed class AgentConversationRuntimeState
 {
-    public HarnessAgent? Agent { get; set; }
+    public HarnessAgent? Agent { get; private set; }
 
-    public ExtendedAgentOptions? AgentOptions { get; set; }
+    public ExtendedAgentOptions? AgentOptions { get; private set; }
 
     public AgentSession? Session { get; set; }
 

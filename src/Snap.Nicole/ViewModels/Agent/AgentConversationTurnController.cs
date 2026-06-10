@@ -2,11 +2,12 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Sentry;
 using Snap.Nicole.Core.Diagnostics;
-using Snap.Nicole.Core.Threading;
 using Snap.Nicole.Resources;
 using Snap.Nicole.Services.AI;
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.AI.Observables;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,25 +20,52 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
     private readonly AgentConversationRuntimeController runtimeController = serviceProvider.GetRequiredService<AgentConversationRuntimeController>();
     private readonly AgentConversationPersistenceController persistenceController = serviceProvider.GetRequiredService<AgentConversationPersistenceController>();
 
+    public bool CanRespondToToolApproval(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent? request, [NotNullWhen(true)] out HarnessAgent? agent, [NotNullWhen(true)] out AgentSession? session, [NotNullWhen(true)] out ExtendedAgentOptions? agentOptions)
+    {
+        agent = null;
+        session = null;
+        agentOptions = null;
+
+        if (conversation.IsBusy)
+        {
+            return false;
+        }
+
+        if (request?.CanRespond is not true)
+        {
+            return false;
+        }
+
+        if (conversation.Runtime is { Agent: { } localAgent, Session: { } localSession, AgentOptions: { } localAgentOptions })
+        {
+            agent = localAgent;
+            session = localSession;
+            agentOptions = localAgentOptions;
+
+            return true;
+        }
+
+        return false;
+    }
+
     public async Task SendMessageAsync(AgentConversationViewModel conversation, string input, Action<ObservableAIContent> configureContent, CancellationToken cancellationToken)
     {
-        ExtendedAgentOptions? requestOptions = profileController.CreateRequestOptions(conversation.ModelProviderProfile, conversation.ModelProfile);
-        if (requestOptions is null)
+        if (profileController.CreateRequestOptions(conversation.ModelProviderProfile, conversation.ModelProfile) is not { } requestOptions)
         {
+            // TODO: Consider throw there.
             return;
         }
 
-        HarnessAgent? agent = null;
-        AgentSession? session = null;
-        if (!string.IsNullOrWhiteSpace(requestOptions.ApiKey))
-        {
-            agent = await runtimeController.EnsureConversationAgentAsync(conversation.Runtime, requestOptions, cancellationToken);
-            session = await runtimeController.EnsureConversationSessionAsync(conversation.Runtime, agent, cancellationToken);
-        }
-        else
+        if (string.IsNullOrWhiteSpace(requestOptions.ApiKey))
         {
             conversation.Runtime.Reset();
+
+            SentryDiagnostics.AddBreadcrumb("Chat blocked by missing API key", SentryBreadcrumbCategories.AIChat, SentryBreadcrumbTypes.UI);
+            throw new AgentConversationException(SRName.UIXamlPagesAgentPageMessageConfigureApiKey);
         }
+
+        HarnessAgent agent = await runtimeController.EnsureConversationAgentAsync(conversation.Runtime, requestOptions, cancellationToken);
+        AgentSession session = await runtimeController.EnsureConversationSessionAsync(conversation.Runtime, agent, cancellationToken);
 
         // TODO: Add a global authorName configuration for the user.
         ChatMessage userMessage = new(ChatRole.User, input)
@@ -46,28 +74,11 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             AuthorName = "You",
         };
 
-        conversation.InputText = string.Empty;
-
-        AgentRunStreamingContext? streamingContext = null;
-        AgentConversationMissingApiKeyTurn? missingApiKeyTurn = null;
-        if (string.IsNullOrWhiteSpace(requestOptions.ApiKey))
+        AgentConversationTurnOperation operation = new()
         {
-            missingApiKeyTurn = new()
-            {
-                Input = input,
-                CreatedAt = userMessage.CreatedAt,
-                AuthorName = userMessage.AuthorName,
-                Collection = conversation.Messages,
-            };
-        }
-        else
-        {
-            if (agent is null || session is null)
-            {
-                throw new InvalidOperationException("Agent runtime must be initialized before streaming chat.");
-            }
-
-            streamingContext = new()
+            SpanDescription = "Send chat message",
+            RequestOptions = requestOptions,
+            StreamingContext = new()
             {
                 Agent = agent,
                 Message = userMessage,
@@ -75,29 +86,16 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
                 Options = requestOptions,
                 Session = session,
                 ConfigureContent = configureContent,
-            };
-        }
-
-        AgentConversationTurnOperation operation = new()
-        {
-            SpanDescription = "Send chat message",
-            RequestOptions = requestOptions,
-            StreamingContext = streamingContext,
-            MissingApiKeyTurn = missingApiKeyTurn,
+            },
             TitleInput = input,
         };
 
         await RunConversationOperationAsync(conversation, operation, cancellationToken);
     }
 
-    public bool CanRespondToToolApproval(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent? request)
-    {
-        return !conversation.IsBusy && request?.CanRespond is true && conversation.Runtime.Agent is not null && conversation.Runtime.Session is not null && conversation.Runtime.AgentOptions is not null;
-    }
-
     public Task RespondToToolApprovalAsync(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent request, AIContent responseContent, Action<ObservableAIContent> configureContent, Action notifyToolApprovalCommands, CancellationToken cancellationToken)
     {
-        if (!CanRespondToToolApproval(conversation, request) || conversation.Runtime.Agent is not { } agent || conversation.Runtime.Session is not { } session || conversation.Runtime.AgentOptions is not { } requestOptions)
+        if (!CanRespondToToolApproval(conversation, request, out HarnessAgent? agent, out AgentSession? session, out ExtendedAgentOptions? requestOptions))
         {
             return Task.CompletedTask;
         }
@@ -112,7 +110,6 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         request.Approved = response.Approved;
         request.Reason = response.Reason;
         notifyToolApprovalCommands();
-        ObservableChatMessage? targetResponseMessage = FindMessageContaining(conversation, request);
 
         ChatMessage responseMessage = new(ChatRole.User, [responseContent])
         {
@@ -132,79 +129,12 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
                 Options = requestOptions,
                 Session = session,
                 ConfigureContent = configureContent,
-                TargetResponseMessage = targetResponseMessage,
+                TargetResponseMessage = FindMessageContaining(conversation, request),
             },
             NotifyToolApprovalCommands = true,
         };
+
         return RunConversationOperationAsync(conversation, operation, cancellationToken);
-    }
-
-    private ValueTask<SpanStatus> ExecuteTurnAsync(AgentConversationTurnOperation operation, TaskScheduler taskScheduler, CancellationToken cancellationToken)
-    {
-        if (operation.MissingApiKeyTurn is { } missingApiKeyTurn)
-        {
-            return AddMissingApiKeyMessagesAsync(missingApiKeyTurn.Input, missingApiKeyTurn.CreatedAt, missingApiKeyTurn.AuthorName, missingApiKeyTurn.Collection, taskScheduler, cancellationToken);
-        }
-
-        if (operation.StreamingContext is { } streamingContext)
-        {
-            return agentService.RunStreamingAsync(streamingContext, taskScheduler, cancellationToken);
-        }
-
-        throw new InvalidOperationException("Conversation turn operation must define execution state.");
-    }
-
-    private async Task RunConversationOperationAsync(AgentConversationViewModel conversation, AgentConversationTurnOperation operation, CancellationToken cancellationToken)
-    {
-        using SentryDiagnosticSpan span = SentryDiagnostics.StartSpan(SentryOperations.AIChatSend, operation.SpanDescription);
-        span.SetTag(SentryTags.AIProvider, operation.RequestOptions.ProviderType.ToString());
-        span.SetTag(SentryTags.AIModel, operation.RequestOptions.ModelId);
-
-        conversation.IsBusy = true;
-        CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        conversation.SetGenerationCancellationTokenSource(linkedCts);
-
-        try
-        {
-            TaskScheduler taskScheduler = App.Current.Threading.TaskScheduler;
-            SpanStatus result = await ExecuteTurnAsync(operation, taskScheduler, linkedCts.Token);
-            span.Finish(result);
-
-            conversation.UpdatedAt = DateTimeOffset.Now;
-            if (operation.TitleInput is string titleInput && string.IsNullOrWhiteSpace(conversation.Title))
-            {
-                conversation.Title = CreateTitle(titleInput);
-            }
-
-            if (operation.StreamingContext is { } streamingContext)
-            {
-                await PersistRuntimeSessionAsync(conversation, streamingContext, linkedCts.Token);
-            }
-
-            persistenceController.SaveConversation(conversation);
-        }
-        catch (OperationCanceledException)
-        {
-            span.Finish(SpanStatus.Cancelled);
-        }
-        catch (Exception ex)
-        {
-            SentryDiagnostics.CaptureException(ex, span, SentryOperations.AIChatSend);
-            throw;
-        }
-        finally
-        {
-            conversation.SetGenerationCancellationTokenSource(null);
-            conversation.RebuildConversationStatistics();
-            linkedCts.Dispose();
-            conversation.IsBusy = false;
-            conversation.NotifyTurnCommandCanExecuteChanged(operation.NotifyToolApprovalCommands);
-        }
-    }
-
-    private ValueTask PersistRuntimeSessionAsync(AgentConversationViewModel conversation, AgentRunStreamingContext streamingContext, CancellationToken cancellationToken)
-    {
-        return runtimeController.PersistConversationSessionAsync(conversation.Runtime, streamingContext.Agent, streamingContext.Session, cancellationToken);
     }
 
     private static ObservableChatMessage? FindMessageContaining(AgentConversationViewModel conversation, ObservableAIContent content)
@@ -220,29 +150,44 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         return null;
     }
 
-    private static async ValueTask<SpanStatus> AddMissingApiKeyMessagesAsync(string input, DateTimeOffset? createdAt, string? authorName, ObservableChatMessageCollection collection, TaskScheduler taskScheduler, CancellationToken cancellationToken)
+    private async Task RunConversationOperationAsync(AgentConversationViewModel conversation, AgentConversationTurnOperation operation, CancellationToken cancellationToken)
     {
-        SentryDiagnostics.AddBreadcrumb("Chat blocked by missing API key", SentryBreadcrumbCategories.AIChat, SentryBreadcrumbTypes.UI);
+        using SentryDiagnosticSpan span = SentryDiagnostics.StartSpan(SentryOperations.AIChatSend, operation.SpanDescription);
+        span.SetTag(SentryTags.AIProvider, operation.RequestOptions.ProviderType.ToString());
+        span.SetTag(SentryTags.AIModel, operation.RequestOptions.ModelId);
 
-        ObservableChatMessage inputMessage = ObservableChatMessage.Create(ChatRole.User, createdAt, authorName, ObservableTextContent.Create(input));
-        await taskScheduler.Run(ObservableChatMessageCollection.Add, collection, inputMessage, cancellationToken);
+        conversation.IsBusy = true;
 
-        // ObservableTextContent stores a text snapshot, so this message cannot hot-switch after it is added.
-        ObservableChatMessage configurationMessage = ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, content: ObservableTextContent.Create(StringResourceProxy.Default[SRName.UIXamlPagesAgentPageMessageConfigureApiKey]));
-        await taskScheduler.Run(ObservableChatMessageCollection.Add, collection, configurationMessage, cancellationToken);
-        return SpanStatus.FailedPrecondition;
-    }
-
-    private static string CreateTitle(string input)
-    {
-        string title = input.ReplaceLineEndings(" ").Trim();
-        const int maxLength = 40;
-        if (title.Length <= maxLength)
+        try
         {
-            return title;
-        }
+            TaskScheduler taskScheduler = App.Current.Threading.TaskScheduler;
+            span.Finish(await agentService.RunStreamingAsync(operation.StreamingContext, taskScheduler, cancellationToken));
 
-        return title[..maxLength] + "...";
+            conversation.UpdateTurnMetadata(operation.TitleInput);
+
+            await runtimeController.PersistConversationSessionAsync(conversation.Runtime, operation.StreamingContext.Agent, operation.StreamingContext.Session, cancellationToken);
+            persistenceController.SaveConversation(conversation);
+        }
+        catch (OperationCanceledException)
+        {
+            span.Finish(SpanStatus.Cancelled);
+        }
+        catch (AgentConversationException)
+        {
+            span.Finish(SpanStatus.FailedPrecondition);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            SentryDiagnostics.CaptureException(ex, span, SentryOperations.AIChatSend);
+            throw;
+        }
+        finally
+        {
+            conversation.RebuildConversationStatistics();
+            conversation.IsBusy = false;
+            conversation.CommandNotifier.NotifyTurnChanged(operation.NotifyToolApprovalCommands);
+        }
     }
 
     private sealed class AgentConversationTurnOperation
@@ -251,23 +196,10 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
 
         public required ExtendedAgentOptions RequestOptions { get; init; }
 
-        public AgentRunStreamingContext? StreamingContext { get; init; }
-
-        public AgentConversationMissingApiKeyTurn? MissingApiKeyTurn { get; init; }
+        public required AgentRunStreamingContext StreamingContext { get; init; }
 
         public string? TitleInput { get; init; }
 
         public bool NotifyToolApprovalCommands { get; init; }
-    }
-
-    private sealed class AgentConversationMissingApiKeyTurn
-    {
-        public required string Input { get; init; }
-
-        public DateTimeOffset? CreatedAt { get; init; }
-
-        public string? AuthorName { get; init; }
-
-        public required ObservableChatMessageCollection Collection { get; init; }
     }
 }

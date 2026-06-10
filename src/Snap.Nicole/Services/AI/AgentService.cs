@@ -111,10 +111,10 @@ internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatCl
         {
             SentryDiagnostics.CaptureException(ex, span, SentryOperations.AIChatStream);
 
-            ObservableTextContent errorContent = ObservableTextContent.Create($"Error: {ex.Message}");
+            ObservableErrorContent errorContent = ObservableErrorContent.Create(ex.Message);
             if (context.TargetResponseMessage is not null)
             {
-                await taskScheduler.Run(static (message, content) => message.Contents.AddOrUpdate(content), context.TargetResponseMessage, errorContent, cancellationToken);
+                await taskScheduler.Run(ObservableAIContentCollection.AddOrUpdate, context.TargetResponseMessage.Contents, errorContent, cancellationToken);
             }
             else
             {

@@ -18,6 +18,8 @@ internal sealed class ChatContentTemplateSelector : DataTemplateSelector
 
     public DataTemplate? UsageTemplate { get; set; }
 
+    public DataTemplate? ErrorTemplate { get; set; }
+
     public DataTemplate? FallbackTemplate { get; set; }
 
     protected override DataTemplate? SelectTemplateCore(object item)
@@ -30,6 +32,7 @@ internal sealed class ChatContentTemplateSelector : DataTemplateSelector
             ObservableFunctionResultContent => FunctionResultTemplate,
             ObservableToolApprovalRequestContent => ToolApprovalRequestTemplate,
             ObservableUsageContent => UsageTemplate,
+            ObservableErrorContent => ErrorTemplate,
             _ => FallbackTemplate,
         };
     }

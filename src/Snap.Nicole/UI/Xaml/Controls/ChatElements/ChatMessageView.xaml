@@ -27,6 +27,7 @@
         <snuxd:EmptyObjectToVisibilityConverter x:Key="UsageCountVisibilityConverter" />
         <snuxd:EmptyStringToVisibilityConverter x:Key="AuthorNameVisibilityConverter" />
         <snuxd:EmptyStringToVisibilityConverter x:Key="EmptyAuthorNameVisibilityConverter" IsInverted="True" />
+        <snuxd:EmptyStringToVisibilityConverter x:Key="ErrorMetadataVisibilityConverter" />
 
         <DataTemplate x:Key="TextContentTemplate" x:DataType="snsao:ObservableTextContent">
             <snuxcc:ChatMarkdownSegmentView Margin="1,0,0,0" Markdown="{Binding Text}" />
@@ -134,12 +135,52 @@
             </StackPanel>
         </DataTemplate>
 
+        <DataTemplate x:Key="ErrorContentTemplate" x:DataType="snsao:ObservableErrorContent">
+            <Border
+                Padding="8"
+                Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}"
+                BorderBrush="{ThemeResource SystemFillColorCriticalBrush}"
+                BorderThickness="1"
+                CornerRadius="{ThemeResource ControlCornerRadius}">
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+
+                    <FontIcon
+                        Grid.Column="0"
+                        VerticalAlignment="Top"
+                        FontSize="14"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Glyph="&#xEA39;" />
+                    <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock
+                            Text="{Binding Message}"
+                            TextWrapping="WrapWholeWords" />
+                        <TextBlock
+                            Opacity="0.75"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="{Binding ErrorCode}"
+                            Visibility="{Binding ErrorCode, Converter={StaticResource ErrorMetadataVisibilityConverter}}" />
+                        <TextBlock
+                            Opacity="0.75"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="{Binding Details}"
+                            TextWrapping="WrapWholeWords"
+                            Visibility="{Binding Details, Converter={StaticResource ErrorMetadataVisibilityConverter}}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="FallbackContentTemplate">
             <snuxcc:ChatObjectSegmentView Value="{Binding}" />
         </DataTemplate>
 
         <snuxcc:ChatContentTemplateSelector
             x:Key="ChatContentTemplateSelector"
+            ErrorTemplate="{StaticResource ErrorContentTemplate}"
             FallbackTemplate="{StaticResource FallbackContentTemplate}"
             FunctionCallTemplate="{StaticResource FunctionCallContentTemplate}"
             FunctionResultTemplate="{StaticResource FunctionResultContentTemplate}"
