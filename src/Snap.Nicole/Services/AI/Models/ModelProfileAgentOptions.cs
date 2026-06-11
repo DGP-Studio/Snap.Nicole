@@ -16,7 +16,7 @@ internal sealed partial class ModelProfileAgentOptions : ObservableObject, ICopy
     public partial float? TopP { get; set; }
 
     [ObservableProperty]
-    public partial ReasoningEffort? ReasoningEffort { get; set; } = Microsoft.Extensions.AI.ReasoningEffort.High;
+    public partial EnumBox<ReasoningEffort>? ReasoningEffort { get; set; } = EnumBox.Of(Microsoft.Extensions.AI.ReasoningEffort.High);
 
     [ObservableProperty]
     public partial bool ThinkingEnabled { get; set; } = true;

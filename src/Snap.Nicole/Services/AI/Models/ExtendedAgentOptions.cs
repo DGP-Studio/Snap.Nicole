@@ -12,7 +12,7 @@ namespace Snap.Nicole.Services.AI.Models;
 internal sealed class ExtendedAgentOptions
 {
     private const int DefaultMaxInputTokens = 204800;
-    private const int DefaultMaxOutputTokens = 4096;
+    private const int DefaultMaxOutputTokens = 102400;
 
     public ModelProviderType ProviderType { get; init; } = ModelProviderType.OpenAIChatCompletion;
 
@@ -78,7 +78,7 @@ internal sealed class ExtendedAgentOptions
             ModelId = modelProfile.ModelId.Trim(),
             Temperature = agentOptions.Temperature,
             TopP = agentOptions.TopP,
-            ReasoningEffort = agentOptions.ReasoningEffort,
+            ReasoningEffort = agentOptions.ReasoningEffort?.Value,
             ThinkingEnabled = agentOptions.ThinkingEnabled,
             OmitReasoningEffortWhenThinkingDisabled = agentOptions.OmitReasoningEffortWhenThinkingDisabled,
             MaxInputTokens = AgentOptionsNormalizer.NormalizeTokenLimit(agentOptions.MaxInputTokens),

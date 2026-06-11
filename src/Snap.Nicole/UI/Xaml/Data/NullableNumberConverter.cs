@@ -5,8 +5,10 @@ using System.Globalization;
 
 namespace Snap.Nicole.UI.Xaml.Data;
 
-internal sealed class NullableNumberBoxValueConverter : IValueConverter
+internal sealed class NullableNumberConverter : IValueConverter
 {
+    public NullableNumberType ValueType { get; set; }
+
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         if (value is null || value == DependencyProperty.UnsetValue)
@@ -24,19 +26,19 @@ internal sealed class NullableNumberBoxValueConverter : IValueConverter
             return null;
         }
 
-        if (targetType == typeof(int) || targetType == typeof(int?))
+        if (ValueType == NullableNumberType.Int32)
         {
             return ConvertToNullableInt32(number);
         }
 
-        if (targetType == typeof(float) || targetType == typeof(float?))
+        if (ValueType == NullableNumberType.Single)
         {
-            return (float)number;
+            return (float?)number;
         }
 
-        if (targetType == typeof(double) || targetType == typeof(double?))
+        if (ValueType == NullableNumberType.Double)
         {
-            return number;
+            return (double?)number;
         }
 
         return number;

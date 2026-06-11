@@ -25,6 +25,9 @@
 	<NoWarn>$(NoWarn);MAAI001,SCME0001,MEAI001,OPENAI001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="UI\Xaml\Themes\Pivot.xaml" />
+  </ItemGroup>
+  <ItemGroup>
     <AdditionalFiles Include="Resources\SR.resx" />
     <AdditionalFiles Include="Resources\SR.en.resx" />
   </ItemGroup>
@@ -58,6 +61,7 @@
     <PackageReference Include="CommunityToolkit.WinUI.Behaviors" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Converters" Version="8.2.251219" />
+    <PackageReference Include="CommunityToolkit.WinUI.Media" Version="8.2.251219" />
     <PackageReference Include="Microsoft.Agents.AI.Anthropic" Version="1.9.0-preview.260603.1" />
     <PackageReference Include="Microsoft.Agents.AI.Harness" Version="1.9.0-preview.260603.1" />
     <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.9.0" />
@@ -75,6 +79,11 @@
     <ProjectReference Include="..\Snap.Nicole.SourceGeneration\Snap.Nicole.SourceGeneration.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SetTargetFramework="TargetFramework=netstandard2.0" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained">
       <PrivateAssets>all</PrivateAssets>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Update="UI\Xaml\Themes\Pivot.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
 
   <PropertyGroup>

@@ -110,7 +110,7 @@ internal sealed partial class SelectorSelectedValueBindingWorkaroundBehavior : B
             return;
         }
 
-        if (object.Equals(AssociatedObject.SelectedValue, SelectedValue))
+        if (Equals(AssociatedObject.SelectedValue, SelectedValue))
         {
             return;
         }

@@ -33,14 +33,14 @@ internal sealed partial class SettingsModelConfigurationViewModel(IServiceProvid
     ];
 
     // TODO: Use StringResourceValue for the display name.
-    public IReadOnlyList<SettingsItem<ReasoningEffort?>> ReasoningEfforts { get; } =
+    public IReadOnlyList<SettingsItem<EnumBox<ReasoningEffort>?>> ReasoningEfforts { get; } =
     [
         new("Provider default", null),
-        new("None", ReasoningEffort.None),
-        new("Low", ReasoningEffort.Low),
-        new("Medium", ReasoningEffort.Medium),
-        new("High", ReasoningEffort.High),
-        new("Extra high", ReasoningEffort.ExtraHigh),
+        new("None", EnumBox.Of(ReasoningEffort.None)),
+        new("Low", EnumBox.Of(ReasoningEffort.Low)),
+        new("Medium", EnumBox.Of(ReasoningEffort.Medium)),
+        new("High", EnumBox.Of(ReasoningEffort.High)),
+        new("Extra high", EnumBox.Of(ReasoningEffort.ExtraHigh)),
     ];
 
     [ObservableProperty]
