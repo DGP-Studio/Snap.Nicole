@@ -51,7 +51,7 @@ internal sealed class StringResourceProxy : ObservableObject
         return new Binding
         {
             Source = this,
-            Path = new PropertyPath($"[{string.Intern(name)}]"),
+            Path = new PropertyPath(string.Intern($"[{name}]")),
             Mode = BindingMode.OneWay,
         };
     }

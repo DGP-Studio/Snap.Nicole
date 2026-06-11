@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Snap.Nicole.Core.ComponentModel;
 using System.Collections.Generic;
 using System.ComponentModel;
 
@@ -39,7 +40,7 @@ internal sealed class StringResourceValue : ObservableObject
             string value = StringResourceProxy.Default[name];
             if (Arguments is { Length: > 0 } arguments)
             {
-                value = string.Format(StringResourceProxy.Default.CurrentCulture, value, NormalizeArguments(arguments));
+                value = string.Format(StringResourceProxy.Default.CurrentCulture, value, Array.ConvertAll(arguments, NormalizeArgument));
             }
 
             return value;
@@ -83,19 +84,19 @@ internal sealed class StringResourceValue : ObservableObject
 
     private static void OnStringResourceChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is not "Item[]")
+        if (!e.NameEquals(PropertyChangedEventArgs.Indexer))
         {
             return;
         }
 
-        List<StringResourceValue> liveValues = [];
+        List<StringResourceValue> values = [];
         lock (registeredValues)
         {
             for (int i = registeredValues.Count - 1; i >= 0; i--)
             {
                 if (registeredValues[i].TryGetTarget(out StringResourceValue? value))
                 {
-                    liveValues.Add(value);
+                    values.Add(value);
                 }
                 else
                 {
@@ -104,29 +105,18 @@ internal sealed class StringResourceValue : ObservableObject
             }
         }
 
-        foreach (StringResourceValue value in liveValues)
+        foreach (StringResourceValue value in values)
         {
             value.OnPropertyChanged(nameof(Value));
         }
-    }
-
-    private static object?[] NormalizeArguments(object?[] arguments)
-    {
-        object?[] normalized = new object?[arguments.Length];
-        for (int i = 0; i < arguments.Length; i++)
-        {
-            normalized[i] = NormalizeArgument(arguments[i]);
-        }
-
-        return normalized;
     }
 
     private static object? NormalizeArgument(object? argument)
     {
         return argument switch
         {
-            SRName name => StringResourceProxy.Default[name],
             StringResourceValue value => value.Value,
+            SRName name => StringResourceProxy.Default[name],
             _ => argument,
         };
     }

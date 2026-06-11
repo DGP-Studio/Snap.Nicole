@@ -158,10 +158,6 @@ internal sealed class ExtendedAgentOptions
 
     private ChatOptions CreateHarnessChatOptions(IList<AITool>? tools, int maxOutputTokens)
     {
-        string? thinkingEnabled = ThinkingEnabled.HasValue
-            ? ThinkingEnabled.Value ? "enabled" : "disabled"
-            : null;
-
         ChatOptions chatOptions = new()
         {
             ModelId = ModelId,
@@ -175,6 +171,8 @@ internal sealed class ExtendedAgentOptions
 
         if (ProviderType is ModelProviderType.OpenAIChatCompletion)
         {
+            string? thinkingEnabled = ThinkingEnabled.HasValue ? ThinkingEnabled.Value ? "enabled" : "disabled" : null;
+
             chatOptions.RawRepresentationFactory = client =>
             {
                 ChatCompletionOptions options = new();

@@ -24,7 +24,8 @@ internal sealed partial class AppSettings : ObservableObject, ICopyFrom<AppSetti
         }
     } = StringResourceProxy.SupportedCultures[0];
 
-    public bool IsMainNavigationPaneOpen { get; set => SetProperty(ref field, value); } = true;
+    [ObservableProperty]
+    public partial bool IsMainNavigationPaneOpen { get; set; } = true;
 
     [JsonInclude]
     public AppAgentOptions AgentOptions { get; private set => SetProperty(ref field, value ?? new()); } = new();

@@ -1,3 +1,4 @@
+using Snap.Nicole.Core.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -7,7 +8,6 @@ namespace Snap.Nicole.Core.Collections.ObjectModel;
 internal sealed class AdvancedObservableCollection<T> : ObservableCollection<T>
     where T : class
 {
-    private static readonly PropertyChangedEventArgs CurrentItemPropertyChanged = new(nameof(CurrentItem));
     private T? currentItem;
 
     public T? CurrentItem
@@ -33,13 +33,13 @@ internal sealed class AdvancedObservableCollection<T> : ObservableCollection<T>
 
     private void SetCurrentItem(T? value)
     {
-        T? coercedValue = value is null || Contains(value) ? value : null;
+        T? coercedValue = value is not null && Contains(value) ? value : null;
         if (ReferenceEquals(currentItem, coercedValue))
         {
             return;
         }
 
         currentItem = coercedValue;
-        OnPropertyChanged(CurrentItemPropertyChanged);
+        OnPropertyChanged(PropertyChangedEventArgs.CurrentItem);
     }
 }
