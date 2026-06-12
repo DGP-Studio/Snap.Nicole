@@ -9,7 +9,6 @@
     xmlns:snuxcc="using:Snap.Nicole.UI.Xaml.Controls.ChatElements"
     xmlns:snuxd="using:Snap.Nicole.UI.Xaml.Data"
     xmlns:snuxm="using:Snap.Nicole.UI.Xaml.Markup"
-    x:Name="Root"
     mc:Ignorable="d">
 
     <UserControl.Resources>
@@ -47,12 +46,12 @@
             </Border>
         </DataTemplate>
 
-        <DataTemplate x:Key="FunctionCallContentTemplate" x:DataType="snsao:ObservableFunctionCallContent">
-            <snuxcc:ChatFunctionCallSegmentView FunctionCall="{Binding}" />
+        <DataTemplate x:Key="ToolCallContentTemplate" x:DataType="snsao:ObservableToolCallContent">
+            <snuxcc:ChatToolCallSegmentView ToolCall="{Binding}" />
         </DataTemplate>
 
-        <DataTemplate x:Key="FunctionResultContentTemplate" x:DataType="snsao:ObservableFunctionResultContent">
-            <snuxcc:ChatFunctionResultSegmentView FunctionResult="{Binding}" />
+        <DataTemplate x:Key="ToolResultContentTemplate" x:DataType="snsao:ObservableToolResultContent">
+            <snuxcc:ChatToolResultSegmentView ToolResult="{Binding}" />
         </DataTemplate>
 
         <DataTemplate x:Key="ToolApprovalRequestContentTemplate" x:DataType="snsao:ObservableToolApprovalRequestContent">
@@ -180,59 +179,55 @@
             x:Key="ChatContentTemplateSelector"
             ErrorTemplate="{StaticResource ErrorContentTemplate}"
             FallbackTemplate="{StaticResource FallbackContentTemplate}"
-            FunctionCallTemplate="{StaticResource FunctionCallContentTemplate}"
-            FunctionResultTemplate="{StaticResource FunctionResultContentTemplate}"
             ReasoningTemplate="{StaticResource ReasoningContentTemplate}"
             TextTemplate="{StaticResource TextContentTemplate}"
             ToolApprovalRequestTemplate="{StaticResource ToolApprovalRequestContentTemplate}"
+            ToolCallTemplate="{StaticResource ToolCallContentTemplate}"
+            ToolResultTemplate="{StaticResource ToolResultContentTemplate}"
             UsageTemplate="{StaticResource UsageContentTemplate}" />
     </UserControl.Resources>
 
     <Border
-        x:Name="MessageBorder"
         Padding="8"
         HorizontalAlignment="Stretch"
         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
         BorderThickness="1"
         CornerRadius="{ThemeResource ControlCornerRadius}"
-        Visibility="{Binding Message, ElementName=Root, Converter={StaticResource MessageVisibilityConverter}}">
+        Visibility="{x:Bind Message, Mode=OneWay, Converter={StaticResource MessageVisibilityConverter}}">
         <StackPanel HorizontalAlignment="Stretch" Spacing="4">
             <Grid Margin="1,0,0,0">
-                <Grid Visibility="{Binding Message.Role, ElementName=Root, Converter={StaticResource UserMessageVisibilityConverter}}">
+                <Grid Visibility="{x:Bind Message.Role, Mode=OneWay, Converter={StaticResource UserMessageVisibilityConverter}}">
                     <TextBlock
-                        FontSize="12"
                         FontWeight="SemiBold"
                         Opacity="0.7"
-                        Text="{Binding Message.AuthorName, ElementName=Root}"
-                        Visibility="{Binding Message.AuthorName, ElementName=Root, Converter={StaticResource AuthorNameVisibilityConverter}}" />
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind Message.AuthorName, Mode=OneWay}"
+                        Visibility="{x:Bind Message.AuthorName, Mode=OneWay, Converter={StaticResource AuthorNameVisibilityConverter}}" />
                     <TextBlock
-                        FontSize="12"
                         FontWeight="SemiBold"
                         Opacity="0.7"
+                        Style="{StaticResource CaptionTextBlockStyle}"
                         Text="{snuxm:StringResource Name=UIXamlControlsChatMessageViewLabelUser}"
-                        Visibility="{Binding Message.AuthorName, ElementName=Root, Converter={StaticResource EmptyAuthorNameVisibilityConverter}}" />
+                        Visibility="{x:Bind Message.AuthorName, Mode=OneWay, Converter={StaticResource EmptyAuthorNameVisibilityConverter}}" />
                 </Grid>
-                <Grid Visibility="{Binding Message.Role, ElementName=Root, Converter={StaticResource NonUserMessageVisibilityConverter}}">
+                <Grid Visibility="{x:Bind Message.Role, Mode=OneWay, Converter={StaticResource NonUserMessageVisibilityConverter}}">
                     <TextBlock
-                        FontSize="12"
                         FontWeight="SemiBold"
                         Opacity="0.7"
-                        Text="{Binding Message.AuthorName, ElementName=Root}"
-                        Visibility="{Binding Message.AuthorName, ElementName=Root, Converter={StaticResource AuthorNameVisibilityConverter}}" />
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind Message.AuthorName, Mode=OneWay}"
+                        Visibility="{x:Bind Message.AuthorName, Mode=OneWay, Converter={StaticResource AuthorNameVisibilityConverter}}" />
                     <TextBlock
-                        FontSize="12"
                         FontWeight="SemiBold"
                         Opacity="0.7"
+                        Style="{StaticResource CaptionTextBlockStyle}"
                         Text="{snuxm:StringResource Name=UIXamlControlsChatMessageViewLabelAssistant}"
-                        Visibility="{Binding Message.AuthorName, ElementName=Root, Converter={StaticResource EmptyAuthorNameVisibilityConverter}}" />
+                        Visibility="{x:Bind Message.AuthorName, Mode=OneWay, Converter={StaticResource EmptyAuthorNameVisibilityConverter}}" />
                 </Grid>
             </Grid>
 
-            <ItemsControl
-                x:Name="ContentItemsControl"
-                ItemTemplateSelector="{StaticResource ChatContentTemplateSelector}"
-                ItemsSource="{Binding Message.Contents, ElementName=Root}">
+            <ItemsControl ItemTemplateSelector="{StaticResource ChatContentTemplateSelector}" ItemsSource="{x:Bind Message.Contents, Mode=OneWay}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Spacing="4" />

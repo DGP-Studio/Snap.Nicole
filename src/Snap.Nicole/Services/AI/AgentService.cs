@@ -39,7 +39,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
                 await taskScheduler.Run(ObservableChatMessageCollection.Add, context.Collection, inputMessage, cancellationToken);
             }
 
-            ObservableChatMessage? responseMessage = context.TargetResponseMessage;
+            ObservableChatMessage? targetResponseMessage = context.TargetResponseMessage;
             bool responseAdded = context.TargetResponseMessage is not null;
 
             await Task.Yield();
@@ -61,27 +61,27 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
                     continue;
                 }
 
-                State state = new(context.Collection, context.Options, observableContents, responseMessage, responseAdded);
+                State state = new(context.Collection, context.Options, observableContents, targetResponseMessage, responseAdded);
 
                 await taskScheduler.Run(static (state) =>
                 {
                     // TODOO: this should be possible to lift out of the UI thread dispatch,
                     // but currently if this is created on a background thread, the UI gets stuck and doesn't update at all.
-                    state.ResponseMessage ??= ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, state.Options.ModelId);
+                    state.TargetResponseMessage ??= ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, state.Options.ModelId);
 
                     if (!state.ResponseAdded)
                     {
-                        state.Collection.Add(state.ResponseMessage);
+                        state.Collection.Add(state.TargetResponseMessage);
                         state.ResponseAdded = true;
                     }
 
                     foreach (ObservableAIContent observableContent in state.ObservableContents)
                     {
-                        state.ResponseMessage.Contents.AddOrUpdate(observableContent);
+                        state.TargetResponseMessage.Contents.AddOrUpdate(observableContent);
                     }
                 }, state, cancellationToken);
 
-                responseMessage = state.ResponseMessage;
+                targetResponseMessage = state.TargetResponseMessage;
                 responseAdded = state.ResponseAdded;
             }
 
@@ -123,7 +123,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
         return [new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.GetCurrentTime))];
     }
 
-    private sealed class State(ObservableChatMessageCollection collection, ExtendedAgentOptions options, List<ObservableAIContent> observableContents, ObservableChatMessage? responseMessage, bool responseAdded)
+    private sealed class State(ObservableChatMessageCollection collection, ExtendedAgentOptions options, List<ObservableAIContent> observableContents, ObservableChatMessage? targetResponseMessage, bool responseAdded)
     {
         public ObservableChatMessageCollection Collection { get; } = collection;
 
@@ -131,7 +131,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
 
         public List<ObservableAIContent> ObservableContents { get; } = observableContents;
 
-        public ObservableChatMessage? ResponseMessage { get; set; } = responseMessage;
+        public ObservableChatMessage? TargetResponseMessage { get; set; } = targetResponseMessage;
 
         public bool ResponseAdded { get; set; } = responseAdded;
     }
