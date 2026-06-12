@@ -72,7 +72,7 @@ public partial class App : Application
             IServiceProvider serviceProvider = Host.Services;
 
             // AppSettings must be initialized on the UI thread
-            StringResourceProxy.Default.CurrentCulture = CultureInfo.GetCultureInfo(serviceProvider.GetRequiredService<IOptionsProvider<AppSettings>>().CurrentValue.Language);
+            StringResourceProxy.Default.CurrentCulture = CultureInfo.GetCultureInfo(serviceProvider.GetRequiredService<ISettingsProvider<AppSettings>>().CurrentValue.Language);
             serviceProvider.GetRequiredService<INotifyIcon>().Create();
             serviceProvider.GetRequiredService<IWindowLifeTime<MainWindow>>().Show();
         }

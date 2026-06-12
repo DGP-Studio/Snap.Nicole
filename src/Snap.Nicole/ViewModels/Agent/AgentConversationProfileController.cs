@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace Snap.Nicole.ViewModels.Agent;
 
-internal sealed class AgentConversationProfileController(IOptionsProvider<AppSettings> settingsProvider)
+internal sealed class AgentConversationProfileController(ISettingsProvider<AppSettings> settingsProvider)
 {
     private readonly AppSettings settings = settingsProvider.CurrentValue;
 

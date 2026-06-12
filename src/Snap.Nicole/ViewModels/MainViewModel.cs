@@ -5,5 +5,5 @@ namespace Snap.Nicole.ViewModels;
 
 internal sealed partial class MainViewModel(IServiceProvider serviceProvider) : ObservableObject
 {
-    public AppSettings Settings { get; } = serviceProvider.GetRequiredService<IOptionsProvider<AppSettings>>().CurrentValue;
+    public AppSettings Settings { get; } = serviceProvider.GetRequiredService<ISettingsProvider<AppSettings>>().CurrentValue;
 }

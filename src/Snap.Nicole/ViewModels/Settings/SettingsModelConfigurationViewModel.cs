@@ -23,7 +23,7 @@ internal sealed partial class SettingsModelConfigurationViewModel(IServiceProvid
 
     private readonly IModelProfileService modelProfileService = serviceProvider.GetRequiredService<IModelProfileService>();
 
-    public AppSettings Settings { get; } = serviceProvider.GetRequiredService<IOptionsProvider<AppSettings>>().CurrentValue;
+    public AppSettings Settings { get; } = serviceProvider.GetRequiredService<ISettingsProvider<AppSettings>>().CurrentValue;
 
     public IReadOnlyList<SettingsItem<EnumBox<ModelProviderType>>> ModelProviderTypes { get; } =
     [

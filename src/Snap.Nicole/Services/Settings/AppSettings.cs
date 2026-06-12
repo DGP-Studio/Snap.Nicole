@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 namespace Snap.Nicole.Services.Settings;
 
 [GeneratedCopyFrom<AppSettings>]
-internal sealed partial class AppSettings : ObservableObject, ICopyFrom<AppSettings>, IOptionsObservableChildrenProvider
+internal sealed partial class AppSettings : ObservableObject, ICopyFrom<AppSettings>, IObservableChildrenProvider
 {
     public string Language
     {

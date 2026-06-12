@@ -8,7 +8,7 @@ using System.Text.Json.Serialization;
 namespace Snap.Nicole.Services.AI.Models;
 
 [GeneratedCopyFrom<ModelProfile>]
-internal sealed partial class ModelProfile : ObservableObject, IIdentifiable<Guid>, ICopyFrom<ModelProfile>, IOptionsObservableChildrenProvider
+internal sealed partial class ModelProfile : ObservableObject, IIdentifiable<Guid>, ICopyFrom<ModelProfile>, IObservableChildrenProvider
 {
     [ObservableProperty]
     public partial Guid Id { get; set; } = Guid.NewGuid();

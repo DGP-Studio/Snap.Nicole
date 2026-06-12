@@ -9,7 +9,7 @@ namespace Snap.Nicole.ViewModels.Settings;
 
 internal sealed partial class SettingsViewModel(IServiceProvider serviceProvider) : ObservableObject
 {
-    public AppSettings Settings { get; } = serviceProvider.GetRequiredService<IOptionsProvider<AppSettings>>().CurrentValue;
+    public AppSettings Settings { get; } = serviceProvider.GetRequiredService<ISettingsProvider<AppSettings>>().CurrentValue;
 
     public SettingsGitSyncViewModel GitSync { get; } = serviceProvider.GetRequiredService<SettingsGitSyncViewModel>();
 

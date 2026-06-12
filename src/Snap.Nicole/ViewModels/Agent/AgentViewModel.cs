@@ -12,7 +12,7 @@ internal sealed partial class AgentViewModel : ObservableObject, IDisposable
 
     private bool disposed;
 
-    public AgentViewModel(IOptionsProvider<AppSettings> settingsProvider, AgentConversationCollectionController conversationCollectionController)
+    public AgentViewModel(ISettingsProvider<AppSettings> settingsProvider, AgentConversationCollectionController conversationCollectionController)
     {
         Settings = settingsProvider.CurrentValue;
         this.conversationCollectionController = conversationCollectionController;

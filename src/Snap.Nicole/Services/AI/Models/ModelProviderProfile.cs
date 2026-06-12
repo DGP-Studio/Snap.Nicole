@@ -7,7 +7,7 @@ using System.ComponentModel;
 namespace Snap.Nicole.Services.AI.Models;
 
 [GeneratedCopyFrom<ModelProviderProfile>]
-internal sealed partial class ModelProviderProfile : ObservableObject, IIdentifiable<Guid>, ICopyFrom<ModelProviderProfile>, IOptionsObservableChildrenProvider
+internal sealed partial class ModelProviderProfile : ObservableObject, IIdentifiable<Guid>, ICopyFrom<ModelProviderProfile>, IObservableChildrenProvider
 {
     [ObservableProperty]
     public partial Guid Id { get; set; } = Guid.NewGuid();

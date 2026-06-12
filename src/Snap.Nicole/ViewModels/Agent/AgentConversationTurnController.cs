@@ -17,7 +17,7 @@ namespace Snap.Nicole.ViewModels.Agent;
 internal sealed class AgentConversationTurnController(IServiceProvider serviceProvider)
 {
     private readonly IAgentService agentService = serviceProvider.GetRequiredService<IAgentService>();
-    private readonly AppSettings settings = serviceProvider.GetRequiredService<IOptionsProvider<AppSettings>>().CurrentValue;
+    private readonly AppSettings settings = serviceProvider.GetRequiredService<ISettingsProvider<AppSettings>>().CurrentValue;
     private readonly AgentConversationProfileController profileController = serviceProvider.GetRequiredService<AgentConversationProfileController>();
     private readonly AgentConversationRuntimeController runtimeController = serviceProvider.GetRequiredService<AgentConversationRuntimeController>();
     private readonly AgentConversationPersistenceController persistenceController = serviceProvider.GetRequiredService<AgentConversationPersistenceController>();

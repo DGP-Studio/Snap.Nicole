@@ -13,7 +13,7 @@ internal static class SettingsServiceCollectionExtensions
         public IServiceCollection AddJsonSettings<T>(string fileNameWithoutExtension)
             where T : class, INotifyPropertyChanged, ICopyFrom<T>, new()
         {
-            services.TryAddSingleton<IOptionsProvider<T>>(sp => new JsonSettingsOptionsProvider<T>(fileNameWithoutExtension, sp.GetRequiredKeyedService<JsonSerializerOptions>(JsonSerializerOptionsKey.Settings)));
+            services.TryAddSingleton<ISettingsProvider<T>>(sp => new JsonSettingsProvider<T>(fileNameWithoutExtension, sp.GetRequiredKeyedService<JsonSerializerOptions>(JsonSerializerOptionsKey.Settings)));
 
             return services;
         }

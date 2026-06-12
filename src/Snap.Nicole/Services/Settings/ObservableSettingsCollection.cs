@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace Snap.Nicole.Services.Settings;
 
-internal sealed class ObservableSettingsCollection<TItem, TId> : ObservableCollection<TItem>, ICopyFrom<ObservableSettingsCollection<TItem, TId>>, IOptionsObservableChildrenProvider
+internal sealed class ObservableSettingsCollection<TItem, TId> : ObservableCollection<TItem>, ICopyFrom<ObservableSettingsCollection<TItem, TId>>, IObservableChildrenProvider
     where TItem : class, INotifyPropertyChanged, IIdentifiable<TId>, ICopyFrom<TItem>, new()
     where TId : struct, IEquatable<TId>
 {
@@ -103,7 +103,7 @@ internal sealed class ObservableSettingsCollection<TItem, TId> : ObservableColle
 
         foreach (TItem item in this)
         {
-            if (item is not IOptionsObservableChildrenProvider provider)
+            if (item is not IObservableChildrenProvider provider)
             {
                 continue;
             }
