@@ -27,10 +27,13 @@
         <snuxd:EmptyObjectToVisibilityConverter x:Key="ModelProviderProfileEmptyStateVisibilityConverter" IsInverted="True" />
         <snuxd:NullableNumberConverter x:Key="NullableInt32NumberConverter" ValueType="Int32" />
         <snuxd:NullableNumberConverter x:Key="NullableSingleNumberConverter" ValueType="Single" />
+        <DataTemplate x:Key="SettingsItemLabelTemplate">
+            <TextBlock Text="{Binding Label.Value}" />
+        </DataTemplate>
     </Page.Resources>
 
     <Pivot Style="{StaticResource CardPivotStyle}">
-        <PivotItem Header="常规">
+        <PivotItem Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelGeneral}">
             <ScrollViewer>
                 <StackPanel Margin="24" Spacing="24">
                     <Border cw:Effects.Shadow="{ThemeResource CompatCardShadow}">
@@ -162,7 +165,7 @@
                                     <ComboBox
                                         MinWidth="160"
                                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                        DisplayMemberPath="Label">
+                                        ItemTemplate="{StaticResource SettingsItemLabelTemplate}">
                                         <mxi:Interaction.Behaviors>
                                             <snuxb:SelectorSelectedValueBindingWorkaroundBehavior
                                                 ItemsSource="{Binding Languages}"
@@ -179,7 +182,7 @@
             </ScrollViewer>
         </PivotItem>
 
-        <PivotItem Header="智能体">
+        <PivotItem Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelAgent}">
             <ScrollViewer>
                 <StackPanel Margin="24" Spacing="24">
                     <Border cw:Effects.Shadow="{ThemeResource CompatCardShadow}">
@@ -294,8 +297,8 @@
                                                 <ComboBox
                                                     MinWidth="240"
                                                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                    DisplayMemberPath="Label"
-                                                    Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelProfileProviderType}">
+                                                    Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelProfileProviderType}"
+                                                    ItemTemplate="{StaticResource SettingsItemLabelTemplate}">
                                                     <mxi:Interaction.Behaviors>
                                                         <snuxb:SelectorSelectedValueBindingWorkaroundBehavior
                                                             ItemsSource="{Binding ModelProviderTypes}"
@@ -411,7 +414,7 @@
                                                                 <ComboBox
                                                                     MinWidth="180"
                                                                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                                    DisplayMemberPath="Label"
+                                                                    ItemTemplate="{StaticResource SettingsItemLabelTemplate}"
                                                                     PlaceholderText="{snuxm:StringResource Name=UIXamlPagesSettingsPagePlaceholderProviderDefault}">
                                                                     <mxi:Interaction.Behaviors>
                                                                         <snuxb:SelectorSelectedValueBindingWorkaroundBehavior

@@ -32,15 +32,14 @@ internal sealed partial class SettingsModelConfigurationViewModel(IServiceProvid
         new("Anthropic Messages | ~/v1/messages", EnumBox.Of(ModelProviderType.Anthropic)),
     ];
 
-    // TODO: Use StringResourceValue for the display name.
     public IReadOnlyList<SettingsItem<EnumBox<ReasoningEffort>?>> ReasoningEfforts { get; } =
     [
-        new("Provider default", null),
-        new("None", EnumBox.Of(ReasoningEffort.None)),
-        new("Low", EnumBox.Of(ReasoningEffort.Low)),
-        new("Medium", EnumBox.Of(ReasoningEffort.Medium)),
-        new("High", EnumBox.Of(ReasoningEffort.High)),
-        new("Extra high", EnumBox.Of(ReasoningEffort.ExtraHigh)),
+        new(SRName.UIXamlPagesSettingsPageOptionProviderDefault, null),
+        new(SRName.UIXamlPagesSettingsPageOptionReasoningEffortNone, EnumBox.Of(ReasoningEffort.None)),
+        new(SRName.UIXamlPagesSettingsPageOptionReasoningEffortLow, EnumBox.Of(ReasoningEffort.Low)),
+        new(SRName.UIXamlPagesSettingsPageOptionReasoningEffortMedium, EnumBox.Of(ReasoningEffort.Medium)),
+        new(SRName.UIXamlPagesSettingsPageOptionReasoningEffortHigh, EnumBox.Of(ReasoningEffort.High)),
+        new(SRName.UIXamlPagesSettingsPageOptionReasoningEffortExtraHigh, EnumBox.Of(ReasoningEffort.ExtraHigh)),
     ];
 
     [ObservableProperty]

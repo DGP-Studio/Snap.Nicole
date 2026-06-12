@@ -82,6 +82,12 @@
   <data name="UIXamlPagesSettingsPageLabelLanguage" xml:space="preserve">
     <value>Language</value>
   </data>
+  <data name="UIXamlPagesSettingsPageLabelGeneral" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageLabelAgent" xml:space="preserve">
+    <value>Agent</value>
+  </data>
   <data name="UIXamlPagesSettingsPageLabelAppearance" xml:space="preserve">
     <value>Appearance</value>
   </data>
@@ -403,6 +409,24 @@
   </data>
   <data name="UIXamlPagesSettingsPagePlaceholderProviderDefault" xml:space="preserve">
     <value>Provider default</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageOptionProviderDefault" xml:space="preserve">
+    <value>Provider default</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageOptionReasoningEffortNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageOptionReasoningEffortLow" xml:space="preserve">
+    <value>Low</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageOptionReasoningEffortMedium" xml:space="preserve">
+    <value>Medium</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageOptionReasoningEffortHigh" xml:space="preserve">
+    <value>High</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageOptionReasoningEffortExtraHigh" xml:space="preserve">
+    <value>Extra high</value>
   </data>
   <data name="UIXamlPagesSettingsPageLabelFetchModels" xml:space="preserve">
     <value>Fetch</value>

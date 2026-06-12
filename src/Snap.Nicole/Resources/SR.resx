@@ -141,6 +141,12 @@
   <data name="UIXamlPagesSettingsPageLabelLanguage" xml:space="preserve">
     <value>语言</value>
   </data>
+  <data name="UIXamlPagesSettingsPageLabelGeneral" xml:space="preserve">
+    <value>常规</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageLabelAgent" xml:space="preserve">
+    <value>智能体</value>
+  </data>
   <data name="UIXamlPagesSettingsPageLabelAppearance" xml:space="preserve">
     <value>外观</value>
   </data>
@@ -464,6 +470,24 @@
   </data>
   <data name="UIXamlPagesSettingsPagePlaceholderProviderDefault" xml:space="preserve">
     <value>提供商默认值</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageOptionProviderDefault" xml:space="preserve">
+    <value>提供商默认值</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageOptionReasoningEffortNone" xml:space="preserve">
+    <value>无</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageOptionReasoningEffortLow" xml:space="preserve">
+    <value>低</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageOptionReasoningEffortMedium" xml:space="preserve">
+    <value>中</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageOptionReasoningEffortHigh" xml:space="preserve">
+    <value>高</value>
+  </data>
+  <data name="UIXamlPagesSettingsPageOptionReasoningEffortExtraHigh" xml:space="preserve">
+    <value>极高</value>
   </data>
   <data name="UIXamlPagesSettingsPageLabelFetchModels" xml:space="preserve">
     <value>获取</value>
