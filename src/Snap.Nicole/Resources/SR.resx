@@ -540,6 +540,9 @@
   <data name="UIXamlPagesSettingsPageLabelAddProfile" xml:space="preserve">
     <value>添加</value>
   </data>
+  <data name="UIXamlPagesSettingsPageLabelCopyProfile" xml:space="preserve">
+    <value>复制</value>
+  </data>
   <data name="UIXamlPagesSettingsPageLabelUpdateProfile" xml:space="preserve">
     <value>更新</value>
   </data>

@@ -150,6 +150,36 @@ internal sealed partial class SettingsModelConfigurationViewModel(IServiceProvid
     }
 
     [RelayCommand]
+    private void CopyProfile()
+    {
+        if (Settings.ModelProviderProfiles.CurrentItem is not { } selected)
+        {
+            return;
+        }
+
+        SentryDiagnostics.AddBreadcrumb("Copy provider profile", SentryBreadcrumbCategories.SettingsModelProfiles, SentryBreadcrumbTypes.UI);
+
+        ModelProviderProfile copy = new();
+        copy.CopyFrom(selected);
+
+        copy.Id = Guid.NewGuid();
+
+        ModelProfile? selectedModelProfile = copy.ModelProfiles.CurrentItem;
+        foreach (ModelProfile modelProfile in copy.ModelProfiles)
+        {
+            modelProfile.Id = Guid.NewGuid();
+        }
+
+        copy.ModelProfiles.CurrentItem = selectedModelProfile;
+
+        int selectedIndex = Settings.ModelProviderProfiles.IndexOf(selected);
+        int targetIndex = selectedIndex < 0 ? Settings.ModelProviderProfiles.Count : selectedIndex + 1;
+
+        Settings.ModelProviderProfiles.Insert(targetIndex, copy);
+        Settings.ModelProviderProfiles.CurrentItem = copy;
+    }
+
+    [RelayCommand]
     private void DeleteProfile()
     {
         if (Settings.ModelProviderProfiles.CurrentItem is not { } selected)

@@ -479,6 +479,9 @@
   <data name="UIXamlPagesSettingsPageLabelAddProfile" xml:space="preserve">
     <value>Add</value>
   </data>
+  <data name="UIXamlPagesSettingsPageLabelCopyProfile" xml:space="preserve">
+    <value>Copy</value>
+  </data>
   <data name="UIXamlPagesSettingsPageLabelUpdateProfile" xml:space="preserve">
     <value>Update</value>
   </data>
