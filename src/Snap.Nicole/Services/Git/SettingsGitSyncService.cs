@@ -560,6 +560,11 @@ internal sealed class SettingsGitSyncService : ISettingsGitSyncService
         {
             using (Process process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start git."))
             {
+#pragma warning disable CA2016
+                Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+                Task<string> errorTask = process.StandardError.ReadToEndAsync();
+#pragma warning restore CA2016
+
                 try
                 {
                     await process.WaitForExitAsync(cancellationToken);
@@ -581,14 +586,22 @@ internal sealed class SettingsGitSyncService : ISettingsGitSyncService
                     }
 
                     await process.WaitForExitAsync(CancellationToken.None);
+                    try
+                    {
+                        _ = await Task.WhenAll(outputTask, errorTask);
+                    }
+                    catch (Exception ex) when (ex is IOException or InvalidOperationException or ObjectDisposedException or OperationCanceledException)
+                    {
+                    }
+
                     throw;
                 }
 
                 SettingsGitCommandResult result = new()
                 {
                     ExitCode = process.ExitCode,
-                    Output = await process.StandardOutput.ReadToEndAsync(cancellationToken),
-                    Error = await process.StandardError.ReadToEndAsync(cancellationToken),
+                    Output = await outputTask,
+                    Error = await errorTask,
                 };
 
                 return CompleteCommandSpan(span, result);
