@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 
@@ -17,6 +18,9 @@ namespace Snap.Nicole.Services.Settings;
 internal sealed class JsonSettingsOptionsProvider<TOptions> : IOptionsProvider<TOptions>, IDisposable
     where TOptions : class, INotifyPropertyChanged, ICopyFrom<TOptions>, new()
 {
+    private const int LoadRetryCount = 3;
+    private const int LoadRetryDelayMilliseconds = 50;
+
     private readonly Lock syncRoot = new();
 
     private readonly string filePath;
@@ -43,7 +47,7 @@ internal sealed class JsonSettingsOptionsProvider<TOptions> : IOptionsProvider<T
         fileName = $"{fileNameWithoutExtension}.json";
         filePath = Path.Combine(directory, fileName);
 
-        if (!TryLoadCore(out TOptions? value))
+        if (!TryLoadCore(useDefaultWhenMissing: true, out TOptions? value))
         {
             value = new TOptions();
         }
@@ -107,7 +111,7 @@ internal sealed class JsonSettingsOptionsProvider<TOptions> : IOptionsProvider<T
 
             lock (self.syncRoot)
             {
-                loaded = self.TryLoadCore(out newValue);
+                loaded = self.TryLoadCore(useDefaultWhenMissing: false, out newValue);
             }
 
             if (loaded)
@@ -122,7 +126,6 @@ internal sealed class JsonSettingsOptionsProvider<TOptions> : IOptionsProvider<T
         catch (Exception ex)
         {
             SentryDiagnostics.CaptureException(ex, span, SentryOperations.SettingsJsonFileChanged);
-            throw;
         }
         finally
         {
@@ -137,7 +140,15 @@ internal sealed class JsonSettingsOptionsProvider<TOptions> : IOptionsProvider<T
             return;
         }
 
-        IDisposable registration = fileProvider.Watch(fileName).RegisterChangeCallback(OnFileChanged, this);
+        IDisposable registration;
+        try
+        {
+            registration = fileProvider.Watch(fileName).RegisterChangeCallback(OnFileChanged, this);
+        }
+        catch (ObjectDisposedException) when (disposed)
+        {
+            return;
+        }
 
         lock (syncRoot)
         {
@@ -189,7 +200,6 @@ internal sealed class JsonSettingsOptionsProvider<TOptions> : IOptionsProvider<T
         catch (Exception ex)
         {
             SentryDiagnostics.CaptureException(ex, span, SentryOperations.SettingsJsonApplyExternalChange);
-            throw;
         }
         finally
         {
@@ -263,24 +273,36 @@ internal sealed class JsonSettingsOptionsProvider<TOptions> : IOptionsProvider<T
         observableChildren.Clear();
     }
 
-    private bool TryLoadCore([NotNullWhen(true)] out TOptions? value)
+    private bool TryLoadCore(bool useDefaultWhenMissing, [NotNullWhen(true)] out TOptions? value)
     {
         using SentryDiagnosticSpan span = SentryDiagnostics.StartSpan(SentryOperations.SettingsJsonLoad, $"Load {fileName}");
         span.SetTag(SentryTags.SettingsOptions, typeof(TOptions).Name);
 
-        if (!File.Exists(filePath))
-        {
-            value = new TOptions();
-            span.SetTag(SentryTags.SettingsFileExists, false);
-            return true;
-        }
-
-        span.SetTag(SentryTags.SettingsFileExists, true);
-
-        for (int retry = 0; retry < 3; retry++)
+        for (int retry = 0; retry < LoadRetryCount; retry++)
         {
             try
             {
+                if (!File.Exists(filePath))
+                {
+                    span.SetTag(SentryTags.SettingsFileExists, false);
+                    span.SetData(SentryData.SettingsLoadRetry, retry);
+                    if (useDefaultWhenMissing)
+                    {
+                        value = new TOptions();
+                        return true;
+                    }
+
+                    if (retry < LoadRetryCount - 1)
+                    {
+                        SentryDiagnostics.AddBreadcrumb("Retry missing settings load", SentryBreadcrumbCategories.SettingsJson, SentryBreadcrumbTypes.Default);
+                        Thread.Sleep(LoadRetryDelayMilliseconds);
+                        continue;
+                    }
+
+                    break;
+                }
+
+                span.SetTag(SentryTags.SettingsFileExists, true);
                 using (FileStream stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
                     value = JsonSerializer.Deserialize<TOptions>(stream, jsonOptions) ?? new TOptions();
@@ -288,18 +310,18 @@ internal sealed class JsonSettingsOptionsProvider<TOptions> : IOptionsProvider<T
                     return true;
                 }
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 span.SetData(SentryData.SettingsLoadRetry, retry + 1);
                 SentryDiagnostics.AddBreadcrumb("Retry settings load", SentryBreadcrumbCategories.SettingsJson, SentryBreadcrumbTypes.Default);
-                if (retry == 2)
+                if (retry == LoadRetryCount - 1)
                 {
                     SentryDiagnostics.CaptureException(ex, span, SentryOperations.SettingsJsonLoad);
                 }
 
-                Thread.Sleep(50);
+                Thread.Sleep(LoadRetryDelayMilliseconds);
             }
-            catch (JsonException ex)
+            catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException or ArgumentException or TargetInvocationException)
             {
                 SentryDiagnostics.CaptureException(ex, span, SentryOperations.SettingsJsonLoad);
                 break;

@@ -1,5 +1,4 @@
-﻿using Microsoft.UI.Windowing;
-using System;
+using Microsoft.UI.Windowing;
 
 namespace Snap.Nicole.UI.Windowing;
 

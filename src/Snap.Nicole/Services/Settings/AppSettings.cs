@@ -17,9 +17,24 @@ internal sealed partial class AppSettings : ObservableObject, ICopyFrom<AppSetti
         get;
         set
         {
-            if (!string.IsNullOrWhiteSpace(value) && SetProperty(ref field, value))
+            if (string.IsNullOrWhiteSpace(value))
             {
-                StringResourceProxy.Default.CurrentCulture = CultureInfo.GetCultureInfo(value);
+                return;
+            }
+
+            CultureInfo culture;
+            try
+            {
+                culture = CultureInfo.GetCultureInfo(value);
+            }
+            catch (CultureNotFoundException)
+            {
+                return;
+            }
+
+            if (SetProperty(ref field, culture.Name))
+            {
+                StringResourceProxy.Default.CurrentCulture = culture;
             }
         }
     } = StringResourceProxy.SupportedCultures[0];
