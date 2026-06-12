@@ -335,6 +335,9 @@
   <data name="UIXamlPagesSettingsPagePlaceholderAgentUserName" xml:space="preserve">
     <value>You</value>
   </data>
+  <data name="UIXamlPagesSettingsPageLabelAgentSystemPrompt" xml:space="preserve">
+    <value>System Prompt</value>
+  </data>
   <data name="UIXamlPagesSettingsPageLabelAgentMaximumIterationsPerRequest" xml:space="preserve">
     <value>Maximum Tool Iterations Per Request</value>
   </data>
@@ -403,9 +406,6 @@
   </data>
   <data name="UIXamlPagesSettingsPageLabelModelMaxOutputTokens" xml:space="preserve">
     <value>Output Token Limit</value>
-  </data>
-  <data name="UIXamlPagesSettingsPageLabelModelSystemPrompt" xml:space="preserve">
-    <value>System Prompt</value>
   </data>
   <data name="UIXamlPagesSettingsPagePlaceholderProviderDefault" xml:space="preserve">
     <value>Provider default</value>

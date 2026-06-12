@@ -203,6 +203,13 @@
                                             PlaceholderText="{snuxm:StringResource Name=UIXamlPagesSettingsPagePlaceholderAgentUserName}"
                                             Text="{Binding Settings.AgentOptions.UserName, Mode=TwoWay}" />
                                     </cwcont:SettingsCard>
+                                    <cwcont:SettingsCard Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelAgentSystemPrompt}">
+                                        <TextBox
+                                            AcceptsReturn="True"
+                                            ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                            Text="{Binding Settings.AgentOptions.SystemPrompt, Mode=TwoWay}"
+                                            TextWrapping="Wrap" />
+                                    </cwcont:SettingsCard>
                                     <cwcont:SettingsCard Description="{snuxm:StringResource Name=UIXamlPagesSettingsPageDescriptionAgentMaximumIterationsPerRequest}" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelAgentMaximumIterationsPerRequest}">
                                         <NumberBox
                                             LargeChange="1"
@@ -481,13 +488,6 @@
                                                                             SmallChange="1024"
                                                                             SpinButtonPlacementMode="Inline"
                                                                             Value="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.AgentOptions.MaxOutputTokens, Mode=TwoWay, Converter={StaticResource NullableInt32NumberConverter}}" />
-                                                                    </cwcont:SettingsCard>
-                                                                    <cwcont:SettingsCard Padding="16,8,44,8" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelModelSystemPrompt}">
-                                                                        <TextBox
-                                                                            AcceptsReturn="True"
-                                                                            ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                                                            Text="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.AgentOptions.SystemPrompt, Mode=TwoWay}"
-                                                                            TextWrapping="Wrap" />
                                                                     </cwcont:SettingsCard>
                                                                 </cwcont:SettingsExpander.Items>
                                                             </cwcont:SettingsExpander>

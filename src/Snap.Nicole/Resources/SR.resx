@@ -396,6 +396,9 @@
   <data name="UIXamlPagesSettingsPagePlaceholderAgentUserName" xml:space="preserve">
     <value>You</value>
   </data>
+  <data name="UIXamlPagesSettingsPageLabelAgentSystemPrompt" xml:space="preserve">
+    <value>系统提示词</value>
+  </data>
   <data name="UIXamlPagesSettingsPageLabelAgentMaximumIterationsPerRequest" xml:space="preserve">
     <value>最大工具调用次数</value>
   </data>
@@ -464,9 +467,6 @@
   </data>
   <data name="UIXamlPagesSettingsPageLabelModelMaxOutputTokens" xml:space="preserve">
     <value>最大输出长度</value>
-  </data>
-  <data name="UIXamlPagesSettingsPageLabelModelSystemPrompt" xml:space="preserve">
-    <value>系统提示词</value>
   </data>
   <data name="UIXamlPagesSettingsPagePlaceholderProviderDefault" xml:space="preserve">
     <value>提供商默认值</value>

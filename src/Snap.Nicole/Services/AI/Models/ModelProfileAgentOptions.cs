@@ -7,8 +7,6 @@ namespace Snap.Nicole.Services.AI.Models;
 [GeneratedCopyFrom<ModelProfileAgentOptions>]
 internal sealed partial class ModelProfileAgentOptions : ObservableObject, ICopyFrom<ModelProfileAgentOptions>
 {
-    public const string DefaultSystemPrompt = "You are an interactive agent that helps users with software engineering tasks.";
-
     [ObservableProperty]
     public partial float? Temperature { get; set; }
 
@@ -32,7 +30,4 @@ internal sealed partial class ModelProfileAgentOptions : ObservableObject, ICopy
 
     [ObservableProperty]
     public partial int? MaxOutputTokens { get; set; }
-
-    [ObservableProperty]
-    public partial string? SystemPrompt { get; set; } = DefaultSystemPrompt;
 }

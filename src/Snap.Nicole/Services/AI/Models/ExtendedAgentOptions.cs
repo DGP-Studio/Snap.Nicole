@@ -84,7 +84,7 @@ internal sealed class ExtendedAgentOptions
             MaxInputTokens = AgentOptionsNormalizer.NormalizeTokenLimit(agentOptions.MaxInputTokens),
             MaxContextWindowTokens = AgentOptionsNormalizer.NormalizeTokenLimit(agentOptions.MaxContextWindowTokens),
             MaxOutputTokens = AgentOptionsNormalizer.NormalizeTokenLimit(agentOptions.MaxOutputTokens),
-            SystemPrompt = AgentOptionsNormalizer.NormalizeSystemPrompt(agentOptions.SystemPrompt),
+            SystemPrompt = AgentOptionsNormalizer.NormalizeSystemPrompt(appAgentOptions.SystemPrompt),
             MaximumIterationsPerRequest = AgentOptionsNormalizer.NormalizeMaximumIterationsPerRequest(appAgentOptions.MaximumIterationsPerRequest),
         };
     }

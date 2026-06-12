@@ -12,5 +12,8 @@ internal sealed partial class AppAgentOptions : ObservableObject, ICopyFrom<AppA
     public partial string UserName { get; set; } = AgentOptionsNormalizer.DefaultUserName;
 
     [ObservableProperty]
+    public partial string? SystemPrompt { get; set; } = AgentOptionsNormalizer.DefaultSystemPrompt;
+
+    [ObservableProperty]
     public partial int? MaximumIterationsPerRequest { get; set; } = AgentOptionsNormalizer.DefaultMaximumIterationsPerRequest;
 }

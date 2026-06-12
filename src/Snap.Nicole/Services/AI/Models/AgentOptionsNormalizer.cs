@@ -4,6 +4,8 @@ internal static class AgentOptionsNormalizer
 {
     public const string DefaultUserName = "You";
 
+    public const string DefaultSystemPrompt = "You are an interactive agent that helps users with software engineering tasks.";
+
     public const int DefaultMaximumIterationsPerRequest = 500;
 
     public static string NormalizeUserName(string? value)
