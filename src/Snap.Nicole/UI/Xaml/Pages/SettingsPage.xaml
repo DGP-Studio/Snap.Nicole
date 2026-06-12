@@ -9,6 +9,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:mxi="using:Microsoft.Xaml.Interactivity"
     xmlns:snuxb="using:Snap.Nicole.UI.Xaml.Behaviors"
+    xmlns:snuxc="using:Snap.Nicole.UI.Xaml.Controls"
     xmlns:snuxd="using:Snap.Nicole.UI.Xaml.Data"
     xmlns:snuxm="using:Snap.Nicole.UI.Xaml.Markup"
     xmlns:snvs="using:Snap.Nicole.ViewModels.Settings"
@@ -162,17 +163,19 @@
                                     Style="{ThemeResource BaseTextBlockStyle}"
                                     Text="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelAppearance}" />
                                 <cwcont:SettingsCard Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelLanguage}">
-                                    <ComboBox
-                                        MinWidth="160"
-                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                        ItemTemplate="{StaticResource SettingsItemLabelTemplate}">
-                                        <mxi:Interaction.Behaviors>
-                                            <snuxb:SelectorSelectedValueBindingWorkaroundBehavior
-                                                ItemsSource="{Binding Languages}"
-                                                SelectedValue="{Binding Settings.Language, Mode=TwoWay}"
-                                                SelectedValuePath="Value" />
-                                        </mxi:Interaction.Behaviors>
-                                    </ComboBox>
+                                    <snuxc:SizeRestrictedContentControl>
+                                        <ComboBox
+                                            MinWidth="160"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                            ItemTemplate="{StaticResource SettingsItemLabelTemplate}">
+                                            <mxi:Interaction.Behaviors>
+                                                <snuxb:SelectorSelectedValueBindingWorkaroundBehavior
+                                                    ItemsSource="{Binding Languages}"
+                                                    SelectedValue="{Binding Settings.Language, Mode=TwoWay}"
+                                                    SelectedValuePath="Value" />
+                                            </mxi:Interaction.Behaviors>
+                                        </ComboBox>
+                                    </snuxc:SizeRestrictedContentControl>
                                 </cwcont:SettingsCard>
                             </StackPanel>
                         </Border>
@@ -294,18 +297,20 @@
                                                     Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelProfileName}"
                                                     IsSpellCheckEnabled="False"
                                                     Text="{Binding Settings.ModelProviderProfiles.CurrentItem.Name, Mode=TwoWay}" />
-                                                <ComboBox
-                                                    MinWidth="240"
-                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                    Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelProfileProviderType}"
-                                                    ItemTemplate="{StaticResource SettingsItemLabelTemplate}">
-                                                    <mxi:Interaction.Behaviors>
-                                                        <snuxb:SelectorSelectedValueBindingWorkaroundBehavior
-                                                            ItemsSource="{Binding ModelProviderTypes}"
-                                                            SelectedValue="{Binding Settings.ModelProviderProfiles.CurrentItem.ProviderType, Mode=TwoWay}"
-                                                            SelectedValuePath="Value" />
-                                                    </mxi:Interaction.Behaviors>
-                                                </ComboBox>
+                                                <snuxc:SizeRestrictedContentControl>
+                                                    <ComboBox
+                                                        MinWidth="240"
+                                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                        Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelProfileProviderType}"
+                                                        ItemTemplate="{StaticResource SettingsItemLabelTemplate}">
+                                                        <mxi:Interaction.Behaviors>
+                                                            <snuxb:SelectorSelectedValueBindingWorkaroundBehavior
+                                                                ItemsSource="{Binding ModelProviderTypes}"
+                                                                SelectedValue="{Binding Settings.ModelProviderProfiles.CurrentItem.ProviderType, Mode=TwoWay}"
+                                                                SelectedValuePath="Value" />
+                                                        </mxi:Interaction.Behaviors>
+                                                    </ComboBox>
+                                                </snuxc:SizeRestrictedContentControl>
                                                 <TextBox Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelProfileEndpoint}" Text="{Binding Settings.ModelProviderProfiles.CurrentItem.Endpoint, Mode=TwoWay}" />
                                                 <PasswordBox
                                                     Description="{snuxm:StringResource Name=UIXamlPagesSettingsPageDescriptionProfileApiKey}"
@@ -373,14 +378,16 @@
                                                         Severity="{Binding ModelListInfoBarSeverity}"
                                                         Visibility="{Binding IsModelListStatusOpen, Mode=OneWay}" />
                                                     <cwcont:SettingsCard Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelSelectedModel}">
-                                                        <ComboBox
-                                                            MinWidth="240"
-                                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                            DisplayMemberPath="DisplayName">
-                                                            <mxi:Interaction.Behaviors>
-                                                                <snuxb:SelectorSelectedItemBindingWorkaroundBehavior ItemsSource="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles, Mode=OneWay}" SelectedItem="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem, Mode=TwoWay}" />
-                                                            </mxi:Interaction.Behaviors>
-                                                        </ComboBox>
+                                                        <snuxc:SizeRestrictedContentControl>
+                                                            <ComboBox
+                                                                MinWidth="240"
+                                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                                DisplayMemberPath="DisplayName">
+                                                                <mxi:Interaction.Behaviors>
+                                                                    <snuxb:SelectorSelectedItemBindingWorkaroundBehavior ItemsSource="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles, Mode=OneWay}" SelectedItem="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem, Mode=TwoWay}" />
+                                                                </mxi:Interaction.Behaviors>
+                                                            </ComboBox>
+                                                        </snuxc:SizeRestrictedContentControl>
                                                     </cwcont:SettingsCard>
                                                     <cwcont:SettingsCard Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelProfileModelId}">
                                                         <TextBox Text="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.ModelId, Mode=TwoWay}" />
@@ -411,18 +418,20 @@
                                                                     Value="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.AgentOptions.TopP, Mode=TwoWay, Converter={StaticResource NullableSingleNumberConverter}}" />
                                                             </cwcont:SettingsCard>
                                                             <cwcont:SettingsCard Padding="16,8,44,8" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelModelReasoningEffort}">
-                                                                <ComboBox
-                                                                    MinWidth="180"
-                                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                                    ItemTemplate="{StaticResource SettingsItemLabelTemplate}"
-                                                                    PlaceholderText="{snuxm:StringResource Name=UIXamlPagesSettingsPagePlaceholderProviderDefault}">
-                                                                    <mxi:Interaction.Behaviors>
-                                                                        <snuxb:SelectorSelectedValueBindingWorkaroundBehavior
-                                                                            ItemsSource="{Binding ReasoningEfforts}"
-                                                                            SelectedValue="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.AgentOptions.ReasoningEffort, Mode=TwoWay}"
-                                                                            SelectedValuePath="Value" />
-                                                                    </mxi:Interaction.Behaviors>
-                                                                </ComboBox>
+                                                                <snuxc:SizeRestrictedContentControl>
+                                                                    <ComboBox
+                                                                        MinWidth="180"
+                                                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                                        ItemTemplate="{StaticResource SettingsItemLabelTemplate}"
+                                                                        PlaceholderText="{snuxm:StringResource Name=UIXamlPagesSettingsPagePlaceholderProviderDefault}">
+                                                                        <mxi:Interaction.Behaviors>
+                                                                            <snuxb:SelectorSelectedValueBindingWorkaroundBehavior
+                                                                                ItemsSource="{Binding ReasoningEfforts}"
+                                                                                SelectedValue="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.AgentOptions.ReasoningEffort, Mode=TwoWay}"
+                                                                                SelectedValuePath="Value" />
+                                                                        </mxi:Interaction.Behaviors>
+                                                                    </ComboBox>
+                                                                </snuxc:SizeRestrictedContentControl>
                                                             </cwcont:SettingsCard>
                                                             <cwcont:SettingsCard Padding="16,8,44,8" Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelModelThinkingEnabled}">
                                                                 <ToggleSwitch IsOn="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.AgentOptions.ThinkingEnabled, Mode=TwoWay}" />

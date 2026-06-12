@@ -9,6 +9,7 @@
     xmlns:mxi="using:Microsoft.Xaml.Interactivity"
     xmlns:snux="using:Snap.Nicole.UI.Xaml"
     xmlns:snuxb="using:Snap.Nicole.UI.Xaml.Behaviors"
+    xmlns:snuxc="using:Snap.Nicole.UI.Xaml.Controls"
     xmlns:snuxcc="using:Snap.Nicole.UI.Xaml.Controls.ChatElements"
     xmlns:snuxm="using:Snap.Nicole.UI.Xaml.Markup"
     xmlns:snv="using:Snap.Nicole.ViewModels.Agent"
@@ -180,23 +181,27 @@
                                                         </Style>
                                                     </Flyout.FlyoutPresenterStyle>
                                                     <StackPanel DataContext="{Binding DataContext, RelativeSource={RelativeSource TemplatedParent}}" Spacing="12">
-                                                        <ComboBox
-                                                            HorizontalAlignment="Stretch"
-                                                            DisplayMemberPath="Name"
-                                                            Header="{snuxm:StringResource Name=UIXamlPagesAgentPageLabelModelProviderProfile}">
-                                                            <mxi:Interaction.Behaviors>
-                                                                <snuxb:SelectorSelectedItemBindingWorkaroundBehavior ItemsSource="{Binding Settings.ModelProviderProfiles}" SelectedItem="{Binding Conversations.CurrentItem.ModelProviderProfile, Mode=TwoWay}" />
-                                                            </mxi:Interaction.Behaviors>
-                                                        </ComboBox>
+                                                        <snuxc:SizeRestrictedContentControl>
+                                                            <ComboBox
+                                                                HorizontalAlignment="Stretch"
+                                                                DisplayMemberPath="Name"
+                                                                Header="{snuxm:StringResource Name=UIXamlPagesAgentPageLabelModelProviderProfile}">
+                                                                <mxi:Interaction.Behaviors>
+                                                                    <snuxb:SelectorSelectedItemBindingWorkaroundBehavior ItemsSource="{Binding Settings.ModelProviderProfiles}" SelectedItem="{Binding Conversations.CurrentItem.ModelProviderProfile, Mode=TwoWay}" />
+                                                                </mxi:Interaction.Behaviors>
+                                                            </ComboBox>
+                                                        </snuxc:SizeRestrictedContentControl>
 
-                                                        <ComboBox
-                                                            HorizontalAlignment="Stretch"
-                                                            DisplayMemberPath="DisplayName"
-                                                            Header="{snuxm:StringResource Name=UIXamlPagesAgentPageLabelModelProfile}">
-                                                            <mxi:Interaction.Behaviors>
-                                                                <snuxb:SelectorSelectedItemBindingWorkaroundBehavior ItemsSource="{Binding Conversations.CurrentItem.ModelProviderProfile.ModelProfiles, Mode=OneWay}" SelectedItem="{Binding Conversations.CurrentItem.ModelProfile, Mode=TwoWay}" />
-                                                            </mxi:Interaction.Behaviors>
-                                                        </ComboBox>
+                                                        <snuxc:SizeRestrictedContentControl>
+                                                            <ComboBox
+                                                                HorizontalAlignment="Stretch"
+                                                                DisplayMemberPath="DisplayName"
+                                                                Header="{snuxm:StringResource Name=UIXamlPagesAgentPageLabelModelProfile}">
+                                                                <mxi:Interaction.Behaviors>
+                                                                    <snuxb:SelectorSelectedItemBindingWorkaroundBehavior ItemsSource="{Binding Conversations.CurrentItem.ModelProviderProfile.ModelProfiles, Mode=OneWay}" SelectedItem="{Binding Conversations.CurrentItem.ModelProfile, Mode=TwoWay}" />
+                                                                </mxi:Interaction.Behaviors>
+                                                            </ComboBox>
+                                                        </snuxc:SizeRestrictedContentControl>
                                                     </StackPanel>
                                                 </Flyout>
                                             </Button.Flyout>
