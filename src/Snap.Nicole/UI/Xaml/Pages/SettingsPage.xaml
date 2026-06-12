@@ -205,6 +205,8 @@
                                     </cwcont:SettingsCard>
                                     <cwcont:SettingsCard Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelAgentSystemPrompt}">
                                         <TextBox
+                                            MaxWidth="640"
+                                            MaxHeight="320"
                                             AcceptsReturn="True"
                                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                                             Text="{Binding Settings.AgentOptions.SystemPrompt, Mode=TwoWay}"

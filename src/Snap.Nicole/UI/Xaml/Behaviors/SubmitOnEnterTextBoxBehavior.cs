@@ -63,6 +63,7 @@ internal sealed partial class SubmitOnEnterTextBoxBehavior : BehaviorBase<TextBo
 
     private static void InsertLineBreak(TextBox textBox)
     {
+        // TODO: TextBlock uses ITextService2 which has better APIs for manipulating text, consider a hack in future.
         string text = textBox.Text ?? string.Empty;
         int selectionStart = textBox.SelectionStart;
         int selectionLength = textBox.SelectionLength;

@@ -32,7 +32,7 @@
                 AutomationProperties.Name="{snuxm:StringResource Name=UIXamlControlsChatMarkdownSegmentViewToolTipCopyText}"
                 Command="{x:Bind CopyMarkdownCommand}"
                 ToolTipService.ToolTip="{snuxm:StringResource Name=UIXamlControlsChatMarkdownSegmentViewToolTipCopyText}">
-                <FontIcon FontSize="13" Glyph="&#xE8C8;" />
+                <FontIcon FontSize="12" Glyph="&#xE8C8;" />
             </Button>
         </StackPanel>
     </StackPanel>

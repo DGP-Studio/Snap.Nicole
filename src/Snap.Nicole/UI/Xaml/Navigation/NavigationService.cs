@@ -85,7 +85,10 @@ internal sealed class NavigationService(IServiceProvider serviceProvider) : INav
         using SentryDiagnosticSpan span = SentryDiagnostics.StartSpan(SentryOperations.UINavigationNavigate, pageName);
         span.SetTag(SentryTags.UIPage, pageName);
 
-        bool succeeded = Frame?.Navigate(pageType) is true;
+        // CurrentSourcePageType and SourcePageType are normally the same value. However, if the frame
+        // calls Navigate and the navigation is still in progress, the CurrentSourcePageType is the value
+        // before the navigation and the SourcePageType is the value being navigated to.
+        bool succeeded = Frame is { } frame && (frame.SourcePageType == pageType || frame.Navigate(pageType));
         span.SetTag(SentryTags.UINavigationSucceeded, succeeded);
         span.Finish(succeeded ? SpanStatus.Ok : SpanStatus.FailedPrecondition);
 
