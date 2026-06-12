@@ -3,7 +3,6 @@ using Sentry;
 using Snap.Nicole.Core;
 using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Core.IO;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -28,16 +27,10 @@ internal sealed class JsonSettingsProvider<TSettings> : ISettingsProvider<TSetti
     private readonly JsonSerializerOptions jsonOptions;
 
     private readonly PhysicalFileProvider fileProvider;
-    private readonly List<INotifyPropertyChanged> observableChildren = [];
-    private readonly TSettings cachedValue;
+    private readonly ObservableObjectHierarchyObserver<TSettings, JsonSettingsProvider<TSettings>> changeObserver;
 
     private IDisposable? watchRegistration;
 
-    /// <summary>
-    /// Indicates whether the current change is triggered by an external file change.
-    /// External changes are handled in ApplyExternalChange method only
-    /// </summary>
-    private bool isExternalChange;
     private volatile bool disposed;
 
     public JsonSettingsProvider(string fileNameWithoutExtension, JsonSerializerOptions jsonOptions)
@@ -55,9 +48,19 @@ internal sealed class JsonSettingsProvider<TSettings> : ISettingsProvider<TSetti
             value = new TSettings();
         }
 
-        cachedValue = value;
-        cachedValue.PropertyChanged += OnRootPropertyChanged;
-        UpdateObservableChildren();
+        changeObserver = new(value, this, static (self, root) =>
+        {
+            if (!self.disposed)
+            {
+                lock (self.syncRoot)
+                {
+                    if (!self.disposed)
+                    {
+                        self.SaveCore(root);
+                    }
+                }
+            }
+        });
 
         fileProvider = new(directory);
         StartWatchingFileChange();
@@ -69,7 +72,7 @@ internal sealed class JsonSettingsProvider<TSettings> : ISettingsProvider<TSetti
         {
             lock (syncRoot)
             {
-                return cachedValue;
+                return changeObserver.Root;
             }
         }
     }
@@ -87,8 +90,7 @@ internal sealed class JsonSettingsProvider<TSettings> : ISettingsProvider<TSetti
             fileProvider.Dispose();
         }
 
-        cachedValue.PropertyChanged -= OnRootPropertyChanged;
-        ClearObservableChildren();
+        changeObserver.Dispose();
     }
 
     private static void OnFileChanged(object? state)
@@ -194,86 +196,18 @@ internal sealed class JsonSettingsProvider<TSettings> : ISettingsProvider<TSetti
             return;
         }
 
-        isExternalChange = true;
         try
         {
-            cachedValue.CopyFrom(value);
-            UpdateObservableChildren();
+            using (BooleanTrueScope.Create(ref changeObserver.Suppressed))
+            {
+                changeObserver.Root.CopyFrom(value);
+                changeObserver.Refresh();
+            }
         }
         catch (Exception ex)
         {
             SentryDiagnostics.CaptureException(ex, span, SentryOperations.SettingsJsonApplyExternalChange);
         }
-        finally
-        {
-            isExternalChange = false;
-        }
-    }
-
-    private void OnRootPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (isExternalChange)
-        {
-            return;
-        }
-
-        UpdateObservableChildren();
-        PersistObservedChange();
-    }
-
-    private void OnObservableChildPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (isExternalChange)
-        {
-            return;
-        }
-
-        UpdateObservableChildren();
-        PersistObservedChange();
-    }
-
-    private void PersistObservedChange()
-    {
-        if (disposed || /* defensive check */ isExternalChange)
-        {
-            return;
-        }
-
-        lock (syncRoot)
-        {
-            if (disposed || /* defensive check */ isExternalChange)
-            {
-                return;
-            }
-
-            SaveCore(cachedValue);
-        }
-    }
-
-    private void UpdateObservableChildren()
-    {
-        ClearObservableChildren();
-
-        if (cachedValue is not IObservableChildrenProvider provider)
-        {
-            return;
-        }
-
-        foreach (INotifyPropertyChanged source in provider.EnumerateObservableChildren())
-        {
-            source.PropertyChanged += OnObservableChildPropertyChanged;
-            observableChildren.Add(source);
-        }
-    }
-
-    private void ClearObservableChildren()
-    {
-        foreach (INotifyPropertyChanged source in observableChildren)
-        {
-            source.PropertyChanged -= OnObservableChildPropertyChanged;
-        }
-
-        observableChildren.Clear();
     }
 
     private bool TryLoadCore(bool newWhenMissing, [NotNullWhen(true)] out TSettings? value)

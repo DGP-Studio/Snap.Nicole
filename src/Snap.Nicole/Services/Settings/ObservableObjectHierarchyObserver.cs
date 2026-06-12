@@ -3,37 +3,51 @@ using System.ComponentModel;
 
 namespace Snap.Nicole.Services.Settings;
 
-internal sealed class HierarchyObserver<T, TState>
+internal sealed class ObservableObjectHierarchyObserver<T, TState> : IDisposable
     where T : class, INotifyPropertyChanged
 {
     private readonly T root;
     private readonly List<INotifyPropertyChanged> observableChildren = [];
 
     private readonly TState state;
-    private readonly Action<TState> onPropertyChanged;
+    private readonly Action<TState, T> handleChange;
 
-    private bool skipPropertyChanged;
+    private bool suppressed;
 
-    public HierarchyObserver(T root, TState state, Action<TState> onPropertyChanged)
+    public ObservableObjectHierarchyObserver(T root, TState state, Action<TState, T> handleChange)
     {
+        this.state = state;
+        this.handleChange = handleChange;
+
         this.root = root;
         root.PropertyChanged += OnPropertyChanged;
-
-        this.state = state;
-        this.onPropertyChanged = onPropertyChanged;
+        UpdateObservableChildren();
     }
 
-    public ref bool SkipPropertyChanged { get => ref skipPropertyChanged; }
+    public ref bool Suppressed { get => ref suppressed; }
+
+    public T Root { get => root; }
+
+    public void Dispose()
+    {
+        root.PropertyChanged -= OnPropertyChanged;
+        ClearObservableChildren();
+    }
+
+    public void Refresh()
+    {
+        UpdateObservableChildren();
+    }
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (SkipPropertyChanged)
+        if (Suppressed)
         {
             return;
         }
 
         UpdateObservableChildren();
-        onPropertyChanged(state);
+        handleChange(state, root);
     }
 
     private void UpdateObservableChildren()
