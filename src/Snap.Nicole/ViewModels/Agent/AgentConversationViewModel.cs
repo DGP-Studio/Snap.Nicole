@@ -265,6 +265,7 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
 
     private static string CreateTitle(string input)
     {
+        // TODO: Generate title based on first conversation content
         string title = input.ReplaceLineEndings(" ").Trim();
         const int maxLength = 40;
         if (title.Length <= maxLength)

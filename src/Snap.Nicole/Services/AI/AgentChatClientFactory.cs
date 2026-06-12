@@ -11,59 +11,58 @@ using System.ClientModel;
 
 namespace Snap.Nicole.Services.AI;
 
-internal sealed class AgentChatClientFactory(ILoggerFactory loggerFactory)
+internal sealed class AgentChatClientFactory(IServiceProvider serviceProvider)
 {
-    private readonly ILoggerFactory loggerFactory = loggerFactory;
+    private readonly IServiceProvider serviceProvider = serviceProvider;
+    private readonly ILoggerFactory loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
 
-    public IChatClient Create(ExtendedAgentOptions options, IServiceProvider serviceProvider)
+    public IChatClient Create(ExtendedAgentOptions options)
     {
         return options.ProviderType switch
         {
-            ModelProviderType.OpenAIChatCompletion => CreateOpenAIChatCompletionChatClient(options, serviceProvider),
+            ModelProviderType.OpenAIChatCompletion => CreateOpenAIChatCompletionChatClient(options),
             ModelProviderType.OpenAIResponses => CreateOpenAIResponsesChatClient(options),
             ModelProviderType.Anthropic => CreateAnthropicChatClient(options),
             _ => throw new NotSupportedException($"Unsupported model provider type: {options.ProviderType}"),
         };
     }
 
-    private IChatClient CreateOpenAIChatCompletionChatClient(ExtendedAgentOptions options, IServiceProvider serviceProvider)
+    private IChatClient CreateOpenAIChatCompletionChatClient(ExtendedAgentOptions options)
     {
-        return CreateOpenAIClient(options, enableLogging: true)
+        return CreateOpenAIClient(options)
             .GetChatClient(options.ModelId)
             .AsIChatClient()
             .AsBuilder()
             .Use(innerClient => new UsageContentRectifyDelegatingChatClient(innerClient))
+            .UseLogging(loggerFactory)
             .Build(serviceProvider);
     }
 
     private IChatClient CreateOpenAIResponsesChatClient(ExtendedAgentOptions options)
     {
-        ResponsesClient client = CreateOpenAIClient(options, enableLogging: false).GetResponsesClient();
-        return client.AsIChatClient(options.ModelId);
+        return CreateOpenAIClient(options)
+            .GetResponsesClient()
+            .AsIChatClient(options.ModelId)
+            .AsBuilder()
+            .UseLogging(loggerFactory)
+            .Build(serviceProvider);
     }
 
-    private static IChatClient CreateAnthropicChatClient(ExtendedAgentOptions options)
+    private IChatClient CreateAnthropicChatClient(ExtendedAgentOptions options)
     {
-        return CreateAnthropicClient(options).AsIChatClient(options.ModelId, options.MaxOutputTokens);
+        return CreateAnthropicClient(options)
+            .AsIChatClient(options.ModelId, options.MaxOutputTokens)
+            .AsBuilder()
+            .UseLogging(loggerFactory)
+            .Build(serviceProvider);
     }
 
-    private OpenAIClient CreateOpenAIClient(ExtendedAgentOptions options, bool enableLogging)
+    private static OpenAIClient CreateOpenAIClient(ExtendedAgentOptions options)
     {
-        OpenAIClientOptions clientOptions = new()
+        return new(new ApiKeyCredential(options.ApiKey!), new()
         {
             Endpoint = options.Endpoint.ToUri(),
-        };
-
-        if (enableLogging)
-        {
-            clientOptions.ClientLoggingOptions = new()
-            {
-                LoggerFactory = loggerFactory,
-                EnableMessageContentLogging = true,
-            };
-        }
-
-        return new(new ApiKeyCredential(options.ApiKey!), clientOptions);
+        });
     }
 
     private static AnthropicClient CreateAnthropicClient(ExtendedAgentOptions options)

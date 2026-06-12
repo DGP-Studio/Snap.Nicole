@@ -4,7 +4,7 @@ The user might execute `git add`/`git restore` actively to observable/review you
 
 ## Explore external C# symbols
 
-Extensively use/load the `ilspycmd-find-implementation` skill when writing C# codes and you are not sure about any external symbol's behavior
+- Extensively use/load the `ilspycmd-find-implementation` skill when writing C# codes and you are not sure about any external symbol's behavior
 
 ## Line Ending Normalization
 
@@ -21,14 +21,13 @@ src
 
 - Snap.Nicole: The main project. It primarily uses C#/WinUI 3 to build an agentic, multifunctional toolbox application.
 - Snap.Nicole.Native: A supporting project that uses C++/WinRT to help the main project interact with the Windows system and to polyfill features that WinUI 3 does not provide.
-- Snap.Nicole.SourceGeneration: A supporting project and Roslyn source generator that reduces the overhead of writing repetitive code in the main project.
+- Snap.Nicole.SourceGeneration: A supporting `netstandard2.0` Roslyn incremental source generator project consumed by the main project as an analyzer to reduce repetitive code in settings models, WinUI dependency properties, native callback wrappers, and resource accessors.
 
 ## Snap.Nicole
 
 ### Architecture and patterns
 
-A SDK style project
-
+- A SDK style project
 - Extensively adopt Microsoft.Extensions.Hosting and Microsoft.Extensions.DependencyInjection to manage the lifetime of applications, services, and objects. Services are registered at `Program.cs`.
 - Extensively adopt the Model-View-ViewModel (MVVM) pattern to handle data presentation and user interactions.
 - Extensively adopt Sentry to utilize it's error tracking and performance monitoring features.
@@ -36,40 +35,33 @@ A SDK style project
 ### Type and file organization
 
 - All top-level members like class/struct should be `internal` or `private`, unless XAML requires them to be `public` (for example, attached DependencyProperties and the `Application` class).
-- Prefer one top-level type per file for models, result records, and enums. Avoid broad aggregate files such as `*Models.cs`; split related types into files named after each type.
+- Prefer one top-level type per file for models, result records, and enums. Split related types into files named after each type.
 - For all `record` types, do not use positional record declarations or positional construction patterns. Prefer explicit properties and object initializers so members remain self-describing.
 
 ### Syntax and style
 
-- Always organize method arguments in single line, no matter how long they are. Wrap related arguments into context class/struct/record if necessary.
-- Do not use expression-bodied syntax for methods, constructors, operators, or conversions. Lambdas or expressions inside method/property bodies are unaffected.
-- When comparing an object with `null`, use `==` `!=` for WinRT Projection objects and the `is` `is not` pattern for all other types.
-- For read-only properties, do not use direct expression-bodied declarations like `Property => value;`; use an expression get accessor instead, for example `Property { get => value; }`. Keep accessors in the same line whenever possible.
-- For non-constant `string` or `string?` values that need an empty string, use `string.Empty` instead of `""`. Empty string literals are allowed only for constants (especially inside `[Attribute]` where `string.Empty` is not applicable) or the `is pattern`.
-- Use `Interlocked.Exchange` for atomic read-modify-write operations:
-``` C#
-if (Interlocked.Exchange(ref value, true))
-{
-    return;
-}
-```
-instead of separate read and write operations:
-``` C#
-if (value)
-{
-    return;
-}
+**IMPORTANT**: When writing code, find the best balance between **high performance** and **clean code**.
 
-value = true;
-```
+- Always try your best to avoid memory leak. Especially when:
+	- Subscribing events, which is extremely dangerous when not properly unsubscribed.
+	- Passing closure as callback argument, if the callback is not executed immediately, the callee might stores it and prevent GC to opt in.
 
-### Cryptography
+- DO
+	- Always normalize strings to uppercase before comparison when case-insensitive matching is required and `StringComparison.OrdinalIgnoreCase` is unavailable.
+	- Always organize method arguments in single line, no matter how long they are. Wrap related arguments into context class/struct/record if necessary (Consider this when having more the 4 arguments).
+	- When comparing an object with `null`, use `==` `!=` for WinRT Projection objects and the `is` `is not` pattern for all other types.
+	- For read-only properties, do not use direct expression-bodied declarations like `Property => value;`; use an expression get accessor instead, for example `Property { get => value; }`. Keep accessors in the same line whenever possible.
+	- For non-constant `string` or `string?` values that need an empty string, use `string.Empty` instead of `""`. Empty string literals are allowed only for constants (especially inside `[Attribute]` where `string.Empty` is not applicable) or the `is pattern`.
+	- Use `Interlocked.Exchange` for atomic read-modify-write operations: `if (Interlocked.Exchange(ref value, true)) { return; }` instead of separate read and write operations:`if (value) { return; } value = true;`
+	- When resolving multiple services from DI, single `IServiceProvider serviceProvider` argument is recommended, and resolve services from that serviceProvider, unless some parameters must be directly injected.
+- DO NOT
+	- Do not use expression-bodied syntax for methods, constructors, operators, or conversions. Lambdas or expressions inside method/property bodies are unaffected.
+	- Avoid closures that capture more than 4 variables. Closures should generally be minimized; when a method has an overload that accepts a state argument, prefer that overload.
+	- Non-static local functions should generally be avoided for the same reason as closures.
+
+### Implementation choices
 
 - Perfer uisng `System.Security.Cryptography.CryptographicOperations` for general oneshot usage over certain types like `SHA256`,`MD5`
-
-### String comparision
-
-- Always normalize strings to uppercase before comparison when case-insensitive matching is required and `StringComparison.OrdinalIgnoreCase` is unavailable.
 
 ### Resources and reuse
 
@@ -81,7 +73,7 @@ value = true;
 Snap.Nicole depends on the Snap.Nicole.Native c++ project, so dotnet build won't work properly.
 In order to build the project correctly and reduce build fails, you need to:
 
-1. Run cmd `where /r "C:\Program Files\Microsoft Visual Studio" msbuild` to locate msbuild
+1. Run cmd `where /r "C:\Program Files\Microsoft Visual Studio" msbuild` to locate msbuild (If you already know the path, skip this step)
 2. Run cmd `"path/to/msbuild" "path/to/Snap.Nicole.csproj" -restore -t:Build -p:Configuration=Debug -p:Platform=x64 -nologo -verbosity:minimal -clp:ErrorsOnly`
 
 If CMD is not available and PowerShell is, the script above may be converted to PowerShell instead.
@@ -99,14 +91,26 @@ If CMD is not available and PowerShell is, the script above may be converted to 
 
 ## Snap.Nicole.SourceGeneration
 
-No information provided yet.
+The project is a Roslyn analyzer/source-generator assembly, not a runtime dependency of `Snap.Nicole`.
+
+- Targeting and dependencies
+	- The project targets `netstandard2.0` so it can run inside the compiler/analyzer host.
+	- `AddGenerationTimeReferences` packs resolved compile-time dependencies into `analyzers/dotnet/cs`; preserve this when adding generator-time dependencies needed by the analyzer host.
+- Maintenance rules
+	- Prefer incremental source-generator APIs over classic generator patterns.
+	- Prefer Roslyn syntax factories and shared helpers in `Primitive`/`WellKnownSyntax` over string-concatenated C#.
+	- When adding a new app-facing marker attribute or interface, define it in `src/Snap.Nicole`, add the fully qualified metadata name to `WellKnownMetadataNames`, and keep the generator matched by metadata name.
+	- When adding a new `.resx` file that should participate in generation, include it as `AdditionalFiles` in `src/Snap.Nicole/Snap.Nicole.csproj`.
 
 # Encoding
 
 Windows PowerShell reads files using the active ANSI code page when no encoding is specified.
 Files that contain non-ASCII text, may display as mojibake and XML parsing can report false structural errors.
 
-- Prefer `rg` for searching text because it reads UTF-8 correctly in this repo.
 - When using PowerShell to read or parse text files, specify UTF-8 explicitly, for example `Get-Content -Raw -Encoding UTF8 src\Snap.Nicole\Resources\SR.resx`.
 - When parsing XML resources in PowerShell, use `[xml]$doc = Get-Content -Raw -Encoding UTF8 path\to\file.resx` instead of relying on the default encoding.
 - When writing files from PowerShell, specify the intended encoding explicitly to avoid accidental re-encoding.
+
+# Code of Conduct
+
+- When the user's instructions conflict with any of the above, point out the conflict, pause any changes, and suggest that the user modify this document.

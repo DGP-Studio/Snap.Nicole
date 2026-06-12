@@ -32,11 +32,11 @@ internal sealed class AgentConversationRuntimeController(IAgentService agentServ
 
         if (runtime.SerializedSessionState is JsonElement serializedState)
         {
-            runtime.Session = await agentService.DeserializeSessionAsync(agent, serializedState, cancellationToken);
+            runtime.Session = await agent.DeserializeSessionAsync(serializedState, cancellationToken: cancellationToken);
         }
         else
         {
-            runtime.Session = await agentService.CreateSessionAsync(agent, cancellationToken);
+            runtime.Session = await agent.CreateSessionAsync(cancellationToken);
         }
 
         return runtime.Session;
@@ -44,7 +44,7 @@ internal sealed class AgentConversationRuntimeController(IAgentService agentServ
 
     public async ValueTask PersistConversationSessionAsync(AgentConversationRuntimeState runtime, HarnessAgent agent, AgentSession session, CancellationToken cancellationToken)
     {
-        JsonElement serializedState = await agentService.SerializeSessionAsync(agent, session, cancellationToken);
+        JsonElement serializedState = await agent.SerializeSessionAsync(session, cancellationToken: cancellationToken);
         runtime.SerializedSessionState = serializedState.Clone();
     }
 }

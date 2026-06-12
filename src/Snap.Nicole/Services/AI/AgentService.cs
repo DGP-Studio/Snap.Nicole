@@ -13,31 +13,16 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI;
 
-internal sealed class AgentService(IServiceProvider serviceProvider, AgentChatClientFactory chatClientFactory) : IAgentService
+internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentService
 {
     private readonly IServiceProvider serviceProvider = serviceProvider;
-    private readonly AgentChatClientFactory chatClientFactory = chatClientFactory;
+    private readonly AgentChatClientFactory chatClientFactory = serviceProvider.GetRequiredService<AgentChatClientFactory>();
     private readonly JsonSerializerOptions functionContentJsonOptions = serviceProvider.GetRequiredKeyedService<JsonSerializerOptions>(JsonSerializerOptionsKey.AIFunctionContent);
 
     public ValueTask<HarnessAgent> CreateAgentAsync(ExtendedAgentOptions options, CancellationToken cancellationToken = default)
     {
-        IChatClient chatClient = chatClientFactory.Create(options, serviceProvider);
+        IChatClient chatClient = chatClientFactory.Create(options);
         return ValueTask.FromResult(options.CreateHarnessAgent(chatClient, CreateBuiltInTools(), serviceProvider));
-    }
-
-    public ValueTask<AgentSession> CreateSessionAsync(HarnessAgent agent, CancellationToken cancellationToken = default)
-    {
-        return agent.CreateSessionAsync(cancellationToken);
-    }
-
-    public ValueTask<AgentSession> DeserializeSessionAsync(HarnessAgent agent, JsonElement serializedState, CancellationToken cancellationToken = default)
-    {
-        return agent.DeserializeSessionAsync(serializedState, cancellationToken: cancellationToken);
-    }
-
-    public ValueTask<JsonElement> SerializeSessionAsync(HarnessAgent agent, AgentSession session, CancellationToken cancellationToken = default)
-    {
-        return agent.SerializeSessionAsync(session, cancellationToken: cancellationToken);
     }
 
     public async ValueTask<SpanStatus> RunStreamingAsync(AgentRunStreamingContext context, TaskScheduler taskScheduler, CancellationToken cancellationToken)
