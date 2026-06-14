@@ -27,7 +27,11 @@ internal partial class ObservableToolCallContent : ObservableAIContent
     {
         return toolCallContent switch
         {
+            CodeInterpreterToolCallContent codeInterpreterToolCallContent => ObservableCodeInterpreterToolCallContent.Create(codeInterpreterToolCallContent, jsonOptions),
             FunctionCallContent functionCallContent => ObservableFunctionCallContent.Create(functionCallContent, jsonOptions),
+            ImageGenerationToolCallContent imageGenerationToolCallContent => ObservableImageGenerationToolCallContent.Create(imageGenerationToolCallContent),
+            McpServerToolCallContent mcpServerToolCallContent => ObservableMcpServerToolCallContent.Create(mcpServerToolCallContent, jsonOptions),
+            WebSearchToolCallContent webSearchToolCallContent => ObservableWebSearchToolCallContent.Create(webSearchToolCallContent),
             _ => new()
             {
                 CallId = toolCallContent.CallId,

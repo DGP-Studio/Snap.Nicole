@@ -85,7 +85,16 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     [ObservableProperty]
     public partial ObservableChatMessageCollection Messages { get; set; } = [];
 
-    private bool CanSendMessage { get => !disposed && generationCommand is null && !IsBusy && ModelProviderProfile is not null && !string.IsNullOrWhiteSpace(InputText) && !string.IsNullOrWhiteSpace(ModelProfile?.ModelId); }
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(ApproveToolApprovalCommand), nameof(DenyToolApprovalCommand))]
+    public partial ObservableToolApprovalRequestContent? ToolApprovalRequest { get; set; }
+
+    partial void OnToolApprovalRequestChanged(ObservableToolApprovalRequestContent? value)
+    {
+        ConfigureObservableContent(value);
+    }
+
+    private bool CanSendMessage { get => !disposed && generationCommand is null && !IsBusy && ToolApprovalRequest?.CanRespond is not true && ModelProviderProfile is not null && !string.IsNullOrWhiteSpace(InputText) && !string.IsNullOrWhiteSpace(ModelProfile?.ModelId); }
 
     [JsonIgnore]
     public bool CanStopGeneration { get => !disposed && generationCommand is { IsCancellationRequested: false }; }
@@ -117,6 +126,7 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         try
         {
             InputText = string.Empty;
+            ToolApprovalRequest = null;
             await RunGenerationCommandAsync(SendMessageCommand, token => conversationTurnController.SendMessageAsync(this, input, ConfigureObservableContent, token), cancellationToken);
         }
         catch (AgentConversationException ex)
@@ -198,7 +208,7 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
 
     private bool CanRespondToToolApproval(ObservableToolApprovalRequestContent? request)
     {
-        return !disposed && generationCommand is null && conversationTurnController.CanRespondToToolApproval(this, request, out _, out _, out _);
+        return !disposed && generationCommand is null && conversationTurnController.CanRespondToToolApproval(this, request);
     }
 
     private Task RespondToToolApprovalAsync(ObservableToolApprovalRequestContent request, AIContent responseContent, CancellationToken cancellationToken)
@@ -225,7 +235,12 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         }
     }
 
-    private void ConfigureObservableContent(ObservableAIContent content)
+    internal void SetToolApprovalRequest(ObservableToolApprovalRequestContent request)
+    {
+        ToolApprovalRequest = request;
+    }
+
+    private void ConfigureObservableContent(ObservableAIContent? content)
     {
         if (content is not ObservableToolApprovalRequestContent request)
         {

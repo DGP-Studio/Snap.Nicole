@@ -1,7 +1,5 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
-using Snap.Nicole.UI.Xaml;
-using System;
 
 namespace Snap.Nicole.UI.Xaml.Controls.ChatElements;
 

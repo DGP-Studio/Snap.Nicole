@@ -1,5 +1,7 @@
+using Microsoft.Extensions.AI;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Text.Json;
 
 namespace Snap.Nicole.Services.AI.Observables;
 
@@ -18,6 +20,24 @@ internal sealed class ObservableAIContentCollection : ObservableCollection<Obser
     public ObservableAIContentCollection(List<ObservableAIContent> list)
         : base(list)
     {
+    }
+
+    public static ObservableAIContentCollection? Create(IEnumerable<AIContent>? contents, JsonSerializerOptions jsonOptions)
+    {
+        if (contents is null)
+        {
+            return null;
+        }
+
+        ObservableAIContentCollection collection = [];
+        foreach (AIContent content in contents)
+        {
+            // TODO: Should contiguous text/reasoning content be merged into one item?
+            // Or is it even valid to have multiple contiguous text/reasoning content items?
+            collection.AddOrUpdate(ObservableAIContent.Create(content, jsonOptions));
+        }
+
+        return collection.Count is 0 ? null : collection;
     }
 
     public static void AddOrUpdate(ObservableAIContentCollection collection, ObservableAIContent? newContent)

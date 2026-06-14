@@ -20,7 +20,6 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition />
                     </Grid.ColumnDefinitions>
 
@@ -41,11 +40,6 @@
                         Opacity="0.7"
                         Style="{ThemeResource CaptionTextBlockStyle}"
                         Text="{Binding Result}" />
-                    <TextBlock
-                        Grid.Column="3"
-                        Opacity="0.7"
-                        Style="{ThemeResource CaptionTextBlockStyle}"
-                        Text="{Binding Exception}" />
                 </Grid>
             </Border>
         </DataTemplate>

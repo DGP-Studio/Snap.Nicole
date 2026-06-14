@@ -46,38 +46,70 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
             await foreach (AgentResponseUpdate update in context.Agent.RunStreamingAsync([context.Message], context.Session, context.Options.AsAgentRunOptions(), cancellationToken))
             {
                 List<ObservableAIContent> observableContents = [];
+                ObservableToolApprovalRequestContent? toolApprovalRequest = null;
                 foreach (AIContent content in update.Contents)
                 {
                     if (ObservableAIContent.Create(content, functionContentJsonOptions) is { } observableContent)
                     {
                         context.ConfigureContent?.Invoke(observableContent);
-                        observableContents.Add(observableContent);
+                        if (observableContent is ObservableToolApprovalRequestContent request)
+                        {
+                            toolApprovalRequest = request;
+                        }
+                        else
+                        {
+                            observableContents.Add(observableContent);
+                        }
                     }
                 }
 
                 // Fast path for updates that do not contain any content. This avoids unnecessary dispatching to the UI thread.
-                if (observableContents.Count is 0)
+                if (observableContents.Count is 0 && toolApprovalRequest is null)
                 {
                     continue;
                 }
 
-                State state = new(context.Collection, context.Options, observableContents, targetResponseMessage, responseAdded);
+                State state = new()
+                {
+                    Collection = context.Collection,
+                    Options = context.Options,
+                    ObservableContents = observableContents,
+                    TargetResponseMessage = targetResponseMessage,
+                    ResponseAdded = responseAdded,
+                    ToolApprovalRequest = toolApprovalRequest,
+                    SetToolApprovalRequest = context.SetToolApprovalRequest,
+                };
 
                 await taskScheduler.Run(static (state) =>
                 {
+                    if (state.ToolApprovalRequest is not null)
+                    {
+                        if (state.TargetResponseMessage is not null || state.ObservableContents.Count is not 0)
+                        {
+                            state.ToolApprovalRequest.TargetMessageId = state.EnsureTargetResponseMessage().EnsureMessageId();
+                        }
+
+                        state.SetToolApprovalRequest?.Invoke(state.ToolApprovalRequest);
+                    }
+
+                    if (state.ObservableContents.Count is 0)
+                    {
+                        return;
+                    }
+
                     // TODOO: this should be possible to lift out of the UI thread dispatch,
                     // but currently if this is created on a background thread, the UI gets stuck and doesn't update at all.
-                    state.TargetResponseMessage ??= ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, state.Options.ModelId);
+                    ObservableChatMessage responseMessage = state.EnsureTargetResponseMessage();
 
                     if (!state.ResponseAdded)
                     {
-                        state.Collection.Add(state.TargetResponseMessage);
+                        state.Collection.Add(responseMessage);
                         state.ResponseAdded = true;
                     }
 
                     foreach (ObservableAIContent observableContent in state.ObservableContents)
                     {
-                        state.TargetResponseMessage.Contents.AddOrUpdate(observableContent);
+                        responseMessage.Contents.AddOrUpdate(observableContent);
                     }
                 }, state, cancellationToken);
 
@@ -120,19 +152,33 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
 
     private static IList<AITool> CreateBuiltInTools()
     {
-        return [new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.GetCurrentTime))];
+        return
+        [
+            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.GetCurrentTime)),
+            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.ShowSummary))
+        ];
     }
 
-    private sealed class State(ObservableChatMessageCollection collection, ExtendedAgentOptions options, List<ObservableAIContent> observableContents, ObservableChatMessage? targetResponseMessage, bool responseAdded)
+    private sealed class State
     {
-        public ObservableChatMessageCollection Collection { get; } = collection;
+        public required ObservableChatMessageCollection Collection { get; init; }
 
-        public ExtendedAgentOptions Options { get; } = options;
+        public required ExtendedAgentOptions Options { get; init; }
 
-        public List<ObservableAIContent> ObservableContents { get; } = observableContents;
+        public required List<ObservableAIContent> ObservableContents { get; init; }
 
-        public ObservableChatMessage? TargetResponseMessage { get; set; } = targetResponseMessage;
+        public ObservableChatMessage? TargetResponseMessage { get; set; }
 
-        public bool ResponseAdded { get; set; } = responseAdded;
+        public bool ResponseAdded { get; set; }
+
+        public ObservableToolApprovalRequestContent? ToolApprovalRequest { get; init; }
+
+        public Action<ObservableToolApprovalRequestContent>? SetToolApprovalRequest { get; init; }
+
+        public ObservableChatMessage EnsureTargetResponseMessage()
+        {
+            TargetResponseMessage ??= ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, Options.ModelId);
+            return TargetResponseMessage;
+        }
     }
 }

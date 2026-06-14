@@ -16,10 +16,6 @@ internal sealed partial class ObservableFunctionCallContent : ObservableToolCall
     [NotifyPropertyChangedFor(nameof(DisplayArguments))]
     public partial string? Arguments { get; set; }
 
-    [ObservableProperty]
-    [JsonIgnore]
-    public partial Exception? Exception { get; set; }
-
     [JsonIgnore]
     public override string DisplayName { get => Name; }
 

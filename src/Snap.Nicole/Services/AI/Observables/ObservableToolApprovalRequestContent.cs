@@ -8,8 +8,13 @@ namespace Snap.Nicole.Services.AI.Observables;
 
 internal sealed partial class ObservableToolApprovalRequestContent : ObservableInputRequestContent
 {
+    public ToolApprovalRequestContent? RawRepresentation { get; set; }
+
     [ObservableProperty]
     public partial ObservableToolCallContent ToolCall { get; set; }
+
+    [ObservableProperty]
+    public partial string? TargetMessageId { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRespond))]
@@ -20,9 +25,6 @@ internal sealed partial class ObservableToolApprovalRequestContent : ObservableI
 
     [ObservableProperty]
     public partial string? Reason { get; set; }
-
-    [JsonIgnore]
-    public ToolApprovalRequestContent? RawRepresentation { get; set; }
 
     [JsonIgnore]
     public ICommand? ApproveCommand { get; set; }
@@ -37,15 +39,16 @@ internal sealed partial class ObservableToolApprovalRequestContent : ObservableI
     {
         return new()
         {
+            RawRepresentation = toolApprovalRequestContent,
             RequestId = toolApprovalRequestContent.RequestId,
             ToolCall = ObservableToolCallContent.Create(toolApprovalRequestContent.ToolCall, jsonOptions),
-            RawRepresentation = toolApprovalRequestContent,
         };
     }
 
     public void Update(ObservableToolApprovalRequestContent toolApprovalRequestContent)
     {
         ToolCall = toolApprovalRequestContent.ToolCall;
+        TargetMessageId = toolApprovalRequestContent.TargetMessageId;
         RawRepresentation = toolApprovalRequestContent.RawRepresentation;
     }
 

@@ -19,5 +19,7 @@ internal sealed class AgentRunStreamingContext
 
     public Action<ObservableAIContent>? ConfigureContent { get; init; }
 
+    public Action<ObservableToolApprovalRequestContent>? SetToolApprovalRequest { get; init; }
+
     public ObservableChatMessage? TargetResponseMessage { get; init; }
 }

@@ -57,14 +57,14 @@
                     Style="{ThemeResource CaptionTextBlockStyle}"
                     Text="{snuxm:StringResource Name=UIXamlControlsChatToolApprovalRequestSegmentViewLabelPending}"
                     Visibility="{x:Bind ToolApprovalRequest.IsHandled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=True}" />
-                <FontIcon
+                <!--<FontIcon
                     x:Name="StatusIcon"
                     Grid.Column="2"
                     VerticalAlignment="Center"
                     FontSize="12"
                     Foreground="{x:Bind ToolApprovalRequest.Approved, Mode=OneWay, Converter={StaticResource ApprovalForegroundBrushConverter}}"
                     Glyph="{x:Bind ToolApprovalRequest.Approved, Mode=OneWay, Converter={StaticResource ApprovalGlyphConverter}}"
-                    Visibility="{x:Bind ToolApprovalRequest.IsHandled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    Visibility="{x:Bind ToolApprovalRequest.IsHandled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />-->
             </Grid>
 
             <snuxcc:ChatToolCallSegmentView

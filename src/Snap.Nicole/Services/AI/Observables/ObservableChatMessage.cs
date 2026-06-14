@@ -21,22 +21,26 @@ internal sealed partial class ObservableChatMessage : ObservableObject
     [ObservableProperty]
     public partial string? MessageId { get; set; }
 
+    public string EnsureMessageId()
+    {
+        if (string.IsNullOrWhiteSpace(MessageId))
+        {
+            MessageId = Guid.NewGuid().ToString("N");
+        }
+
+        return MessageId;
+    }
+
     public static ObservableChatMessage Create(ChatMessage chatMessage, JsonSerializerOptions jsonOptions)
     {
-        ObservableChatMessage observableChatMessage = new()
+        return new()
         {
             Role = chatMessage.Role,
             CreatedAt = chatMessage.CreatedAt,
             AuthorName = chatMessage.AuthorName,
             MessageId = chatMessage.MessageId,
+            Contents = ObservableAIContentCollection.Create(chatMessage.Contents, jsonOptions) ?? [],
         };
-
-        foreach (AIContent content in chatMessage.Contents)
-        {
-            observableChatMessage.Contents.AddOrUpdate(ObservableAIContent.Create(content, jsonOptions));
-        }
-
-        return observableChatMessage;
     }
 
     public static ObservableChatMessage Create(ChatRole role, DateTimeOffset? createdAt, string? authorName = default, ObservableAIContent? content = default)

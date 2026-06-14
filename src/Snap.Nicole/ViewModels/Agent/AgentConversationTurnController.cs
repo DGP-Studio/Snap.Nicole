@@ -7,7 +7,6 @@ using Snap.Nicole.Services.AI;
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.AI.Observables;
 using Snap.Nicole.Services.Settings;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,13 +23,14 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
 
     public string UserName { get => AgentOptionsNormalizer.NormalizeUserName(settings.AgentOptions.UserName); }
 
-    public bool CanRespondToToolApproval(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent? request, [NotNullWhen(true)] out HarnessAgent? agent, [NotNullWhen(true)] out AgentSession? session, [NotNullWhen(true)] out ExtendedAgentOptions? agentOptions)
+    public bool CanRespondToToolApproval(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent? request)
     {
-        agent = null;
-        session = null;
-        agentOptions = null;
-
         if (conversation.IsBusy)
+        {
+            return false;
+        }
+
+        if (!ReferenceEquals(conversation.ToolApprovalRequest, request))
         {
             return false;
         }
@@ -40,16 +40,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             return false;
         }
 
-        if (conversation.Runtime is { Agent: { } localAgent, Session: { } localSession, AgentOptions: { } localAgentOptions })
-        {
-            agent = localAgent;
-            session = localSession;
-            agentOptions = localAgentOptions;
-
-            return true;
-        }
-
-        return false;
+        return profileController.CreateRequestOptions(conversation.ModelProviderProfile, conversation.ModelProfile) is not null;
     }
 
     public async Task SendMessageAsync(AgentConversationViewModel conversation, string input, Action<ObservableAIContent> configureContent, CancellationToken cancellationToken)
@@ -89,6 +80,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
                 Options = requestOptions,
                 Session = session,
                 ConfigureContent = configureContent,
+                SetToolApprovalRequest = conversation.SetToolApprovalRequest,
             },
             TitleInput = input,
         };
@@ -96,12 +88,28 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         await RunConversationOperationAsync(conversation, operation, cancellationToken);
     }
 
-    public Task RespondToToolApprovalAsync(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent request, AIContent responseContent, Action<ObservableAIContent> configureContent, Action notifyToolApprovalCommands, CancellationToken cancellationToken)
+    public async Task RespondToToolApprovalAsync(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent request, AIContent responseContent, Action<ObservableAIContent> configureContent, Action notifyToolApprovalCommands, CancellationToken cancellationToken)
     {
-        if (!CanRespondToToolApproval(conversation, request, out HarnessAgent? agent, out AgentSession? session, out ExtendedAgentOptions? requestOptions))
+        if (!CanRespondToToolApproval(conversation, request))
         {
-            return Task.CompletedTask;
+            return;
         }
+
+        if (profileController.CreateRequestOptions(conversation.ModelProviderProfile, conversation.ModelProfile) is not { } requestOptions)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(requestOptions.ApiKey))
+        {
+            conversation.Runtime.Reset();
+
+            SentryDiagnostics.AddBreadcrumb("Tool approval response blocked by missing API key", SentryBreadcrumbCategories.AIChat, SentryBreadcrumbTypes.UI);
+            throw new AgentConversationException(SRName.UIXamlPagesAgentPageMessageConfigureApiKey);
+        }
+
+        HarnessAgent agent = await runtimeController.EnsureConversationAgentAsync(conversation.Runtime, requestOptions, cancellationToken);
+        AgentSession session = await runtimeController.EnsureConversationSessionAsync(conversation.Runtime, agent, cancellationToken);
 
         ToolApprovalResponseContent response = responseContent switch
         {
@@ -113,6 +121,8 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         request.Approved = response.Approved;
         request.Reason = response.Reason;
         notifyToolApprovalCommands();
+        ObservableChatMessage? targetResponseMessage = FindMessageById(conversation.Messages, request.TargetMessageId);
+        conversation.ToolApprovalRequest = null;
 
         ChatMessage responseMessage = new(ChatRole.User, [responseContent])
         {
@@ -132,19 +142,25 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
                 Options = requestOptions,
                 Session = session,
                 ConfigureContent = configureContent,
-                TargetResponseMessage = FindMessageContaining(conversation, request),
+                SetToolApprovalRequest = conversation.SetToolApprovalRequest,
+                TargetResponseMessage = targetResponseMessage,
             },
             NotifyToolApprovalCommands = true,
         };
 
-        return RunConversationOperationAsync(conversation, operation, cancellationToken);
+        await RunConversationOperationAsync(conversation, operation, cancellationToken);
     }
 
-    private static ObservableChatMessage? FindMessageContaining(AgentConversationViewModel conversation, ObservableAIContent content)
+    private static ObservableChatMessage? FindMessageById(ObservableChatMessageCollection messages, string? messageId)
     {
-        foreach (ObservableChatMessage message in conversation.Messages)
+        if (string.IsNullOrWhiteSpace(messageId))
         {
-            if (message.Contents.Contains(content))
+            return null;
+        }
+
+        foreach (ObservableChatMessage message in messages)
+        {
+            if (string.Equals(message.MessageId, messageId, StringComparison.Ordinal))
             {
                 return message;
             }
