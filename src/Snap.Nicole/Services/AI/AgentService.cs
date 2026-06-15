@@ -6,6 +6,7 @@ using Snap.Nicole.Core.Text.Json;
 using Snap.Nicole.Core.Threading;
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.AI.Observables;
+using Snap.Nicole.ViewModels.Agent;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
@@ -27,97 +28,33 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
 
     public async ValueTask<SpanStatus> RunStreamingAsync(AgentRunStreamingContext context, TaskScheduler taskScheduler, CancellationToken cancellationToken)
     {
+        AgentConversationViewModel conversation = context.Conversation;
+
         using SentryDiagnosticSpan span = SentryDiagnostics.StartSpan(SentryOperations.AIChatStream, "Run streaming chat completion");
         span.SetTag(SentryTags.AIProvider, context.Options.ProviderType.ToString());
         span.SetTag(SentryTags.AIModel, context.Options.ModelId);
 
         try
         {
-            if (ShouldAddInputMessage(context.Message))
+            if (ShouldDisplayInputMessage(context.InputMessage))
             {
-                ObservableChatMessage inputMessage = ObservableChatMessage.Create(context.Message, functionContentJsonOptions);
-                await taskScheduler.Run(ObservableChatMessageCollection.Add, context.Collection, inputMessage, cancellationToken);
+                ObservableChatMessage inputMessage = ObservableChatMessage.Create(context.InputMessage, functionContentJsonOptions);
+                await taskScheduler.Run(ObservableChatMessageCollection.Add, conversation.Messages, inputMessage, cancellationToken);
             }
 
-            ObservableChatMessage? targetResponseMessage = context.TargetResponseMessage;
-            bool responseAdded = context.TargetResponseMessage is not null;
-
             await Task.Yield();
-            await foreach (AgentResponseUpdate update in context.Agent.RunStreamingAsync([context.Message], context.Session, context.Options.AsAgentRunOptions(), cancellationToken))
+            await foreach (AgentResponseUpdate update in context.Agent.RunStreamingAsync([context.InputMessage], context.Session, context.Options.AsAgentRunOptions(), cancellationToken))
             {
-                List<ObservableAIContent> observableContents = [];
-                ObservableToolApprovalRequestContent? toolApprovalRequest = null;
-                foreach (AIContent content in update.Contents)
+                ExtendedAgentResponseUpdate pendingUpdate = ExtendedAgentResponseUpdate.Create(update, functionContentJsonOptions);
+                if (pendingUpdate.IsEmpty)
                 {
-                    if (ObservableAIContent.Create(content, functionContentJsonOptions) is { } observableContent)
-                    {
-                        context.ConfigureContent?.Invoke(observableContent);
-                        if (observableContent is ObservableToolApprovalRequestContent request)
-                        {
-                            toolApprovalRequest = request;
-                        }
-                        else
-                        {
-                            observableContents.Add(observableContent);
-                        }
-                    }
-                }
-
-                // Fast path for updates that do not contain any content. This avoids unnecessary dispatching to the UI thread.
-                if (observableContents.Count is 0 && toolApprovalRequest is null)
-                {
+                    // Fast path for updates that do not contain any content. This avoids unnecessary dispatching to the UI thread.
                     continue;
                 }
 
-                State state = new()
-                {
-                    Collection = context.Collection,
-                    Options = context.Options,
-                    ObservableContents = observableContents,
-                    TargetResponseMessage = targetResponseMessage,
-                    ResponseAdded = responseAdded,
-                    ToolApprovalRequest = toolApprovalRequest,
-                    SetToolApprovalRequest = context.SetToolApprovalRequest,
-                };
-
-                await taskScheduler.Run(static (state) =>
-                {
-                    if (state.ToolApprovalRequest is not null)
-                    {
-                        if (state.TargetResponseMessage is not null || state.ObservableContents.Count is not 0)
-                        {
-                            state.ToolApprovalRequest.TargetMessageId = state.EnsureTargetResponseMessage().EnsureMessageId();
-                        }
-
-                        state.SetToolApprovalRequest?.Invoke(state.ToolApprovalRequest);
-                    }
-
-                    if (state.ObservableContents.Count is 0)
-                    {
-                        return;
-                    }
-
-                    // TODOO: this should be possible to lift out of the UI thread dispatch,
-                    // but currently if this is created on a background thread, the UI gets stuck and doesn't update at all.
-                    ObservableChatMessage responseMessage = state.EnsureTargetResponseMessage();
-
-                    if (!state.ResponseAdded)
-                    {
-                        state.Collection.Add(responseMessage);
-                        state.ResponseAdded = true;
-                    }
-
-                    foreach (ObservableAIContent observableContent in state.ObservableContents)
-                    {
-                        responseMessage.Contents.AddOrUpdate(observableContent);
-                    }
-                }, state, cancellationToken);
-
-                targetResponseMessage = state.TargetResponseMessage;
-                responseAdded = state.ResponseAdded;
+                await taskScheduler.Run(ProcessPendingUpdate, context, pendingUpdate, cancellationToken);
             }
 
-            span.SetData(SentryData.AIResponseAdded, responseAdded);
             return SpanStatus.Ok;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -130,24 +67,43 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
             SentryDiagnostics.CaptureException(ex, span, SentryOperations.AIChatStream);
 
             ObservableErrorContent errorContent = ObservableErrorContent.Create(ex.Message);
-            if (context.TargetResponseMessage is not null)
+            await taskScheduler.Run(static (context, errorContent) =>
             {
-                await taskScheduler.Run(ObservableAIContentCollection.AddOrUpdate, context.TargetResponseMessage.Contents, errorContent, cancellationToken);
-            }
-            else
-            {
-                ObservableChatMessage errorMessage = ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, content: errorContent);
-                await taskScheduler.Run(ObservableChatMessageCollection.Add, context.Collection, errorMessage, cancellationToken);
-            }
+                ObservableChatMessage responseMessage = context.EnsureTargetResponseMessage();
+                responseMessage.Contents.AddOrUpdate(errorContent);
+            }, context, errorContent, cancellationToken);
 
             return SpanStatus.InternalError;
         }
     }
 
-    private static bool ShouldAddInputMessage(ChatMessage message)
+    private static bool ShouldDisplayInputMessage(ChatMessage message)
     {
         // This method is lifted out for future extensibility
+        // 1. Message with single ToolApprovalResponseContent is a special case where we don't want to display at all
         return message.Contents is not [ToolApprovalResponseContent];
+    }
+
+    private static void ProcessPendingUpdate(AgentRunStreamingContext context, ExtendedAgentResponseUpdate pendingUpdate)
+    {
+        if (pendingUpdate.ToolApprovalRequest is { } toolApprovalRequest)
+        {
+            ArgumentNullException.ThrowIfNull(context.TargetResponseMessage);
+            toolApprovalRequest.TargetMessageId = context.TargetResponseMessage.Id;
+
+            context.Conversation.ToolApprovalRequest = toolApprovalRequest;
+        }
+
+        if (pendingUpdate.ObservableContents.Count is 0)
+        {
+            return;
+        }
+
+        ObservableChatMessage responseMessage = context.EnsureTargetResponseMessage();
+        foreach (ObservableAIContent observableContent in pendingUpdate.ObservableContents)
+        {
+            responseMessage.Contents.AddOrUpdate(observableContent);
+        }
     }
 
     private static IList<AITool> CreateBuiltInTools()
@@ -157,28 +113,5 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
             new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.GetCurrentTime)),
             new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.ShowSummary))
         ];
-    }
-
-    private sealed class State
-    {
-        public required ObservableChatMessageCollection Collection { get; init; }
-
-        public required ExtendedAgentOptions Options { get; init; }
-
-        public required List<ObservableAIContent> ObservableContents { get; init; }
-
-        public ObservableChatMessage? TargetResponseMessage { get; set; }
-
-        public bool ResponseAdded { get; set; }
-
-        public ObservableToolApprovalRequestContent? ToolApprovalRequest { get; init; }
-
-        public Action<ObservableToolApprovalRequestContent>? SetToolApprovalRequest { get; init; }
-
-        public ObservableChatMessage EnsureTargetResponseMessage()
-        {
-            TargetResponseMessage ??= ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, Options.ModelId);
-            return TargetResponseMessage;
-        }
     }
 }

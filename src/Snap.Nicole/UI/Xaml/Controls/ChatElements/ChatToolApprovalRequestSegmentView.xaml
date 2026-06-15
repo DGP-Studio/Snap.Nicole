@@ -75,13 +75,13 @@
                 Orientation="Horizontal"
                 Spacing="6"
                 Visibility="{x:Bind ToolApprovalRequest.CanRespond, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                <Button Command="{x:Bind ToolApprovalRequest.ApproveCommand, Mode=OneWay}" CommandParameter="{x:Bind ToolApprovalRequest, Mode=OneWay}">
+                <Button Command="{x:Bind ApproveCommand, Mode=OneWay}" CommandParameter="{x:Bind ToolApprovalRequest, Mode=OneWay}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <FontIcon FontSize="12" Glyph="&#xE73E;" />
                         <TextBlock Text="{snuxm:StringResource Name=UIXamlControlsChatToolApprovalRequestSegmentViewLabelAllow}" />
                     </StackPanel>
                 </Button>
-                <Button Command="{x:Bind ToolApprovalRequest.DenyCommand, Mode=OneWay}" CommandParameter="{x:Bind ToolApprovalRequest, Mode=OneWay}">
+                <Button Command="{x:Bind DenyCommand, Mode=OneWay}" CommandParameter="{x:Bind ToolApprovalRequest, Mode=OneWay}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <FontIcon FontSize="12" Glyph="&#xE711;" />
                         <TextBlock Text="{snuxm:StringResource Name=UIXamlControlsChatToolApprovalRequestSegmentViewLabelDeny}" />

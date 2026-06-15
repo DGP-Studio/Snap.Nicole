@@ -89,11 +89,6 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(ApproveToolApprovalCommand), nameof(DenyToolApprovalCommand))]
     public partial ObservableToolApprovalRequestContent? ToolApprovalRequest { get; set; }
 
-    partial void OnToolApprovalRequestChanged(ObservableToolApprovalRequestContent? value)
-    {
-        ConfigureObservableContent(value);
-    }
-
     private bool CanSendMessage { get => !disposed && generationCommand is null && !IsBusy && ToolApprovalRequest?.CanRespond is not true && ModelProviderProfile is not null && !string.IsNullOrWhiteSpace(InputText) && !string.IsNullOrWhiteSpace(ModelProfile?.ModelId); }
 
     [JsonIgnore]
@@ -127,7 +122,7 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         {
             InputText = string.Empty;
             ToolApprovalRequest = null;
-            await RunGenerationCommandAsync(SendMessageCommand, token => conversationTurnController.SendMessageAsync(this, input, ConfigureObservableContent, token), cancellationToken);
+            await RunGenerationCommandAsync(SendMessageCommand, token => conversationTurnController.SendMessageAsync(this, input, token), cancellationToken);
         }
         catch (AgentConversationException ex)
         {
@@ -170,14 +165,14 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
     private async Task ApproveToolApprovalAsync(ObservableToolApprovalRequestContent request, CancellationToken cancellationToken)
     {
-        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
+        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request contents is unavailable.");
         await RunGenerationCommandAsync(ApproveToolApprovalCommand, token => RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(true), token), cancellationToken);
     }
 
     [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
     private async Task DenyToolApprovalAsync(ObservableToolApprovalRequestContent request, CancellationToken cancellationToken)
     {
-        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
+        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request contents is unavailable.");
         await RunGenerationCommandAsync(DenyToolApprovalCommand, token => RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(false, "Rejected by user"), token), cancellationToken);
     }
 
@@ -218,7 +213,7 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
             return Task.CompletedTask;
         }
 
-        return conversationTurnController.RespondToToolApprovalAsync(this, request, responseContent, ConfigureObservableContent, CommandNotifier.NotifyToolApprovalChanged, cancellationToken);
+        return conversationTurnController.RespondToToolApprovalAsync(this, request, responseContent, cancellationToken);
     }
 
     private async Task RunGenerationCommandAsync(IAsyncRelayCommand command, Func<CancellationToken, Task> operation, CancellationToken cancellationToken)
@@ -233,22 +228,6 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         {
             SetGenerationCommand(null);
         }
-    }
-
-    internal void SetToolApprovalRequest(ObservableToolApprovalRequestContent request)
-    {
-        ToolApprovalRequest = request;
-    }
-
-    private void ConfigureObservableContent(ObservableAIContent? content)
-    {
-        if (content is not ObservableToolApprovalRequestContent request)
-        {
-            return;
-        }
-
-        request.ApproveCommand = ApproveToolApprovalCommand;
-        request.DenyCommand = DenyToolApprovalCommand;
     }
 
     private IAsyncRelayCommand? SetGenerationCommand(IAsyncRelayCommand? value)

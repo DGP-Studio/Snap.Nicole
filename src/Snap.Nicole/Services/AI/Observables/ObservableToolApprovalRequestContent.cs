@@ -2,7 +2,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.AI;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Windows.Input;
 
 namespace Snap.Nicole.Services.AI.Observables;
 
@@ -10,11 +9,10 @@ internal sealed partial class ObservableToolApprovalRequestContent : ObservableI
 {
     public ToolApprovalRequestContent? RawRepresentation { get; set; }
 
-    [ObservableProperty]
-    public partial ObservableToolCallContent ToolCall { get; set; }
+    public Guid TargetMessageId { get; set; }
 
     [ObservableProperty]
-    public partial string? TargetMessageId { get; set; }
+    public partial ObservableToolCallContent? ToolCall { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRespond))]
@@ -25,12 +23,6 @@ internal sealed partial class ObservableToolApprovalRequestContent : ObservableI
 
     [ObservableProperty]
     public partial string? Reason { get; set; }
-
-    [JsonIgnore]
-    public ICommand? ApproveCommand { get; set; }
-
-    [JsonIgnore]
-    public ICommand? DenyCommand { get; set; }
 
     [JsonIgnore]
     public bool CanRespond { get => !IsHandled && RawRepresentation is not null; }

@@ -1,11 +1,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.AI;
+using System.Collections.Generic;
 using System.Text.Json;
 
 namespace Snap.Nicole.Services.AI.Observables;
 
 internal sealed partial class ObservableChatMessage : ObservableObject
 {
+    public Guid Id { get; } = Guid.NewGuid();
+
     [ObservableProperty]
     public partial string? AuthorName { get; set; }
 
@@ -20,16 +23,6 @@ internal sealed partial class ObservableChatMessage : ObservableObject
 
     [ObservableProperty]
     public partial string? MessageId { get; set; }
-
-    public string EnsureMessageId()
-    {
-        if (string.IsNullOrWhiteSpace(MessageId))
-        {
-            MessageId = Guid.NewGuid().ToString("N");
-        }
-
-        return MessageId;
-    }
 
     public static ObservableChatMessage Create(ChatMessage chatMessage, JsonSerializerOptions jsonOptions)
     {
@@ -52,11 +45,7 @@ internal sealed partial class ObservableChatMessage : ObservableObject
             AuthorName = authorName,
         };
 
-        if (content is not null)
-        {
-            observableChatMessage.Contents.Add(content);
-        }
-
+        observableChatMessage.Contents.AddOrUpdate(content);
         return observableChatMessage;
     }
 }

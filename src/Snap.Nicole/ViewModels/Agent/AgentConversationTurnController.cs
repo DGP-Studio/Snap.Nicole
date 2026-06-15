@@ -43,7 +43,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         return profileController.CreateRequestOptions(conversation.ModelProviderProfile, conversation.ModelProfile) is not null;
     }
 
-    public async Task SendMessageAsync(AgentConversationViewModel conversation, string input, Action<ObservableAIContent> configureContent, CancellationToken cancellationToken)
+    public async Task SendMessageAsync(AgentConversationViewModel conversation, string input, CancellationToken cancellationToken)
     {
         if (profileController.CreateRequestOptions(conversation.ModelProviderProfile, conversation.ModelProfile) is not { } requestOptions)
         {
@@ -74,13 +74,11 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             RequestOptions = requestOptions,
             StreamingContext = new()
             {
+                Conversation = conversation,
+                InputMessage = userMessage,
                 Agent = agent,
-                Message = userMessage,
-                Collection = conversation.Messages,
-                Options = requestOptions,
                 Session = session,
-                ConfigureContent = configureContent,
-                SetToolApprovalRequest = conversation.SetToolApprovalRequest,
+                Options = requestOptions,
             },
             TitleInput = input,
         };
@@ -88,7 +86,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         await RunConversationOperationAsync(conversation, operation, cancellationToken);
     }
 
-    public async Task RespondToToolApprovalAsync(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent request, AIContent responseContent, Action<ObservableAIContent> configureContent, Action notifyToolApprovalCommands, CancellationToken cancellationToken)
+    public async Task RespondToToolApprovalAsync(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent request, AIContent responseContent, CancellationToken cancellationToken)
     {
         if (!CanRespondToToolApproval(conversation, request))
         {
@@ -120,7 +118,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         request.IsHandled = true;
         request.Approved = response.Approved;
         request.Reason = response.Reason;
-        notifyToolApprovalCommands();
+        conversation.CommandNotifier.NotifyToolApprovalChanged();
         ObservableChatMessage? targetResponseMessage = FindMessageById(conversation.Messages, request.TargetMessageId);
         conversation.ToolApprovalRequest = null;
 
@@ -136,13 +134,11 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             RequestOptions = requestOptions,
             StreamingContext = new()
             {
+                Conversation = conversation,
+                InputMessage = responseMessage,
                 Agent = agent,
-                Message = responseMessage,
-                Collection = conversation.Messages,
-                Options = requestOptions,
                 Session = session,
-                ConfigureContent = configureContent,
-                SetToolApprovalRequest = conversation.SetToolApprovalRequest,
+                Options = requestOptions,
                 TargetResponseMessage = targetResponseMessage,
             },
             NotifyToolApprovalCommands = true,

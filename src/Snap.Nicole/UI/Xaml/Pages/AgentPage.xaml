@@ -13,7 +13,6 @@
     xmlns:snuxcc="using:Snap.Nicole.UI.Xaml.Controls.ChatElements"
     xmlns:snuxd="using:Snap.Nicole.UI.Xaml.Data"
     xmlns:snuxm="using:Snap.Nicole.UI.Xaml.Markup"
-    xmlns:snsao="using:Snap.Nicole.Services.AI.Observables"
     xmlns:snv="using:Snap.Nicole.ViewModels.Agent"
     d:DataContext="{d:DesignInstance snv:AgentViewModel}"
     mc:Ignorable="d">
@@ -22,8 +21,11 @@
         <cwc:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <snuxd:EmptyObjectToVisibilityConverter x:Key="ToolApprovalRequestVisibilityConverter" />
 
-        <DataTemplate x:Key="ToolApprovalRequestTemplate" x:DataType="snsao:ObservableToolApprovalRequestContent">
-            <snuxcc:ChatToolApprovalRequestSegmentView ToolApprovalRequest="{Binding}" />
+        <DataTemplate x:Key="ToolApprovalRequestTemplate" x:DataType="snv:AgentConversationViewModel">
+            <snuxcc:ChatToolApprovalRequestSegmentView
+                ApproveCommand="{Binding ApproveToolApprovalCommand}"
+                DenyCommand="{Binding DenyToolApprovalCommand}"
+                ToolApprovalRequest="{Binding ToolApprovalRequest}" />
         </DataTemplate>
 
         <Style
@@ -543,7 +545,7 @@
                     Spacing="8">
                     <ContentControl
                         HorizontalContentAlignment="Stretch"
-                        Content="{Binding Conversations.CurrentItem.ToolApprovalRequest}"
+                        Content="{Binding Conversations.CurrentItem}"
                         ContentTemplate="{StaticResource ToolApprovalRequestTemplate}"
                         Visibility="{Binding Conversations.CurrentItem.ToolApprovalRequest, Converter={StaticResource ToolApprovalRequestVisibilityConverter}}" />
 

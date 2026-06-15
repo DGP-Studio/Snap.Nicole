@@ -114,14 +114,7 @@ internal sealed class ExtendedAgentOptions
     public HarnessAgent CreateHarnessAgent(IChatClient chatClient, IList<AITool>? tools, IServiceProvider serviceProvider)
     {
         int maxOutputTokens = Math.Clamp(MaxOutputTokens ?? DefaultMaxOutputTokens, 1, int.MaxValue - 1);
-        if (MaxContextWindowTokens is int maxContextWindowTokens)
-        {
-            maxContextWindowTokens = Math.Clamp(maxContextWindowTokens, maxOutputTokens + 1, int.MaxValue);
-        }
-        else
-        {
-            maxContextWindowTokens = Math.Clamp(MaxInputTokens ?? DefaultMaxInputTokens, 1, int.MaxValue - maxOutputTokens) + maxOutputTokens;
-        }
+        int maxContextWindowTokens = Math.Clamp(MaxContextWindowTokens ?? ((MaxInputTokens ?? DefaultMaxInputTokens) + maxOutputTokens), maxOutputTokens + 1, int.MaxValue);
 
         HarnessAgentOptions harnessOptions = CreateHarnessAgentOptions(tools, serviceProvider, maxOutputTokens);
         return chatClient.AsHarnessAgent(maxContextWindowTokens, maxOutputTokens, harnessOptions, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>(), services: serviceProvider);
