@@ -1,6 +1,7 @@
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.Settings;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace Snap.Nicole.ViewModels.Agent;
@@ -9,19 +10,33 @@ internal sealed class AgentConversationProfileController(ISettingsProvider<AppSe
 {
     private readonly AppSettings settings = settingsProvider.CurrentValue;
 
-    public ExtendedAgentOptions? CreateRequestOptions(ModelProviderProfile? providerProfile, ModelProfile? modelProfile)
+    public static bool CanCreateRequestOptions([NotNullWhen(true)] ModelProviderProfile? providerProfile, [NotNullWhen(true)] ModelProfile? modelProfile)
     {
         if (providerProfile is null)
         {
-            return null;
+            return false;
         }
 
         if (modelProfile is null || string.IsNullOrWhiteSpace(modelProfile.ModelId))
         {
+            return false;
+        }
+
+        if (!providerProfile.ModelProfiles.Contains(modelProfile))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    public ExtendedAgentOptions? CreateRequestOptions(ModelProviderProfile? providerProfile, ModelProfile? modelProfile)
+    {
+        if (!CanCreateRequestOptions(providerProfile, modelProfile))
+        {
             return null;
         }
 
-        Debug.Assert(providerProfile.ModelProfiles.Contains(modelProfile));
         return ExtendedAgentOptions.Create(providerProfile, modelProfile, settings.AgentOptions);
     }
 

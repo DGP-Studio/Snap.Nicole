@@ -17,7 +17,6 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     private readonly IAgentConversationDeleteHandler conversationDeleteHandler = conversationDeleteHandler;
     private readonly AgentConversationTurnController conversationTurnController = conversationTurnController;
 
-    private IAsyncRelayCommand? generationCommand;
     private bool disposed;
 
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -89,14 +88,17 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(ApproveToolApprovalCommand), nameof(DenyToolApprovalCommand))]
     public partial ObservableToolApprovalRequestContent? ToolApprovalRequest { get; set; }
 
-    private bool CanSendMessage { get => !disposed && generationCommand is null && !IsBusy && ToolApprovalRequest?.CanRespond is not true && ModelProviderProfile is not null && !string.IsNullOrWhiteSpace(InputText) && !string.IsNullOrWhiteSpace(ModelProfile?.ModelId); }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanStopGeneration))]
+    [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(StopGenerationCommand), nameof(DeleteConversationCommand), nameof(ApproveToolApprovalCommand), nameof(DenyToolApprovalCommand))]
+    private partial IAsyncRelayCommand? GenerationCommand { get; set; }
+
+    private bool CanSendMessage { get => !disposed && GenerationCommand is null && !IsBusy && ToolApprovalRequest?.CanRespond is not true && ModelProviderProfile is not null && !string.IsNullOrWhiteSpace(InputText) && !string.IsNullOrWhiteSpace(ModelProfile?.ModelId); }
 
     [JsonIgnore]
-    public bool CanStopGeneration { get => !disposed && generationCommand is { IsCancellationRequested: false }; }
+    public bool CanStopGeneration { get => !disposed && GenerationCommand is { IsCancellationRequested: false }; }
 
-    private bool CanDeleteConversation { get => !disposed && generationCommand is null && !IsBusy; }
-
-    internal AgentConversationCommandNotifier CommandNotifier { get => field ??= new(this); }
+    private bool CanDeleteConversation { get => !disposed && GenerationCommand is null && !IsBusy; }
 
     public StringResourceValue TitleDisplay { get => string.IsNullOrWhiteSpace(Title) ? SRName.UIXamlPagesAgentPageLabelNewConversation : Title; }
 
@@ -139,7 +141,7 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
             return;
         }
 
-        IAsyncRelayCommand? command = generationCommand;
+        IAsyncRelayCommand? command = GenerationCommand;
         if (command is null)
         {
             return;
@@ -148,7 +150,7 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         SentryDiagnostics.AddBreadcrumb("Stop chat generation", SentryBreadcrumbCategories.AIChat, SentryBreadcrumbTypes.UI);
         command.Cancel();
         OnPropertyChanged(nameof(CanStopGeneration));
-        CommandNotifier.NotifyStopGenerationChanged();
+        StopGenerationCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(CanExecute = nameof(CanDeleteConversation))]
@@ -184,7 +186,6 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         }
 
         SetGenerationCommand(null)?.Cancel();
-        CommandNotifier.NotifyDeleteConversationChanged();
     }
 
     public void RebuildConversationStatistics()
@@ -203,7 +204,7 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
 
     private bool CanRespondToToolApproval(ObservableToolApprovalRequestContent? request)
     {
-        return !disposed && generationCommand is null && conversationTurnController.CanRespondToToolApproval(this, request);
+        return !disposed && GenerationCommand is null && AgentConversationTurnController.CanRespondToToolApproval(this, request);
     }
 
     private Task RespondToToolApprovalAsync(ObservableToolApprovalRequestContent request, AIContent responseContent, CancellationToken cancellationToken)
@@ -232,14 +233,13 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
 
     private IAsyncRelayCommand? SetGenerationCommand(IAsyncRelayCommand? value)
     {
-        IAsyncRelayCommand? previous = Interlocked.Exchange(ref generationCommand, value);
+        IAsyncRelayCommand? previous = GenerationCommand;
         if (ReferenceEquals(previous, value))
         {
             return previous;
         }
 
-        OnPropertyChanged(nameof(CanStopGeneration));
-        CommandNotifier.NotifyGenerationCommandChanged();
+        GenerationCommand = value;
         return previous;
     }
 

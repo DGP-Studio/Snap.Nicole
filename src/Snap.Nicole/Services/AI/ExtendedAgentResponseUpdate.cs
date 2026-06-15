@@ -19,26 +19,21 @@ internal sealed class ExtendedAgentResponseUpdate
         ExtendedAgentResponseUpdate extendedUpdate = new();
         foreach (AIContent content in update.Contents)
         {
-            extendedUpdate.Add(ObservableAIContent.Create(content, jsonOptions));
+            if (ObservableAIContent.Create(content, jsonOptions) is not { } observableContent)
+            {
+                continue;
+            }
+
+            if (observableContent is ObservableToolApprovalRequestContent request)
+            {
+                extendedUpdate.ToolApprovalRequest = request;
+            }
+            else
+            {
+                extendedUpdate.ObservableContents.Add(observableContent);
+            }
         }
 
         return extendedUpdate;
-    }
-
-    public void Add(ObservableAIContent? observableContent)
-    {
-        if (observableContent is null)
-        {
-            return;
-        }
-
-        if (observableContent is ObservableToolApprovalRequestContent request)
-        {
-            ToolApprovalRequest = request;
-        }
-        else
-        {
-            ObservableContents.Add(observableContent);
-        }
     }
 }

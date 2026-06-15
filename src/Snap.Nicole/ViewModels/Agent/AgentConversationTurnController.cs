@@ -23,7 +23,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
 
     public string UserName { get => AgentOptionsNormalizer.NormalizeUserName(settings.AgentOptions.UserName); }
 
-    public bool CanRespondToToolApproval(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent? request)
+    public static bool CanRespondToToolApproval(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent? request)
     {
         if (conversation.IsBusy)
         {
@@ -40,7 +40,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             return false;
         }
 
-        return profileController.CreateRequestOptions(conversation.ModelProviderProfile, conversation.ModelProfile) is not null;
+        return AgentConversationProfileController.CanCreateRequestOptions(conversation.ModelProviderProfile, conversation.ModelProfile);
     }
 
     public async Task SendMessageAsync(AgentConversationViewModel conversation, string input, CancellationToken cancellationToken)
@@ -62,12 +62,6 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         HarnessAgent agent = await runtimeController.EnsureConversationAgentAsync(conversation.Runtime, requestOptions, cancellationToken);
         AgentSession session = await runtimeController.EnsureConversationSessionAsync(conversation.Runtime, agent, cancellationToken);
 
-        ChatMessage userMessage = new(ChatRole.User, input)
-        {
-            CreatedAt = DateTimeOffset.Now,
-            AuthorName = UserName,
-        };
-
         AgentConversationTurnOperation operation = new()
         {
             SpanDescription = "Send chat message",
@@ -75,7 +69,11 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             StreamingContext = new()
             {
                 Conversation = conversation,
-                InputMessage = userMessage,
+                InputMessage = new(ChatRole.User, input)
+                {
+                    CreatedAt = DateTimeOffset.Now,
+                    AuthorName = UserName,
+                },
                 Agent = agent,
                 Session = session,
                 Options = requestOptions,
@@ -118,15 +116,8 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         request.IsHandled = true;
         request.Approved = response.Approved;
         request.Reason = response.Reason;
-        conversation.CommandNotifier.NotifyToolApprovalChanged();
         ObservableChatMessage? targetResponseMessage = FindMessageById(conversation.Messages, request.TargetMessageId);
         conversation.ToolApprovalRequest = null;
-
-        ChatMessage responseMessage = new(ChatRole.User, [responseContent])
-        {
-            CreatedAt = DateTimeOffset.Now,
-            AuthorName = UserName,
-        };
 
         AgentConversationTurnOperation operation = new()
         {
@@ -135,13 +126,16 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             StreamingContext = new()
             {
                 Conversation = conversation,
-                InputMessage = responseMessage,
+                InputMessage = new(ChatRole.User, [responseContent])
+                {
+                    CreatedAt = DateTimeOffset.Now,
+                    AuthorName = UserName,
+                },
                 Agent = agent,
                 Session = session,
                 Options = requestOptions,
                 TargetResponseMessage = targetResponseMessage,
             },
-            NotifyToolApprovalCommands = true,
         };
 
         await RunConversationOperationAsync(conversation, operation, cancellationToken);
@@ -196,7 +190,6 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         {
             conversation.RebuildConversationStatistics();
             conversation.IsBusy = false;
-            conversation.CommandNotifier.NotifyTurnChanged(operation.NotifyToolApprovalCommands);
         }
     }
 
@@ -209,7 +202,5 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         public required AgentRunStreamingContext StreamingContext { get; init; }
 
         public string? TitleInput { get; init; }
-
-        public bool NotifyToolApprovalCommands { get; init; }
     }
 }
