@@ -45,6 +45,78 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
 
     public async Task SendMessageAsync(AgentConversationViewModel conversation, string input, CancellationToken cancellationToken)
     {
+        AgentConversationTurnOperation operation = new()
+        {
+            InputMessage = new(ChatRole.User, input)
+            {
+                CreatedAt = DateTimeOffset.Now,
+                AuthorName = UserName,
+            },
+            TitleInput = input,
+        };
+
+        await RunTurnAsync(conversation, operation, cancellationToken);
+    }
+
+    public async Task RespondToToolApprovalAsync(AgentConversationViewModel conversation, ToolApprovalResponseContent responseContent, CancellationToken cancellationToken)
+    {
+        ObservableToolApprovalRequestContent? request = conversation.ToolApprovalRequest;
+        if (!CanRespondToToolApproval(conversation, request) || request is null)
+        {
+            return;
+        }
+
+        AgentConversationTurnOperation operation = new()
+        {
+            InputMessage = new(ChatRole.User, [responseContent])
+            {
+                CreatedAt = DateTimeOffset.Now,
+                AuthorName = UserName,
+            },
+            ToolApprovalState = new()
+            {
+                Request = request,
+                ResponseContent = responseContent,
+            },
+        };
+
+        await RunTurnAsync(conversation, operation, cancellationToken);
+    }
+
+    private static ObservableChatMessage? FindMessageById(ObservableChatMessageCollection messages, Guid messageId)
+    {
+        foreach (ObservableChatMessage message in messages)
+        {
+            if (message.Id.Equals(messageId))
+            {
+                return message;
+            }
+        }
+
+        return null;
+    }
+
+    private static ObservableChatMessage? ApplyToolApprovalState(AgentConversationViewModel conversation, AgentConversationToolApprovalTurnState? state)
+    {
+        if (state is null)
+        {
+            return null;
+        }
+
+        ObservableToolApprovalRequestContent request = state.Request;
+        ToolApprovalResponseContent responseContent = state.ResponseContent;
+
+        request.IsHandled = true;
+        request.Approved = responseContent.Approved;
+        request.Reason = responseContent.Reason;
+
+        ObservableChatMessage? targetResponseMessage = FindMessageById(conversation.Messages, request.TargetMessageId);
+        conversation.ToolApprovalRequest = null;
+        return targetResponseMessage;
+    }
+
+    private async Task RunTurnAsync(AgentConversationViewModel conversation, AgentConversationTurnOperation operation, CancellationToken cancellationToken)
+    {
         if (profileController.CreateRequestOptions(conversation.ModelProviderProfile, conversation.ModelProfile) is not { } requestOptions)
         {
             // TODO: Consider throw there.
@@ -61,115 +133,30 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
 
         HarnessAgent agent = await runtimeController.EnsureConversationAgentAsync(conversation.Runtime, requestOptions, cancellationToken);
         AgentSession session = await runtimeController.EnsureConversationSessionAsync(conversation.Runtime, agent, cancellationToken);
-
-        AgentConversationTurnOperation operation = new()
+        AgentRunStreamingContext streamingContext = new()
         {
-            SpanDescription = "Send chat message",
-            RequestOptions = requestOptions,
-            StreamingContext = new()
-            {
-                Conversation = conversation,
-                InputMessage = new(ChatRole.User, input)
-                {
-                    CreatedAt = DateTimeOffset.Now,
-                    AuthorName = UserName,
-                },
-                Agent = agent,
-                Session = session,
-                Options = requestOptions,
-            },
-            TitleInput = input,
+            Conversation = conversation,
+            InputMessage = operation.InputMessage,
+            Agent = agent,
+            Session = session,
+            Options = requestOptions,
+            TargetResponseMessage = ApplyToolApprovalState(conversation, operation.ToolApprovalState),
         };
 
-        await RunConversationOperationAsync(conversation, operation, cancellationToken);
-    }
-
-    public async Task RespondToToolApprovalAsync(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent request, AIContent responseContent, CancellationToken cancellationToken)
-    {
-        if (!CanRespondToToolApproval(conversation, request))
-        {
-            return;
-        }
-
-        if (profileController.CreateRequestOptions(conversation.ModelProviderProfile, conversation.ModelProfile) is not { } requestOptions)
-        {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(requestOptions.ApiKey))
-        {
-            conversation.Runtime.Reset();
-
-            SentryDiagnostics.AddBreadcrumb("Tool approval response blocked by missing API key", SentryBreadcrumbCategories.AIChat, SentryBreadcrumbTypes.UI);
-            throw new AgentConversationException(SRName.UIXamlPagesAgentPageMessageConfigureApiKey);
-        }
-
-        HarnessAgent agent = await runtimeController.EnsureConversationAgentAsync(conversation.Runtime, requestOptions, cancellationToken);
-        AgentSession session = await runtimeController.EnsureConversationSessionAsync(conversation.Runtime, agent, cancellationToken);
-
-        ToolApprovalResponseContent response = responseContent switch
-        {
-            ToolApprovalResponseContent toolApprovalResponseContent => toolApprovalResponseContent,
-            _ => throw new InvalidOperationException("Unsupported tool approval response content."),
-        };
-
-        request.IsHandled = true;
-        request.Approved = response.Approved;
-        request.Reason = response.Reason;
-        ObservableChatMessage? targetResponseMessage = FindMessageById(conversation.Messages, request.TargetMessageId);
-        conversation.ToolApprovalRequest = null;
-
-        AgentConversationTurnOperation operation = new()
-        {
-            SpanDescription = "Respond to tool approval",
-            RequestOptions = requestOptions,
-            StreamingContext = new()
-            {
-                Conversation = conversation,
-                InputMessage = new(ChatRole.User, [responseContent])
-                {
-                    CreatedAt = DateTimeOffset.Now,
-                    AuthorName = UserName,
-                },
-                Agent = agent,
-                Session = session,
-                Options = requestOptions,
-                TargetResponseMessage = targetResponseMessage,
-            },
-        };
-
-        await RunConversationOperationAsync(conversation, operation, cancellationToken);
-    }
-
-    private static ObservableChatMessage? FindMessageById(ObservableChatMessageCollection messages, Guid messageId)
-    {
-        foreach (ObservableChatMessage message in messages)
-        {
-            if (message.Id.Equals(messageId))
-            {
-                return message;
-            }
-        }
-
-        return null;
-    }
-
-    private async Task RunConversationOperationAsync(AgentConversationViewModel conversation, AgentConversationTurnOperation operation, CancellationToken cancellationToken)
-    {
-        using SentryDiagnosticSpan span = SentryDiagnostics.StartSpan(SentryOperations.AIChatSend, operation.SpanDescription);
-        span.SetTag(SentryTags.AIProvider, operation.RequestOptions.ProviderType.ToString());
-        span.SetTag(SentryTags.AIModel, operation.RequestOptions.ModelId);
+        using SentryDiagnosticSpan span = SentryDiagnostics.StartSpan(SentryOperations.AIChatSend, "Run chat turn");
+        span.SetTag(SentryTags.AIProvider, requestOptions.ProviderType.ToString());
+        span.SetTag(SentryTags.AIModel, requestOptions.ModelId);
 
         conversation.IsBusy = true;
 
         try
         {
             TaskScheduler taskScheduler = App.Current.Threading.TaskScheduler;
-            span.Finish(await agentService.RunStreamingAsync(operation.StreamingContext, taskScheduler, cancellationToken));
+            span.Finish(await agentService.RunStreamingAsync(streamingContext, taskScheduler, cancellationToken));
 
             conversation.UpdateTurnMetadata(operation.TitleInput);
 
-            await runtimeController.PersistConversationSessionAsync(conversation.Runtime, operation.StreamingContext.Agent, operation.StreamingContext.Session, cancellationToken);
+            await runtimeController.SerializeConversationSessionAsync(conversation.Runtime, streamingContext.Agent, streamingContext.Session, cancellationToken);
             persistenceController.SaveConversation(conversation);
         }
         catch (OperationCanceledException)
@@ -195,12 +182,17 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
 
     private sealed class AgentConversationTurnOperation
     {
-        public required string SpanDescription { get; init; }
-
-        public required ExtendedAgentOptions RequestOptions { get; init; }
-
-        public required AgentRunStreamingContext StreamingContext { get; init; }
+        public required ChatMessage InputMessage { get; init; }
 
         public string? TitleInput { get; init; }
+
+        public AgentConversationToolApprovalTurnState? ToolApprovalState { get; init; }
+    }
+
+    private sealed class AgentConversationToolApprovalTurnState
+    {
+        public required ObservableToolApprovalRequestContent Request { get; init; }
+
+        public required ToolApprovalResponseContent ResponseContent { get; init; }
     }
 }

@@ -79,7 +79,7 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     public partial AgentConversationStatisticsViewModel ConversationStatistics { get; private set; } = new();
 
     [JsonIgnore]
-    public AgentConversationRuntimeState Runtime { get; } = new();
+    public AgentConversationRuntime Runtime { get; } = new();
 
     [ObservableProperty]
     public partial ObservableChatMessageCollection Messages { get; set; } = [];
@@ -167,6 +167,11 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
     private async Task ApproveToolApprovalAsync(ObservableToolApprovalRequestContent request, CancellationToken cancellationToken)
     {
+        if (!ReferenceEquals(ToolApprovalRequest, request))
+        {
+            return;
+        }
+
         ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
         await RunGenerationCommandAsync(ApproveToolApprovalCommand, token => RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(true), token), cancellationToken);
     }
@@ -174,6 +179,11 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
     private async Task DenyToolApprovalAsync(ObservableToolApprovalRequestContent request, CancellationToken cancellationToken)
     {
+        if (!ReferenceEquals(ToolApprovalRequest, request))
+        {
+            return;
+        }
+
         ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
         await RunGenerationCommandAsync(DenyToolApprovalCommand, token => RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(false, "Rejected by user"), token), cancellationToken);
     }
@@ -207,14 +217,14 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         return !disposed && GenerationCommand is null && AgentConversationTurnController.CanRespondToToolApproval(this, request);
     }
 
-    private Task RespondToToolApprovalAsync(ObservableToolApprovalRequestContent request, AIContent responseContent, CancellationToken cancellationToken)
+    private Task RespondToToolApprovalAsync(ObservableToolApprovalRequestContent request, ToolApprovalResponseContent responseContent, CancellationToken cancellationToken)
     {
-        if (disposed)
+        if (disposed || !ReferenceEquals(ToolApprovalRequest, request))
         {
             return Task.CompletedTask;
         }
 
-        return conversationTurnController.RespondToToolApprovalAsync(this, request, responseContent, cancellationToken);
+        return conversationTurnController.RespondToToolApprovalAsync(this, responseContent, cancellationToken);
     }
 
     private async Task RunGenerationCommandAsync(IAsyncRelayCommand command, Func<CancellationToken, Task> operation, CancellationToken cancellationToken)
