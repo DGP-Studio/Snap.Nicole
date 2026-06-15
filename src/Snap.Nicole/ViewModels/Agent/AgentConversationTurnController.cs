@@ -147,16 +147,11 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         await RunConversationOperationAsync(conversation, operation, cancellationToken);
     }
 
-    private static ObservableChatMessage? FindMessageById(ObservableChatMessageCollection messages, string? messageId)
+    private static ObservableChatMessage? FindMessageById(ObservableChatMessageCollection messages, Guid messageId)
     {
-        if (string.IsNullOrWhiteSpace(messageId))
-        {
-            return null;
-        }
-
         foreach (ObservableChatMessage message in messages)
         {
-            if (string.Equals(message.MessageId, messageId, StringComparison.Ordinal))
+            if (message.Id.Equals(messageId))
             {
                 return message;
             }
