@@ -165,14 +165,14 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
     private async Task ApproveToolApprovalAsync(ObservableToolApprovalRequestContent request, CancellationToken cancellationToken)
     {
-        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request contents is unavailable.");
+        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
         await RunGenerationCommandAsync(ApproveToolApprovalCommand, token => RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(true), token), cancellationToken);
     }
 
     [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
     private async Task DenyToolApprovalAsync(ObservableToolApprovalRequestContent request, CancellationToken cancellationToken)
     {
-        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request contents is unavailable.");
+        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
         await RunGenerationCommandAsync(DenyToolApprovalCommand, token => RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(false, "Rejected by user"), token), cancellationToken);
     }
 

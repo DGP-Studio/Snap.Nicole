@@ -7,7 +7,7 @@ namespace Snap.Nicole.Services.AI.Observables;
 
 internal sealed partial class ObservableChatMessage : ObservableObject
 {
-    public Guid Id { get; } = Guid.NewGuid();
+    public Guid Id { get; init; } = Guid.NewGuid();
 
     [ObservableProperty]
     public partial string? AuthorName { get; set; }

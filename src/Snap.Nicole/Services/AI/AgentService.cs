@@ -88,9 +88,9 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
     {
         if (pendingUpdate.ToolApprovalRequest is { } toolApprovalRequest)
         {
-            ArgumentNullException.ThrowIfNull(context.TargetResponseMessage);
-            toolApprovalRequest.TargetMessageId = context.TargetResponseMessage.Id;
-
+            // Certain updates may only contains a single tool approval request without any content.
+            // For example, when the reasoning_effort is set to none.
+            toolApprovalRequest.TargetMessageId = context.EnsureTargetResponseMessage().Id;
             context.Conversation.ToolApprovalRequest = toolApprovalRequest;
         }
 
