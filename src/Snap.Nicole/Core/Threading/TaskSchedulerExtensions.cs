@@ -35,6 +35,24 @@ internal static class TaskSchedulerExtensions
             }, (action, t), cancellationToken, taskCreationOptions, taskScheduler);
         }
 
+        public Task<TResult> Run<T, TResult>(Func<T, TResult> func, T t, CancellationToken cancellationToken = default)
+        {
+            return Task.Factory.StartNew(static (stateObject) =>
+            {
+                (Func<T, TResult> func, T t) = ((Func<T, TResult>, T))stateObject!;
+                return func(t);
+            }, (func, t), cancellationToken, TaskCreationOptions.None, taskScheduler);
+        }
+
+        public Task<TResult> Run<T, TResult>(Func<T, TResult> func, T t, TaskCreationOptions taskCreationOptions, CancellationToken cancellationToken = default)
+        {
+            return Task.Factory.StartNew(static (stateObject) =>
+            {
+                (Func<T, TResult> func, T t) = ((Func<T, TResult>, T))stateObject!;
+                return func(t);
+            }, (func, t), cancellationToken, taskCreationOptions, taskScheduler);
+        }
+
         public Task Run<T1, T2>(Action<T1, T2> action, T1 t1, T2 t2, CancellationToken cancellationToken = default)
         {
             return Task.Factory.StartNew(static (stateObject) =>

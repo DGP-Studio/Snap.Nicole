@@ -1,4 +1,5 @@
 using Microsoft.Agents.AI;
+using Snap.Nicole.Core.Text.Json;
 using Snap.Nicole.Services.AI;
 using Snap.Nicole.Services.AI.Models;
 using System.Text.Json;
@@ -7,11 +8,12 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.ViewModels.Agent;
 
-internal sealed class AgentConversationRuntimeController(IAgentService agentService)
+internal sealed class AgentConversationRuntimeController(IServiceProvider serviceProvider)
 {
-    private readonly IAgentService agentService = agentService;
+    private readonly IAgentService agentService = serviceProvider.GetRequiredService<IAgentService>();
+    private readonly JsonSerializerOptions jsonOptions = serviceProvider.GetRequiredKeyedService<JsonSerializerOptions>(JsonSerializerOptionsKey.AgentConversation);
 
-    public async ValueTask<HarnessAgent> EnsureConversationAgentAsync(AgentConversationRuntimeState runtime, ExtendedAgentOptions requestOptions, CancellationToken cancellationToken)
+    public async ValueTask<HarnessAgent> EnsureConversationAgentAsync(AgentConversationRuntime runtime, ExtendedAgentOptions requestOptions, CancellationToken cancellationToken)
     {
         if (runtime.Agent is not null && requestOptions.AgentEquals(runtime.AgentOptions))
         {
@@ -23,7 +25,7 @@ internal sealed class AgentConversationRuntimeController(IAgentService agentServ
         return agent;
     }
 
-    public async ValueTask<AgentSession> EnsureConversationSessionAsync(AgentConversationRuntimeState runtime, HarnessAgent agent, CancellationToken cancellationToken)
+    public async ValueTask<AgentSession> EnsureConversationSessionAsync(AgentConversationRuntime runtime, HarnessAgent agent, CancellationToken cancellationToken)
     {
         if (runtime.Session is not null)
         {
@@ -32,7 +34,7 @@ internal sealed class AgentConversationRuntimeController(IAgentService agentServ
 
         if (runtime.SerializedSessionState is JsonElement serializedState)
         {
-            runtime.Session = await agent.DeserializeSessionAsync(serializedState, cancellationToken: cancellationToken);
+            runtime.Session = await agent.DeserializeSessionAsync(serializedState, jsonOptions, cancellationToken);
         }
         else
         {
@@ -42,9 +44,9 @@ internal sealed class AgentConversationRuntimeController(IAgentService agentServ
         return runtime.Session;
     }
 
-    public async ValueTask PersistConversationSessionAsync(AgentConversationRuntimeState runtime, HarnessAgent agent, AgentSession session, CancellationToken cancellationToken)
+    public async ValueTask SerializeConversationSessionAsync(AgentConversationRuntime runtime, HarnessAgent agent, AgentSession session, CancellationToken cancellationToken)
     {
-        JsonElement serializedState = await agent.SerializeSessionAsync(session, cancellationToken: cancellationToken);
+        JsonElement serializedState = await agent.SerializeSessionAsync(session, jsonOptions, cancellationToken);
         runtime.SerializedSessionState = serializedState.Clone();
     }
 }

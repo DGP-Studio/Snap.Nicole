@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace Snap.Nicole.ViewModels.Agent;
 
-internal sealed class AgentConversationRuntimeState
+internal sealed class AgentConversationRuntime
 {
     public HarnessAgent? Agent { get; private set; }
 

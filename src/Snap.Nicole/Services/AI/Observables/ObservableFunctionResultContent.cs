@@ -10,24 +10,18 @@ internal sealed partial class ObservableFunctionResultContent : ObservableToolRe
     [ObservableProperty]
     public partial string? Result { get; set; }
 
-    [ObservableProperty]
-    [JsonIgnore]
-    public partial Exception? Exception { get; set; }
-
     public static ObservableFunctionResultContent Create(FunctionResultContent functionResultContent, JsonSerializerOptions jsonOptions)
     {
         return new()
         {
             CallId = functionResultContent.CallId,
             Result = SerializeResult(functionResultContent.Result, jsonOptions),
-            Exception = functionResultContent.Exception,
         };
     }
 
     public void Update(ObservableFunctionResultContent functionResultContent)
     {
         Result = functionResultContent.Result;
-        Exception = functionResultContent.Exception;
     }
 
     private static string? SerializeResult(object? value, JsonSerializerOptions jsonOptions)

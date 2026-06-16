@@ -25,18 +25,7 @@ internal sealed partial class ModelProfile : ObservableObject, IIdentifiable<Gui
     public ModelProfileAgentOptions AgentOptions { get; private set => SetProperty(ref field, value ?? new()); } = new();
 
     [JsonIgnore]
-    public string DisplayName
-    {
-        get
-        {
-            if (!string.IsNullOrWhiteSpace(Name))
-            {
-                return Name;
-            }
-
-            return ModelId;
-        }
-    }
+    public string DisplayName { get => !string.IsNullOrWhiteSpace(Name) ? Name : ModelId; }
 
     public static ModelProfile Create(OpenAI.Models.OpenAIModel model)
     {

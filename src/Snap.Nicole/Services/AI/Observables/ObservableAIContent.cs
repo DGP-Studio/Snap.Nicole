@@ -43,7 +43,7 @@ internal class ObservableAIContent : ObservableObject
             ToolApprovalRequestContent toolApprovalRequestContent => ObservableToolApprovalRequestContent.Create(toolApprovalRequestContent, jsonOptions),
             ToolApprovalResponseContent toolApprovalResponseContent => ObservableToolApprovalResponseContent.Create(toolApprovalResponseContent),
             UsageContent usageContent => ObservableUsageContent.Create(usageContent),
-            _ => null,
+            _ => null, // DO NOT throw here.
         };
     }
 }

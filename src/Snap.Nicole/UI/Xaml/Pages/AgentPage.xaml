@@ -11,6 +11,7 @@
     xmlns:snuxb="using:Snap.Nicole.UI.Xaml.Behaviors"
     xmlns:snuxc="using:Snap.Nicole.UI.Xaml.Controls"
     xmlns:snuxcc="using:Snap.Nicole.UI.Xaml.Controls.ChatElements"
+    xmlns:snuxd="using:Snap.Nicole.UI.Xaml.Data"
     xmlns:snuxm="using:Snap.Nicole.UI.Xaml.Markup"
     xmlns:snv="using:Snap.Nicole.ViewModels.Agent"
     d:DataContext="{d:DesignInstance snv:AgentViewModel}"
@@ -18,6 +19,14 @@
 
     <Page.Resources>
         <cwc:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <snuxd:EmptyObjectToVisibilityConverter x:Key="ToolApprovalRequestVisibilityConverter" />
+
+        <DataTemplate x:Key="ToolApprovalRequestTemplate" x:DataType="snv:AgentConversationViewModel">
+            <snuxcc:ChatToolApprovalRequestSegmentView
+                ApproveCommand="{Binding ApproveToolApprovalCommand}"
+                DenyCommand="{Binding DenyToolApprovalCommand}"
+                ToolApprovalRequest="{Binding ToolApprovalRequest}" />
+        </DataTemplate>
 
         <Style
             x:Key="AgentInputToolbarButtonStyle"
@@ -530,20 +539,29 @@
                     </ItemsControl>
                 </ScrollViewer>
 
-                <TextBox
+                <StackPanel
                     Grid.Row="2"
-                    MaxHeight="240"
                     Margin="16,0,16,16"
-                    AcceptsReturn="True"
-                    IsSpellCheckEnabled="False"
-                    PlaceholderText="{snuxm:StringResource Name=UIXamlPagesAgentPageLabelPlaceholder}"
-                    Style="{StaticResource AgentInputTextBoxStyle}"
-                    Text="{Binding Conversations.CurrentItem.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                    TextWrapping="Wrap">
-                    <mxi:Interaction.Behaviors>
-                        <snuxb:SubmitOnEnterTextBoxBehavior Command="{Binding Conversations.CurrentItem.SendMessageCommand}" />
-                    </mxi:Interaction.Behaviors>
-                </TextBox>
+                    Spacing="8">
+                    <ContentControl
+                        HorizontalContentAlignment="Stretch"
+                        Content="{Binding Conversations.CurrentItem}"
+                        ContentTemplate="{StaticResource ToolApprovalRequestTemplate}"
+                        Visibility="{Binding Conversations.CurrentItem.ToolApprovalRequest, Converter={StaticResource ToolApprovalRequestVisibilityConverter}}" />
+
+                    <TextBox
+                        MaxHeight="240"
+                        AcceptsReturn="True"
+                        IsSpellCheckEnabled="False"
+                        PlaceholderText="{snuxm:StringResource Name=UIXamlPagesAgentPageLabelPlaceholder}"
+                        Style="{StaticResource AgentInputTextBoxStyle}"
+                        Text="{Binding Conversations.CurrentItem.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        TextWrapping="Wrap">
+                        <mxi:Interaction.Behaviors>
+                            <snuxb:SubmitOnEnterTextBoxBehavior Command="{Binding Conversations.CurrentItem.SendMessageCommand}" />
+                        </mxi:Interaction.Behaviors>
+                    </TextBox>
+                </StackPanel>
             </Grid>
         </SplitView.Content>
     </SplitView>

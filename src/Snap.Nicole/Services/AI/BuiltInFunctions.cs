@@ -20,4 +20,10 @@ internal static class BuiltInFunctions
             throw;
         }
     }
+
+    [Description("Show a summary of the conversation or context.")]
+    public static string ShowSummary(string summary)
+    {
+        return summary;
+    }
 }

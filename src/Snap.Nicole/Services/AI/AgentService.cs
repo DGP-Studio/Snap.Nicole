@@ -6,6 +6,7 @@ using Snap.Nicole.Core.Text.Json;
 using Snap.Nicole.Core.Threading;
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.AI.Observables;
+using Snap.Nicole.ViewModels.Agent;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
@@ -33,59 +34,19 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
 
         try
         {
-            if (ShouldAddInputMessage(context.Message))
-            {
-                ObservableChatMessage inputMessage = ObservableChatMessage.Create(context.Message, functionContentJsonOptions);
-                await taskScheduler.Run(ObservableChatMessageCollection.Add, context.Collection, inputMessage, cancellationToken);
-            }
-
-            ObservableChatMessage? targetResponseMessage = context.TargetResponseMessage;
-            bool responseAdded = context.TargetResponseMessage is not null;
-
             await Task.Yield();
-            await foreach (AgentResponseUpdate update in context.Agent.RunStreamingAsync([context.Message], context.Session, context.Options.AsAgentRunOptions(), cancellationToken))
+            await foreach (AgentResponseUpdate update in context.Agent.RunStreamingAsync([context.InputMessage], context.Session, context.Options.AsAgentRunOptions(), cancellationToken))
             {
-                List<ObservableAIContent> observableContents = [];
-                foreach (AIContent content in update.Contents)
+                ExtendedAgentResponseUpdate pendingUpdate = ExtendedAgentResponseUpdate.Create(update, functionContentJsonOptions);
+                if (pendingUpdate.IsEmpty)
                 {
-                    if (ObservableAIContent.Create(content, functionContentJsonOptions) is { } observableContent)
-                    {
-                        context.ConfigureContent?.Invoke(observableContent);
-                        observableContents.Add(observableContent);
-                    }
-                }
-
-                // Fast path for updates that do not contain any content. This avoids unnecessary dispatching to the UI thread.
-                if (observableContents.Count is 0)
-                {
+                    // Fast path for updates that do not contain any content. This avoids unnecessary dispatching to the UI thread.
                     continue;
                 }
 
-                State state = new(context.Collection, context.Options, observableContents, targetResponseMessage, responseAdded);
-
-                await taskScheduler.Run(static (state) =>
-                {
-                    // TODOO: this should be possible to lift out of the UI thread dispatch,
-                    // but currently if this is created on a background thread, the UI gets stuck and doesn't update at all.
-                    state.TargetResponseMessage ??= ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, state.Options.ModelId);
-
-                    if (!state.ResponseAdded)
-                    {
-                        state.Collection.Add(state.TargetResponseMessage);
-                        state.ResponseAdded = true;
-                    }
-
-                    foreach (ObservableAIContent observableContent in state.ObservableContents)
-                    {
-                        state.TargetResponseMessage.Contents.AddOrUpdate(observableContent);
-                    }
-                }, state, cancellationToken);
-
-                targetResponseMessage = state.TargetResponseMessage;
-                responseAdded = state.ResponseAdded;
+                await taskScheduler.Run(ProcessPendingUpdate, context, pendingUpdate, cancellationToken);
             }
 
-            span.SetData(SentryData.AIResponseAdded, responseAdded);
             return SpanStatus.Ok;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -98,41 +59,44 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
             SentryDiagnostics.CaptureException(ex, span, SentryOperations.AIChatStream);
 
             ObservableErrorContent errorContent = ObservableErrorContent.Create(ex.Message);
-            if (context.TargetResponseMessage is not null)
+            await taskScheduler.Run(static (context, errorContent) =>
             {
-                await taskScheduler.Run(ObservableAIContentCollection.AddOrUpdate, context.TargetResponseMessage.Contents, errorContent, cancellationToken);
-            }
-            else
-            {
-                ObservableChatMessage errorMessage = ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, content: errorContent);
-                await taskScheduler.Run(ObservableChatMessageCollection.Add, context.Collection, errorMessage, cancellationToken);
-            }
+                ObservableChatMessage responseMessage = context.EnsureTargetResponseMessage();
+                responseMessage.Contents.AddOrUpdate(errorContent);
+            }, context, errorContent, cancellationToken);
 
             return SpanStatus.InternalError;
         }
     }
 
-    private static bool ShouldAddInputMessage(ChatMessage message)
+    private static void ProcessPendingUpdate(AgentRunStreamingContext context, ExtendedAgentResponseUpdate pendingUpdate)
     {
-        // This method is lifted out for future extensibility
-        return message.Contents is not [ToolApprovalResponseContent];
+        if (pendingUpdate.ToolApprovalRequest is { } toolApprovalRequest)
+        {
+            // Certain updates may only contains a single tool approval request without any content.
+            // For example, when the reasoning_effort is set to none.
+            toolApprovalRequest.TargetMessageId = context.EnsureTargetResponseMessage().Id;
+            context.Conversation.ToolApprovalRequest = toolApprovalRequest;
+        }
+
+        if (pendingUpdate.ObservableContents.Count is 0)
+        {
+            return;
+        }
+
+        ObservableChatMessage responseMessage = context.EnsureTargetResponseMessage();
+        foreach (ObservableAIContent observableContent in pendingUpdate.ObservableContents)
+        {
+            responseMessage.Contents.AddOrUpdate(observableContent);
+        }
     }
 
     private static IList<AITool> CreateBuiltInTools()
     {
-        return [new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.GetCurrentTime))];
-    }
-
-    private sealed class State(ObservableChatMessageCollection collection, ExtendedAgentOptions options, List<ObservableAIContent> observableContents, ObservableChatMessage? targetResponseMessage, bool responseAdded)
-    {
-        public ObservableChatMessageCollection Collection { get; } = collection;
-
-        public ExtendedAgentOptions Options { get; } = options;
-
-        public List<ObservableAIContent> ObservableContents { get; } = observableContents;
-
-        public ObservableChatMessage? TargetResponseMessage { get; set; } = targetResponseMessage;
-
-        public bool ResponseAdded { get; set; } = responseAdded;
+        return
+        [
+            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.GetCurrentTime)),
+            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.ShowSummary))
+        ];
     }
 }

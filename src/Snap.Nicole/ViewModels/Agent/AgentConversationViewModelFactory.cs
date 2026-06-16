@@ -20,7 +20,8 @@ internal sealed class AgentConversationViewModelFactory(AgentConversationTurnCon
         conversation.UpdatedAt = data.UpdatedAt;
         conversation.Runtime.SerializedSessionState = data.SerializedSessionState?.Clone();
         conversation.Messages = new(data.Messages);
-        conversation.RebuildConversationStatistics();
+        conversation.ToolApprovalRequest = data.ToolApprovalRequest;
+        conversation.UpdateConversationStatistics();
         return conversation;
     }
 }

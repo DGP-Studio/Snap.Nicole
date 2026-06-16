@@ -6,6 +6,8 @@ namespace Snap.Nicole.Services.AI.Observables;
 
 internal sealed partial class ObservableChatMessage : ObservableObject
 {
+    public Guid Id { get; init; } = Guid.NewGuid();
+
     [ObservableProperty]
     public partial string? AuthorName { get; set; }
 
@@ -23,20 +25,14 @@ internal sealed partial class ObservableChatMessage : ObservableObject
 
     public static ObservableChatMessage Create(ChatMessage chatMessage, JsonSerializerOptions jsonOptions)
     {
-        ObservableChatMessage observableChatMessage = new()
+        return new()
         {
             Role = chatMessage.Role,
             CreatedAt = chatMessage.CreatedAt,
             AuthorName = chatMessage.AuthorName,
             MessageId = chatMessage.MessageId,
+            Contents = ObservableAIContentCollection.Create(chatMessage.Contents, jsonOptions) ?? [],
         };
-
-        foreach (AIContent content in chatMessage.Contents)
-        {
-            observableChatMessage.Contents.AddOrUpdate(ObservableAIContent.Create(content, jsonOptions));
-        }
-
-        return observableChatMessage;
     }
 
     public static ObservableChatMessage Create(ChatRole role, DateTimeOffset? createdAt, string? authorName = default, ObservableAIContent? content = default)
@@ -48,11 +44,7 @@ internal sealed partial class ObservableChatMessage : ObservableObject
             AuthorName = authorName,
         };
 
-        if (content is not null)
-        {
-            observableChatMessage.Contents.Add(content);
-        }
-
+        observableChatMessage.Contents.AddOrUpdate(content);
         return observableChatMessage;
     }
 }
