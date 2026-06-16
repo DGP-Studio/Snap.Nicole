@@ -67,9 +67,7 @@
                     Visibility="{x:Bind ToolApprovalRequest.IsHandled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />-->
             </Grid>
 
-            <snuxcc:ChatToolCallSegmentView
-                ToolCall="{x:Bind ToolApprovalRequest.ToolCall, Mode=OneWay}"
-                Visibility="{x:Bind ToolApprovalRequest.IsHandled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=True}" />
+            <snuxcc:ChatToolCallSegmentView ToolCall="{x:Bind ToolApprovalRequest.ToolCall, Mode=OneWay}" Visibility="{x:Bind ToolApprovalRequest.IsHandled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=True}" />
 
             <StackPanel
                 Orientation="Horizontal"

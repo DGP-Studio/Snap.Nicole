@@ -28,8 +28,6 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
 
     public async ValueTask<SpanStatus> RunStreamingAsync(AgentRunStreamingContext context, TaskScheduler taskScheduler, CancellationToken cancellationToken)
     {
-        AgentConversationViewModel conversation = context.Conversation;
-
         using SentryDiagnosticSpan span = SentryDiagnostics.StartSpan(SentryOperations.AIChatStream, "Run streaming chat completion");
         span.SetTag(SentryTags.AIProvider, context.Options.ProviderType.ToString());
         span.SetTag(SentryTags.AIModel, context.Options.ModelId);
