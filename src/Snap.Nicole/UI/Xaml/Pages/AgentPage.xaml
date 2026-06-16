@@ -530,9 +530,7 @@
                                             <Setter Property="MaxWidth" Value="520" />
                                         </Style>
                                     </Flyout.FlyoutPresenterStyle>
-                                    <StackPanel
-                                        DataContext="{x:Bind ViewModel}"
-                                        Spacing="12">
+                                    <StackPanel DataContext="{x:Bind ViewModel}" Spacing="12">
                                         <StackPanel Spacing="4">
                                             <TextBlock
                                                 Opacity="0.7"

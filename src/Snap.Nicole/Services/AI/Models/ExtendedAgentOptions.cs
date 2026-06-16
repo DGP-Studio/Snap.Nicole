@@ -136,8 +136,8 @@ internal sealed class ExtendedAgentOptions
         IAsyncDisposable? resources = null;
         try
         {
-            HarnessAgentOptions harnessOptions = CreateHarnessAgentOptions(tools, serviceProvider, workspace, maxOutputTokens, out resources);
-            HarnessAgent agent = chatClient.AsHarnessAgent(maxContextWindowTokens, maxOutputTokens, harnessOptions, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>(), services: serviceProvider);
+            HarnessAgentOptions harnessOptions = CreateHarnessAgentOptions(tools, serviceProvider, workspace, maxContextWindowTokens, maxOutputTokens, out resources);
+            HarnessAgent agent = chatClient.AsHarnessAgent(harnessOptions, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>(), services: serviceProvider);
             return new()
             {
                 Agent = agent,
@@ -151,7 +151,7 @@ internal sealed class ExtendedAgentOptions
         }
     }
 
-    private HarnessAgentOptions CreateHarnessAgentOptions(IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace, int maxOutputTokens, out IAsyncDisposable? resources)
+    private HarnessAgentOptions CreateHarnessAgentOptions(IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace, int maxContextWindowTokens, int maxOutputTokens, out IAsyncDisposable? resources)
     {
         List<AIContextProvider> contextProviders = [];
         if (EnableFileAccess)
@@ -173,6 +173,8 @@ internal sealed class ExtendedAgentOptions
             ChatHistoryProvider = CreateChatHistoryProvider(serviceProvider),
             AIContextProviders = contextProviders.Count is 0 ? null : contextProviders,
             HarnessInstructions = string.Empty,
+            MaxContextWindowTokens = maxContextWindowTokens,
+            MaxOutputTokens = maxOutputTokens,
             MaximumIterationsPerRequest = MaximumIterationsPerRequest,
             DisableToolApproval = false,
             DisableFileMemory = !EnableFileMemory,

@@ -71,9 +71,7 @@
 
             <snuxcc:ChatToolCallSegmentView ToolCall="{x:Bind ToolApprovalRequest.ToolCall, Mode=OneWay}" Visibility="{x:Bind ToolApprovalRequest.IsHandled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=True}" />
 
-            <Grid
-                ColumnSpacing="6"
-                Visibility="{x:Bind ToolApprovalRequest.WorkingDirectory, Mode=OneWay, Converter={StaticResource TextVisibilityConverter}}">
+            <Grid ColumnSpacing="6" Visibility="{x:Bind ToolApprovalRequest.WorkingDirectory, Mode=OneWay, Converter={StaticResource TextVisibilityConverter}}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
