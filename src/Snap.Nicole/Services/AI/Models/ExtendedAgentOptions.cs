@@ -1,4 +1,5 @@
 using Microsoft.Agents.AI;
+using Microsoft.Agents.AI.Tools.Shell;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
@@ -42,6 +43,14 @@ internal sealed class ExtendedAgentOptions
 
     public int? MaximumIterationsPerRequest { get; init; }
 
+    public bool EnableFileMemory { get; init; }
+
+    public bool EnableFileAccess { get; init; }
+
+    public bool EnableShellExecutor { get; init; }
+
+    public bool EnableAgentSkillsProvider { get; init; }
+
     public bool AgentEquals(ExtendedAgentOptions? other)
     {
         if (ReferenceEquals(this, other))
@@ -64,6 +73,10 @@ internal sealed class ExtendedAgentOptions
             && MaxInputTokens == other.MaxInputTokens
             && MaxOutputTokens == other.MaxOutputTokens
             && MaximumIterationsPerRequest == other.MaximumIterationsPerRequest
+            && EnableFileMemory == other.EnableFileMemory
+            && EnableFileAccess == other.EnableFileAccess
+            && EnableShellExecutor == other.EnableShellExecutor
+            && EnableAgentSkillsProvider == other.EnableAgentSkillsProvider
             && string.Equals(SystemPrompt, other.SystemPrompt, StringComparison.Ordinal);
     }
 
@@ -86,6 +99,10 @@ internal sealed class ExtendedAgentOptions
             MaxOutputTokens = AgentOptionsNormalizer.NormalizeTokenLimit(agentOptions.MaxOutputTokens),
             SystemPrompt = AgentOptionsNormalizer.NormalizeSystemPrompt(appAgentOptions.SystemPrompt),
             MaximumIterationsPerRequest = AgentOptionsNormalizer.NormalizeMaximumIterationsPerRequest(appAgentOptions.MaximumIterationsPerRequest),
+            EnableFileMemory = appAgentOptions.EnableFileMemory,
+            EnableFileAccess = appAgentOptions.EnableFileAccess,
+            EnableShellExecutor = appAgentOptions.EnableShellExecutor,
+            EnableAgentSkillsProvider = appAgentOptions.EnableAgentSkillsProvider,
         };
     }
 
@@ -111,32 +128,86 @@ internal sealed class ExtendedAgentOptions
         return new(chatOptions);
     }
 
-    public HarnessAgent CreateHarnessAgent(IChatClient chatClient, IList<AITool>? tools, IServiceProvider serviceProvider)
+    public AgentCreationResult CreateHarnessAgent(IChatClient chatClient, IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace)
     {
         int maxOutputTokens = Math.Clamp(MaxOutputTokens ?? DefaultMaxOutputTokens, 1, int.MaxValue - 1);
         int maxContextWindowTokens = Math.Clamp(MaxContextWindowTokens ?? ((MaxInputTokens ?? DefaultMaxInputTokens) + maxOutputTokens), maxOutputTokens + 1, int.MaxValue);
 
-        HarnessAgentOptions harnessOptions = CreateHarnessAgentOptions(tools, serviceProvider, maxOutputTokens);
-        return chatClient.AsHarnessAgent(maxContextWindowTokens, maxOutputTokens, harnessOptions, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>(), services: serviceProvider);
+        IAsyncDisposable? resources = null;
+        try
+        {
+            HarnessAgentOptions harnessOptions = CreateHarnessAgentOptions(tools, serviceProvider, workspace, maxOutputTokens, out resources);
+            HarnessAgent agent = chatClient.AsHarnessAgent(maxContextWindowTokens, maxOutputTokens, harnessOptions, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>(), services: serviceProvider);
+            return new()
+            {
+                Agent = agent,
+                Resources = resources,
+            };
+        }
+        catch
+        {
+            resources?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            throw;
+        }
     }
 
-    private HarnessAgentOptions CreateHarnessAgentOptions(IList<AITool>? tools, IServiceProvider serviceProvider, int maxOutputTokens)
+    private HarnessAgentOptions CreateHarnessAgentOptions(IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace, int maxOutputTokens, out IAsyncDisposable? resources)
     {
+        List<AIContextProvider> contextProviders = [];
+        if (EnableFileAccess)
+        {
+            contextProviders.Add(new AgentWorkspaceFileAccessProvider(new FileSystemAgentFileStore(workspace.WorkingDirectory), workspace.WorkingDirectory));
+        }
+
+        LocalShellExecutor? shellExecutor = null;
+        if (EnableShellExecutor)
+        {
+            shellExecutor = CreateShellExecutor(workspace);
+        }
+
+        resources = shellExecutor;
+
         return new()
         {
             ChatOptions = CreateHarnessChatOptions(tools, maxOutputTokens),
             ChatHistoryProvider = CreateChatHistoryProvider(serviceProvider),
+            AIContextProviders = contextProviders.Count is 0 ? null : contextProviders,
             HarnessInstructions = string.Empty,
             MaximumIterationsPerRequest = MaximumIterationsPerRequest,
             DisableToolApproval = false,
-            DisableFileMemory = true,
+            DisableFileMemory = !EnableFileMemory,
+            FileMemoryStore = EnableFileMemory ? new FileSystemAgentFileStore(workspace.MemoryDirectory) : null,
             DisableFileAccess = true,
+            FileAccessStore = null,
             DisableWebSearch = true,
             DisableTodoProvider = true,
             DisableAgentModeProvider = true,
-            DisableAgentSkillsProvider = true,
+            DisableAgentSkillsProvider = !EnableAgentSkillsProvider,
+            AgentSkillsSource = EnableAgentSkillsProvider ? EmptyAgentSkillsSource.Instance : null,
             DisableOpenTelemetry = true,
+            ShellExecutor = shellExecutor,
         };
+    }
+
+    private static LocalShellExecutor CreateShellExecutor(AgentWorkspaceSnapshot workspace)
+    {
+        return new(new LocalShellExecutorOptions
+        {
+            WorkingDirectory = workspace.WorkingDirectory,
+            ConfineWorkingDirectory = true,
+            Timeout = LocalShellExecutor.DefaultTimeout,
+            Policy = CreateShellPolicy(),
+        });
+    }
+
+    private static ShellPolicy CreateShellPolicy()
+    {
+        return new(
+        [
+            @"(^|[;&|]\s*)rm\b(?=.*\s-rf\b|.*\s-fr\b|.*\s-r\b.*\s-f\b|.*\s-f\b.*\s-r\b)\s+[/\\]?(?=\s|$)",
+            @"(^|[;&|]\s*)Remove-Item\b(?=.*\b(-Recurse|-r)\b)(?=.*\b(-Force|-fo)\b)",
+            @"(^|[;&|]\s*)format(\.com)?\b",
+        ]);
     }
 
     private ChatHistoryProvider CreateChatHistoryProvider(IServiceProvider serviceProvider)

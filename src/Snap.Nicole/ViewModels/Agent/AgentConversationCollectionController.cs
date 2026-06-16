@@ -54,6 +54,7 @@ internal sealed class AgentConversationCollectionController(IServiceProvider ser
             }
         }
 
+        conversation.Runtime.Dispose();
         persistenceController.DeleteConversation(conversation);
         Conversations.Remove(conversation);
         conversation.Dispose();

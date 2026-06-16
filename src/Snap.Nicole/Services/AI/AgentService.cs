@@ -20,10 +20,10 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
     private readonly AgentChatClientFactory chatClientFactory = serviceProvider.GetRequiredService<AgentChatClientFactory>();
     private readonly JsonSerializerOptions functionContentJsonOptions = serviceProvider.GetRequiredKeyedService<JsonSerializerOptions>(JsonSerializerOptionsKey.AIFunctionContent);
 
-    public ValueTask<HarnessAgent> CreateAgentAsync(ExtendedAgentOptions options, CancellationToken cancellationToken = default)
+    public ValueTask<AgentCreationResult> CreateAgentAsync(ExtendedAgentOptions options, AgentWorkspaceSnapshot workspace, CancellationToken cancellationToken = default)
     {
         IChatClient chatClient = chatClientFactory.Create(options);
-        return ValueTask.FromResult(options.CreateHarnessAgent(chatClient, CreateBuiltInTools(), serviceProvider));
+        return ValueTask.FromResult(options.CreateHarnessAgent(chatClient, CreateBuiltInTools(), serviceProvider, workspace));
     }
 
     public async ValueTask<SpanStatus> RunStreamingAsync(AgentRunStreamingContext context, TaskScheduler taskScheduler, CancellationToken cancellationToken)
@@ -76,6 +76,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
             // Certain updates may only contains a single tool approval request without any content.
             // For example, when the reasoning_effort is set to none.
             toolApprovalRequest.TargetMessageId = context.EnsureTargetResponseMessage().Id;
+            ApplyToolApprovalMetadata(context, toolApprovalRequest);
             context.Conversation.ToolApprovalRequest = toolApprovalRequest;
         }
 
@@ -89,6 +90,34 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
         {
             responseMessage.Contents.AddOrUpdate(observableContent);
         }
+    }
+
+    private static void ApplyToolApprovalMetadata(AgentRunStreamingContext context, ObservableToolApprovalRequestContent toolApprovalRequest)
+    {
+        if (toolApprovalRequest.ToolCall is not ObservableFunctionCallContent functionCall)
+        {
+            return;
+        }
+
+        if (!IsWorkspaceScopedApprovalTool(functionCall.Name))
+        {
+            return;
+        }
+
+        toolApprovalRequest.WorkingDirectory = context.Workspace.WorkingDirectory;
+        Dictionary<string, string> data = new()
+        {
+            [SentryData.Item] = functionCall.Name,
+            [SentryData.AgentWorkspaceDirectory] = context.Workspace.WorkingDirectory,
+        };
+        SentryDiagnostics.AddBreadcrumb("Workspace tool approval requested", SentryBreadcrumbCategories.AIChat, SentryBreadcrumbTypes.Navigation, data);
+    }
+
+    private static bool IsWorkspaceScopedApprovalTool(string name)
+    {
+        return string.Equals(name, "run_shell", StringComparison.Ordinal)
+            || string.Equals(name, "FileAccess_SaveFile", StringComparison.Ordinal)
+            || string.Equals(name, "FileAccess_DeleteFile", StringComparison.Ordinal);
     }
 
     private static IList<AITool> CreateBuiltInTools()

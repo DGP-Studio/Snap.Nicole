@@ -24,6 +24,9 @@ internal sealed partial class ObservableToolApprovalRequestContent : ObservableI
     [ObservableProperty]
     public partial string? Reason { get; set; }
 
+    [ObservableProperty]
+    public partial string? WorkingDirectory { get; set; }
+
     [JsonIgnore]
     public bool CanRespond { get => !IsHandled && RawRepresentation is not null; }
 
@@ -42,6 +45,7 @@ internal sealed partial class ObservableToolApprovalRequestContent : ObservableI
         ToolCall = toolApprovalRequestContent.ToolCall;
         TargetMessageId = toolApprovalRequestContent.TargetMessageId;
         RawRepresentation = toolApprovalRequestContent.RawRepresentation;
+        WorkingDirectory = toolApprovalRequestContent.WorkingDirectory;
     }
 
     public void Update(ObservableToolApprovalResponseContent toolApprovalResponseContent)

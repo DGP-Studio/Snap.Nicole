@@ -168,8 +168,9 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             throw new AgentConversationException(SRName.UIXamlPagesAgentPageMessageConfigureApiKey);
         }
 
-        HarnessAgent agent = await runtimeController.EnsureConversationAgentAsync(conversation.Runtime, requestOptions, cancellationToken);
+        HarnessAgent agent = await runtimeController.EnsureConversationAgentAsync(conversation, requestOptions, cancellationToken);
         AgentSession session = await runtimeController.EnsureConversationSessionAsync(conversation.Runtime, agent, cancellationToken);
+        AgentWorkspaceSnapshot workspace = conversation.Runtime.Workspace ?? throw new InvalidOperationException("Agent workspace is unavailable.");
         AgentRunStreamingContext streamingContext = new()
         {
             Conversation = conversation,
@@ -177,6 +178,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             Agent = agent,
             Session = session,
             Options = requestOptions,
+            Workspace = workspace,
             TargetResponseMessage = ApplyToolApprovalState(conversation, operation.ToolApprovalState),
         };
 

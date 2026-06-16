@@ -16,4 +16,16 @@ internal sealed partial class AppAgentOptions : ObservableObject, ICopyFrom<AppA
 
     [ObservableProperty]
     public partial int? MaximumIterationsPerRequest { get; set; } = AgentOptionsNormalizer.DefaultMaximumIterationsPerRequest;
+
+    [ObservableProperty]
+    public partial bool EnableFileMemory { get; set; } = true;
+
+    [ObservableProperty]
+    public partial bool EnableFileAccess { get; set; } = true;
+
+    [ObservableProperty]
+    public partial bool EnableShellExecutor { get; set; }
+
+    [ObservableProperty]
+    public partial bool EnableAgentSkillsProvider { get; set; }
 }

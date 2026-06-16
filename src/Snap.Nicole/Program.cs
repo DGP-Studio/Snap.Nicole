@@ -14,6 +14,7 @@ using Snap.Nicole.Services.AI;
 using Snap.Nicole.Services.Git;
 using Snap.Nicole.Services.Settings;
 using Snap.Nicole.UI.Shell;
+using Snap.Nicole.UI.Xaml;
 using Snap.Nicole.UI.Xaml.Navigation;
 using Snap.Nicole.UI.Xaml.Windows;
 using Snap.Nicole.ViewModels;
@@ -65,6 +66,8 @@ internal static class Program
                     .AddSingleton<INotifyIcon, NotifyIcon>()
                     .AddSingleton<AgentChatClientFactory>()
                     .AddSingleton<IAgentService, AgentService>()
+                    .AddSingleton<AgentWorkspaceProvider>()
+                    .AddSingleton<IAgentWorkspaceInteractionService, AgentWorkspaceInteractionService>()
                     .AddSingleton<IAgentConversationProvider, AgentConversationFileProvider>()
                     .AddSingleton<IModelProfileService, ModelProfileService>()
                     .AddSingleton<ISettingsGitSyncService, SettingsGitSyncService>()
@@ -76,6 +79,7 @@ internal static class Program
                     .AddTransient<AgentConversationProfileController>()
                     .AddTransient<AgentConversationRuntimeController>()
                     .AddTransient<AgentConversationTurnController>()
+                    .AddTransient<AgentConversationWorkspaceController>()
                     .AddTransient<AgentConversationViewModelFactory>()
                     .AddTransient<AgentConversationCollectionController>()
                     .AddTransient<SettingsViewModel>()

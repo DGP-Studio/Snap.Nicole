@@ -4,6 +4,11 @@ namespace Snap.Nicole.ViewModels.Agent;
 
 internal sealed class AgentConversationException : Exception
 {
+    public AgentConversationException(string message)
+        : base(message)
+    {
+    }
+
     public AgentConversationException(SRName message)
         : base(StringResourceProxy.Default[message])
     {
@@ -16,5 +21,5 @@ internal sealed class AgentConversationException : Exception
         ResourceName = message;
     }
 
-    public SRName ResourceName { get; }
+    public SRName? ResourceName { get; }
 }

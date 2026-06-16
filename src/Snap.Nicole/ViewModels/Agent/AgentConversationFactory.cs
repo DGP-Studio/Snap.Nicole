@@ -15,6 +15,7 @@ internal static class AgentConversationFactory
             ModelProviderProfileId = conversation.ModelProviderProfile?.Id,
             ModelProfileId = conversation.ModelProfile?.Id,
             SerializedSessionState = conversation.Runtime.SerializedSessionState?.Clone(),
+            Workspace = conversation.Workspace.Clone(),
             ToolApprovalRequest = conversation.ToolApprovalRequest,
             Messages = new(conversation.Messages),
         };

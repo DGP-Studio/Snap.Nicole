@@ -4,9 +4,10 @@ using System.Collections.Generic;
 
 namespace Snap.Nicole.ViewModels.Agent;
 
-internal sealed class AgentConversationPersistenceController(IAgentConversationProvider conversationProvider)
+internal sealed class AgentConversationPersistenceController(IAgentConversationProvider conversationProvider, AgentWorkspaceProvider workspaceProvider)
 {
     private readonly IAgentConversationProvider conversationProvider = conversationProvider;
+    private readonly AgentWorkspaceProvider workspaceProvider = workspaceProvider;
 
     public IEnumerable<AgentConversation> LoadConversations()
     {
@@ -21,5 +22,6 @@ internal sealed class AgentConversationPersistenceController(IAgentConversationP
     public void DeleteConversation(AgentConversationViewModel conversation)
     {
         conversationProvider.DeleteConversation(conversation.Id);
+        workspaceProvider.DeleteAppManagedWorkspace(conversation.Id);
     }
 }

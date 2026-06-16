@@ -11,18 +11,30 @@ namespace Snap.Nicole.ViewModels.Agent;
 internal sealed class AgentConversationRuntimeController(IServiceProvider serviceProvider)
 {
     private readonly IAgentService agentService = serviceProvider.GetRequiredService<IAgentService>();
+    private readonly AgentWorkspaceProvider workspaceProvider = serviceProvider.GetRequiredService<AgentWorkspaceProvider>();
     private readonly JsonSerializerOptions jsonOptions = serviceProvider.GetRequiredKeyedService<JsonSerializerOptions>(JsonSerializerOptionsKey.AgentConversation);
 
-    public async ValueTask<HarnessAgent> EnsureConversationAgentAsync(AgentConversationRuntime runtime, ExtendedAgentOptions requestOptions, CancellationToken cancellationToken)
+    public async ValueTask<HarnessAgent> EnsureConversationAgentAsync(AgentConversationViewModel conversation, ExtendedAgentOptions requestOptions, CancellationToken cancellationToken)
     {
-        if (runtime.Agent is not null && requestOptions.AgentEquals(runtime.AgentOptions))
+        AgentConversationRuntime runtime = conversation.Runtime;
+        AgentWorkspaceSnapshot workspace;
+        try
+        {
+            workspace = workspaceProvider.CreateSnapshot(conversation.Id, conversation.Workspace);
+        }
+        catch (Exception ex) when (AgentWorkspaceProvider.IsWorkspaceException(ex))
+        {
+            throw new AgentConversationException(ex.Message);
+        }
+
+        if (runtime.Agent is not null && requestOptions.AgentEquals(runtime.AgentOptions) && workspace.AgentEquals(runtime.Workspace))
         {
             return runtime.Agent;
         }
 
-        HarnessAgent agent = await agentService.CreateAgentAsync(requestOptions, cancellationToken);
-        runtime.Reset(agent, requestOptions);
-        return agent;
+        AgentCreationResult result = await agentService.CreateAgentAsync(requestOptions, workspace, cancellationToken);
+        await runtime.ResetAsync(result.Agent, requestOptions, workspace, result.Resources);
+        return result.Agent;
     }
 
     public async ValueTask<AgentSession> EnsureConversationSessionAsync(AgentConversationRuntime runtime, HarnessAgent agent, CancellationToken cancellationToken)

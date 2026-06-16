@@ -18,6 +18,8 @@ internal sealed class AgentRunStreamingContext
 
     public required ExtendedAgentOptions Options { get; init; }
 
+    public required AgentWorkspaceSnapshot Workspace { get; init; }
+
     public ObservableChatMessage? TargetResponseMessage { get; set; }
 
     // This method has to be called on the main thread

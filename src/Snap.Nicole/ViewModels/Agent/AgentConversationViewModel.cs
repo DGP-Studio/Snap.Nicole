@@ -11,11 +11,12 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.ViewModels.Agent;
 
-internal sealed partial class AgentConversationViewModel(IAgentConversationDeleteHandler conversationDeleteHandler, AgentConversationTurnController conversationTurnController)
+internal sealed partial class AgentConversationViewModel(IAgentConversationDeleteHandler conversationDeleteHandler, AgentConversationTurnController conversationTurnController, AgentConversationWorkspaceController conversationWorkspaceController)
     : ObservableObject, IDisposable
 {
     private readonly IAgentConversationDeleteHandler conversationDeleteHandler = conversationDeleteHandler;
     private readonly AgentConversationTurnController conversationTurnController = conversationTurnController;
+    private readonly AgentConversationWorkspaceController conversationWorkspaceController = conversationWorkspaceController;
 
     private bool disposed;
 
@@ -65,11 +66,21 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(WorkspaceDisplayName), nameof(WorkspaceDisplayPath))]
+    [NotifyCanExecuteChangedFor(nameof(SelectWorkspaceCommand), nameof(OpenWorkspaceCommand), nameof(ResetWorkspaceCommand))]
+    public partial AgentConversationWorkspace Workspace { get; set; } = new();
+
+    partial void OnWorkspaceChanged(AgentConversationWorkspace value)
+    {
+        Runtime.Reset();
+    }
+
+    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand))]
     public partial string InputText { get; set; } = string.Empty;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(DeleteConversationCommand), nameof(ApproveToolApprovalCommand), nameof(DenyToolApprovalCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(DeleteConversationCommand), nameof(ApproveToolApprovalCommand), nameof(DenyToolApprovalCommand), nameof(SelectWorkspaceCommand), nameof(OpenWorkspaceCommand), nameof(ResetWorkspaceCommand))]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
@@ -79,12 +90,12 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     public partial ObservableChatMessageCollection Messages { get; set; } = [];
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(ApproveToolApprovalCommand), nameof(DenyToolApprovalCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(ApproveToolApprovalCommand), nameof(DenyToolApprovalCommand), nameof(SelectWorkspaceCommand), nameof(OpenWorkspaceCommand), nameof(ResetWorkspaceCommand))]
     public partial ObservableToolApprovalRequestContent? ToolApprovalRequest { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanStopGeneration))]
-    [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(StopGenerationCommand), nameof(DeleteConversationCommand), nameof(ApproveToolApprovalCommand), nameof(DenyToolApprovalCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(StopGenerationCommand), nameof(DeleteConversationCommand), nameof(ApproveToolApprovalCommand), nameof(DenyToolApprovalCommand), nameof(SelectWorkspaceCommand), nameof(OpenWorkspaceCommand), nameof(ResetWorkspaceCommand))]
     private partial IAsyncRelayCommand? GenerationCommand { get; set; }
 
     private bool CanSendMessage { get => !disposed && GenerationCommand is null && !IsBusy && ToolApprovalRequest?.CanRespond is not true && ModelProviderProfile is not null && !string.IsNullOrWhiteSpace(InputText) && !string.IsNullOrWhiteSpace(ModelProfile?.ModelId); }
@@ -95,7 +106,13 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
 
     private bool CanRespondToToolApproval { get => !disposed && GenerationCommand is null && AgentConversationTurnController.CanRespondToToolApproval(this); }
 
+    private bool CanChangeWorkspace { get => !disposed && GenerationCommand is null && !IsBusy && ToolApprovalRequest?.CanRespond is not true; }
+
     public StringResourceValue TitleDisplay { get => string.IsNullOrWhiteSpace(Title) ? SRName.UIXamlPagesAgentPageLabelNewConversation : Title; }
+
+    public StringResourceValue WorkspaceDisplayName { get => conversationWorkspaceController.GetWorkspaceDisplayName(this); }
+
+    public string WorkspaceDisplayPath { get => conversationWorkspaceController.GetWorkspaceDisplayPath(this); }
 
     public string CreatedAtDisplay { get => CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"); }
 
@@ -111,6 +128,7 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         IAsyncRelayCommand? command = GenerationCommand;
         GenerationCommand = null;
         command?.Cancel();
+        Runtime.Dispose();
     }
 
     public void UpdateConversationStatistics()
@@ -127,6 +145,39 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         }
 
         conversationDeleteHandler.DeleteConversation(this);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanChangeWorkspace))]
+    private async Task SelectWorkspaceAsync(CancellationToken cancellationToken)
+    {
+        if (!CanChangeWorkspace)
+        {
+            return;
+        }
+
+        await conversationWorkspaceController.SelectExternalWorkspaceAsync(this, cancellationToken);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanChangeWorkspace))]
+    private void OpenWorkspace()
+    {
+        if (!CanChangeWorkspace)
+        {
+            return;
+        }
+
+        conversationWorkspaceController.OpenWorkspace(this);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanChangeWorkspace))]
+    private void ResetWorkspace()
+    {
+        if (!CanChangeWorkspace)
+        {
+            return;
+        }
+
+        conversationWorkspaceController.ResetWorkspace(this);
     }
 
     [RelayCommand(CanExecute = nameof(CanStopGeneration))]

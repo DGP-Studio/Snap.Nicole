@@ -272,6 +272,33 @@
   <data name="UIXamlPagesAgentPageLabelContext" xml:space="preserve">
     <value>Context</value>
   </data>
+  <data name="UIXamlPagesAgentPageLabelWorkspace" xml:space="preserve">
+    <value>Workspace</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelDefaultWorkspace" xml:space="preserve">
+    <value>Default workspace</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelChooseWorkspaceFolder" xml:space="preserve">
+    <value>Choose folder</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelOpenWorkspaceFolder" xml:space="preserve">
+    <value>Open folder</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelResetWorkspace" xml:space="preserve">
+    <value>Reset to default</value>
+  </data>
+  <data name="UIXamlPagesAgentPageMessageExternalWorkspaceConfirmTitle" xml:space="preserve">
+    <value>Confirm external workspace</value>
+  </data>
+  <data name="UIXamlPagesAgentPageMessageExternalWorkspaceConfirmContent" xml:space="preserve">
+    <value>The agent will be able to read and modify files in this folder; if Shell is enabled, commands will also run from this folder: {0}</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelConfirmWorkspace" xml:space="preserve">
+    <value>Confirm</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelCancelWorkspace" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
   <data name="UIXamlPagesAgentPageLabelMessages" xml:space="preserve">
     <value>Messages</value>
   </data>
@@ -544,6 +571,9 @@
   </data>
   <data name="UIXamlControlsChatToolApprovalRequestSegmentViewLabelDeny" xml:space="preserve">
     <value>Deny</value>
+  </data>
+  <data name="UIXamlControlsChatToolApprovalRequestSegmentViewLabelWorkingDirectory" xml:space="preserve">
+    <value>Working directory</value>
   </data>
   <data name="UIXamlControlsChatMarkdownSegmentViewToolTipCopyText" xml:space="preserve">
     <value>Copy Text</value>

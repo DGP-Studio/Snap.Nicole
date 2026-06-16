@@ -518,6 +518,67 @@
                                 </Flyout>
                             </AppBarButton.Flyout>
                         </AppBarButton>
+                        <AppBarButton Label="{Binding Conversations.CurrentItem.WorkspaceDisplayName.Value}" ToolTipService.ToolTip="{Binding Conversations.CurrentItem.WorkspaceDisplayPath}">
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xE8B7;" />
+                            </AppBarButton.Icon>
+                            <AppBarButton.Flyout>
+                                <Flyout>
+                                    <Flyout.FlyoutPresenterStyle>
+                                        <Style BasedOn="{StaticResource DefaultFlyoutPresenterStyle}" TargetType="FlyoutPresenter">
+                                            <Setter Property="MinWidth" Value="360" />
+                                            <Setter Property="MaxWidth" Value="520" />
+                                        </Style>
+                                    </Flyout.FlyoutPresenterStyle>
+                                    <StackPanel
+                                        DataContext="{x:Bind ViewModel}"
+                                        Spacing="12">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock
+                                                Opacity="0.7"
+                                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                                Text="{snuxm:StringResource Name=UIXamlPagesAgentPageLabelWorkspace}" />
+                                            <TextBlock
+                                                FontWeight="SemiBold"
+                                                Text="{Binding Conversations.CurrentItem.WorkspaceDisplayName.Value}"
+                                                TextTrimming="CharacterEllipsis" />
+                                            <TextBlock
+                                                Opacity="0.7"
+                                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                                Text="{Binding Conversations.CurrentItem.WorkspaceDisplayPath}"
+                                                TextWrapping="WrapWholeWords" />
+                                        </StackPanel>
+
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Button
+                                                Grid.Column="0"
+                                                Command="{Binding Conversations.CurrentItem.SelectWorkspaceCommand}"
+                                                ToolTipService.ToolTip="{snuxm:StringResource Name=UIXamlPagesAgentPageLabelChooseWorkspaceFolder}">
+                                                <FontIcon FontSize="16" Glyph="&#xE8B7;" />
+                                            </Button>
+                                            <Button
+                                                Grid.Column="1"
+                                                Command="{Binding Conversations.CurrentItem.OpenWorkspaceCommand}"
+                                                ToolTipService.ToolTip="{snuxm:StringResource Name=UIXamlPagesAgentPageLabelOpenWorkspaceFolder}">
+                                                <FontIcon FontSize="16" Glyph="&#xE838;" />
+                                            </Button>
+                                            <Button
+                                                Grid.Column="2"
+                                                Command="{Binding Conversations.CurrentItem.ResetWorkspaceCommand}"
+                                                ToolTipService.ToolTip="{snuxm:StringResource Name=UIXamlPagesAgentPageLabelResetWorkspace}">
+                                                <FontIcon FontSize="16" Glyph="&#xE72C;" />
+                                            </Button>
+                                        </Grid>
+                                    </StackPanel>
+                                </Flyout>
+                            </AppBarButton.Flyout>
+                        </AppBarButton>
                     </CommandBar>
                 </Border>
 
