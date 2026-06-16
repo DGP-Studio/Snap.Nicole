@@ -2,12 +2,14 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Sentry;
 using Snap.Nicole.Core.Diagnostics;
+using Snap.Nicole.Core.Text.Json;
 using Snap.Nicole.Resources;
 using Snap.Nicole.Services.AI;
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.AI.Observables;
 using Snap.Nicole.Services.Settings;
 using System.Runtime.Serialization;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,6 +22,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
     private readonly AgentConversationProfileController profileController = serviceProvider.GetRequiredService<AgentConversationProfileController>();
     private readonly AgentConversationRuntimeController runtimeController = serviceProvider.GetRequiredService<AgentConversationRuntimeController>();
     private readonly AgentConversationPersistenceController persistenceController = serviceProvider.GetRequiredService<AgentConversationPersistenceController>();
+    private readonly JsonSerializerOptions functionContentJsonOptions = serviceProvider.GetRequiredKeyedService<JsonSerializerOptions>(JsonSerializerOptionsKey.AIFunctionContent);
 
     public string UserName { get => AgentOptionsNormalizer.NormalizeUserName(settings.AgentOptions.UserName); }
 
@@ -43,19 +46,28 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         return AgentConversationProfileController.CanCreateRequestOptions(conversation.ModelProviderProfile, conversation.ModelProfile);
     }
 
-    public async Task SendMessageAsync(AgentConversationViewModel conversation, string input, CancellationToken cancellationToken)
+    public async Task SendMessageAsync(AgentConversationViewModel conversation, ChatMessage inputMessage, string? titleInput, CancellationToken cancellationToken)
     {
         AgentConversationTurnOperation operation = new()
         {
-            InputMessage = new(ChatRole.User, input)
-            {
-                CreatedAt = DateTimeOffset.Now,
-                AuthorName = UserName,
-            },
-            TitleInput = input,
+            InputMessage = inputMessage,
+            TitleInput = titleInput,
         };
 
         await RunTurnAsync(conversation, operation, cancellationToken);
+    }
+
+    public void AddExceptionMessages(AgentConversationViewModel conversation, ChatMessage inputMessage, string? titleInput, Exception ex)
+    {
+        ObservableChatMessage observableInputMessage = ObservableChatMessage.Create(inputMessage, functionContentJsonOptions);
+        conversation.Messages.Add(observableInputMessage);
+
+        ObservableErrorContent errorContent = ObservableErrorContent.Create(ex.Message);
+        ObservableChatMessage exceptionMessage = ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, content: errorContent);
+        conversation.Messages.Add(exceptionMessage);
+
+        conversation.UpdateTurnMetadata(titleInput);
+        conversation.UpdateConversationStatistics();
     }
 
     public async Task RespondToToolApprovalAsync(AgentConversationViewModel conversation, ToolApprovalResponseContent responseContent, CancellationToken cancellationToken)
@@ -175,7 +187,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         }
         finally
         {
-            conversation.RebuildConversationStatistics();
+            conversation.UpdateConversationStatistics();
             conversation.IsBusy = false;
         }
     }

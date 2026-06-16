@@ -1,23 +1,32 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.AI;
+using Snap.Nicole.Core;
 using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Resources;
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.AI.Observables;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Snap.Nicole.ViewModels.Agent;
 
-internal sealed partial class AgentConversationViewModel(IAgentConversationDeleteHandler conversationDeleteHandler, AgentConversationTurnController conversationTurnController)
+internal sealed partial class AgentConversationViewModel
     : ObservableObject, IDisposable
 {
-    private readonly IAgentConversationDeleteHandler conversationDeleteHandler = conversationDeleteHandler;
-    private readonly AgentConversationTurnController conversationTurnController = conversationTurnController;
+    private readonly IAgentConversationDeleteHandler conversationDeleteHandler;
+    private readonly AgentConversationTurnController conversationTurnController;
+    private readonly PropertyScopeFactory<AgentConversationViewModel, IAsyncRelayCommand> generationCommandScopeFactory;
 
     private bool disposed;
+
+    public AgentConversationViewModel(IAgentConversationDeleteHandler conversationDeleteHandler, AgentConversationTurnController conversationTurnController)
+    {
+        this.conversationDeleteHandler = conversationDeleteHandler;
+        this.conversationTurnController = conversationTurnController;
+
+        generationCommandScopeFactory = new(this, static (self, value) => self.GenerationCommand = value);
+    }
 
     public Guid Id { get; set; } = Guid.NewGuid();
 
@@ -34,7 +43,6 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     public partial DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
 
     [ObservableProperty]
-    [JsonIgnore]
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand))]
     public partial ModelProviderProfile? ModelProviderProfile { get; set; }
 
@@ -55,7 +63,6 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     }
 
     [ObservableProperty]
-    [JsonIgnore]
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand))]
     public partial ModelProfile? ModelProfile { get; set; }
 
@@ -65,20 +72,16 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     }
 
     [ObservableProperty]
-    [JsonIgnore]
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand))]
     public partial string InputText { get; set; } = string.Empty;
 
     [ObservableProperty]
-    [JsonIgnore]
     [NotifyCanExecuteChangedFor(nameof(SendMessageCommand), nameof(DeleteConversationCommand), nameof(ApproveToolApprovalCommand), nameof(DenyToolApprovalCommand))]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
-    [JsonIgnore]
     public partial AgentConversationStatisticsViewModel ConversationStatistics { get; private set; } = new();
 
-    [JsonIgnore]
     public AgentConversationRuntime Runtime { get; } = new();
 
     [ObservableProperty]
@@ -95,7 +98,6 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
 
     private bool CanSendMessage { get => !disposed && GenerationCommand is null && !IsBusy && ToolApprovalRequest?.CanRespond is not true && ModelProviderProfile is not null && !string.IsNullOrWhiteSpace(InputText) && !string.IsNullOrWhiteSpace(ModelProfile?.ModelId); }
 
-    [JsonIgnore]
     public bool CanStopGeneration { get => !disposed && GenerationCommand is { IsCancellationRequested: false }; }
 
     private bool CanDeleteConversation { get => !disposed && GenerationCommand is null && !IsBusy; }
@@ -120,16 +122,25 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
             return;
         }
 
+        ChatMessage inputMessage = new(ChatRole.User, input)
+        {
+            CreatedAt = DateTimeOffset.Now,
+            AuthorName = conversationTurnController.UserName,
+        };
+
+        InputText = string.Empty;
+        ToolApprovalRequest = null;
+
         try
         {
-            InputText = string.Empty;
-            ToolApprovalRequest = null;
-            await RunGenerationCommandAsync(SendMessageCommand, token => conversationTurnController.SendMessageAsync(this, input, token), cancellationToken);
+            using (generationCommandScopeFactory.Create(SendMessageCommand, null))
+            {
+                await conversationTurnController.SendMessageAsync(this, inputMessage, input, cancellationToken);
+            }
         }
         catch (AgentConversationException ex)
         {
-            InputText = string.Empty;
-            AddExceptionMessages(input, ex);
+            conversationTurnController.AddExceptionMessages(this, inputMessage, input, ex);
         }
     }
 
@@ -173,7 +184,11 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         }
 
         ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
-        await RunGenerationCommandAsync(ApproveToolApprovalCommand, token => RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(true), token), cancellationToken);
+
+        using (generationCommandScopeFactory.Create(ApproveToolApprovalCommand, null))
+        {
+            await RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(true), cancellationToken);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
@@ -185,7 +200,11 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         }
 
         ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
-        await RunGenerationCommandAsync(DenyToolApprovalCommand, token => RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(false, "Rejected by user"), token), cancellationToken);
+
+        using (generationCommandScopeFactory.Create(DenyToolApprovalCommand, null))
+        {
+            await RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(false, "Rejected by user"), cancellationToken);
+        }
     }
 
     public void Dispose()
@@ -195,10 +214,12 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
             return;
         }
 
-        SetGenerationCommand(null)?.Cancel();
+        IAsyncRelayCommand? command = GenerationCommand;
+        GenerationCommand = null;
+        command?.Cancel();
     }
 
-    public void RebuildConversationStatistics()
+    public void UpdateConversationStatistics()
     {
         ConversationStatistics = AgentConversationStatisticsViewModel.Create(Messages);
     }
@@ -225,46 +246,6 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         }
 
         return conversationTurnController.RespondToToolApprovalAsync(this, responseContent, cancellationToken);
-    }
-
-    private async Task RunGenerationCommandAsync(IAsyncRelayCommand command, Func<CancellationToken, Task> operation, CancellationToken cancellationToken)
-    {
-        SetGenerationCommand(command);
-
-        try
-        {
-            await operation(cancellationToken);
-        }
-        finally
-        {
-            SetGenerationCommand(null);
-        }
-    }
-
-    private IAsyncRelayCommand? SetGenerationCommand(IAsyncRelayCommand? value)
-    {
-        IAsyncRelayCommand? previous = GenerationCommand;
-        if (ReferenceEquals(previous, value))
-        {
-            return previous;
-        }
-
-        GenerationCommand = value;
-        return previous;
-    }
-
-    private void AddExceptionMessages(string input, AgentConversationException ex)
-    {
-        // TODO: move logic to AgentConversationTurnController
-        ObservableChatMessage inputMessage = ObservableChatMessage.Create(ChatRole.User, DateTimeOffset.Now, conversationTurnController.UserName, ObservableTextContent.Create(input));
-        Messages.Add(inputMessage);
-
-        ObservableErrorContent errorContent = ObservableErrorContent.Create(ex.Message);
-        ObservableChatMessage exceptionMessage = ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, content: errorContent);
-        Messages.Add(exceptionMessage);
-
-        UpdateTurnMetadata(input);
-        RebuildConversationStatistics();
     }
 
     private static string CreateTitle(string input)

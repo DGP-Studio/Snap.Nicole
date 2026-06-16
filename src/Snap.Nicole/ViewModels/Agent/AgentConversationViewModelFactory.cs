@@ -21,7 +21,7 @@ internal sealed class AgentConversationViewModelFactory(AgentConversationTurnCon
         conversation.Runtime.SerializedSessionState = data.SerializedSessionState?.Clone();
         conversation.Messages = new(data.Messages);
         conversation.ToolApprovalRequest = data.ToolApprovalRequest;
-        conversation.RebuildConversationStatistics();
+        conversation.UpdateConversationStatistics();
         return conversation;
     }
 }
