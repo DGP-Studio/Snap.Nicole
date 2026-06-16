@@ -1,34 +1,27 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.AI;
-using Snap.Nicole.Core;
 using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Resources;
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.AI.Observables;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Snap.Nicole.ViewModels.Agent;
 
-internal sealed partial class AgentConversationViewModel
+internal sealed partial class AgentConversationViewModel(IAgentConversationDeleteHandler conversationDeleteHandler, AgentConversationTurnController conversationTurnController)
     : ObservableObject, IDisposable
 {
-    private readonly IAgentConversationDeleteHandler conversationDeleteHandler;
-    private readonly AgentConversationTurnController conversationTurnController;
-    private readonly PropertyScopeFactory<AgentConversationViewModel, IAsyncRelayCommand> generationCommandScopeFactory;
+    private readonly IAgentConversationDeleteHandler conversationDeleteHandler = conversationDeleteHandler;
+    private readonly AgentConversationTurnController conversationTurnController = conversationTurnController;
 
     private bool disposed;
 
-    public AgentConversationViewModel(IAgentConversationDeleteHandler conversationDeleteHandler, AgentConversationTurnController conversationTurnController)
-    {
-        this.conversationDeleteHandler = conversationDeleteHandler;
-        this.conversationTurnController = conversationTurnController;
-
-        generationCommandScopeFactory = new(this, static (self, value) => self.GenerationCommand = value);
-    }
-
     public Guid Id { get; set; } = Guid.NewGuid();
+
+    public AgentConversationRuntime Runtime { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TitleDisplay))]
@@ -82,8 +75,6 @@ internal sealed partial class AgentConversationViewModel
     [ObservableProperty]
     public partial AgentConversationStatisticsViewModel ConversationStatistics { get; private set; } = new();
 
-    public AgentConversationRuntime Runtime { get; } = new();
-
     [ObservableProperty]
     public partial ObservableChatMessageCollection Messages { get; set; } = [];
 
@@ -102,110 +93,13 @@ internal sealed partial class AgentConversationViewModel
 
     private bool CanDeleteConversation { get => !disposed && GenerationCommand is null && !IsBusy; }
 
+    private bool CanRespondToToolApproval { get => !disposed && GenerationCommand is null && AgentConversationTurnController.CanRespondToToolApproval(this); }
+
     public StringResourceValue TitleDisplay { get => string.IsNullOrWhiteSpace(Title) ? SRName.UIXamlPagesAgentPageLabelNewConversation : Title; }
 
     public string CreatedAtDisplay { get => CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"); }
 
     public string UpdatedAtDisplay { get => UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss"); }
-
-    [RelayCommand(CanExecute = nameof(CanSendMessage))]
-    private async Task SendMessageAsync(CancellationToken cancellationToken)
-    {
-        if (!CanSendMessage)
-        {
-            return;
-        }
-
-        string input = InputText.Trim();
-        if (string.IsNullOrEmpty(input))
-        {
-            return;
-        }
-
-        ChatMessage inputMessage = new(ChatRole.User, input)
-        {
-            CreatedAt = DateTimeOffset.Now,
-            AuthorName = conversationTurnController.UserName,
-        };
-
-        InputText = string.Empty;
-        ToolApprovalRequest = null;
-
-        try
-        {
-            using (generationCommandScopeFactory.Create(SendMessageCommand, null))
-            {
-                await conversationTurnController.SendMessageAsync(this, inputMessage, input, cancellationToken);
-            }
-        }
-        catch (AgentConversationException ex)
-        {
-            conversationTurnController.AddExceptionMessages(this, inputMessage, input, ex);
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanStopGeneration))]
-    private void StopGeneration()
-    {
-        if (disposed)
-        {
-            return;
-        }
-
-        IAsyncRelayCommand? command = GenerationCommand;
-        if (command is null)
-        {
-            return;
-        }
-
-        SentryDiagnostics.AddBreadcrumb("Stop chat generation", SentryBreadcrumbCategories.AIChat, SentryBreadcrumbTypes.UI);
-        command.Cancel();
-        OnPropertyChanged(nameof(CanStopGeneration));
-        StopGenerationCommand.NotifyCanExecuteChanged();
-    }
-
-    [RelayCommand(CanExecute = nameof(CanDeleteConversation))]
-    private void DeleteConversation()
-    {
-        if (!CanDeleteConversation)
-        {
-            return;
-        }
-
-        conversationDeleteHandler.DeleteConversation(this);
-    }
-
-    [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
-    private async Task ApproveToolApprovalAsync(ObservableToolApprovalRequestContent request, CancellationToken cancellationToken)
-    {
-        if (!ReferenceEquals(ToolApprovalRequest, request))
-        {
-            return;
-        }
-
-        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
-
-        using (generationCommandScopeFactory.Create(ApproveToolApprovalCommand, null))
-        {
-            await RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(true), cancellationToken);
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
-    private async Task DenyToolApprovalAsync(ObservableToolApprovalRequestContent request, CancellationToken cancellationToken)
-    {
-        if (!ReferenceEquals(ToolApprovalRequest, request))
-        {
-            return;
-        }
-
-        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
-
-        using (generationCommandScopeFactory.Create(DenyToolApprovalCommand, null))
-        {
-            await RespondToToolApprovalAsync(request, runtimeContent.CreateResponse(false, "Rejected by user"), cancellationToken);
-        }
-    }
 
     public void Dispose()
     {
@@ -224,40 +118,107 @@ internal sealed partial class AgentConversationViewModel
         ConversationStatistics = AgentConversationStatisticsViewModel.Create(Messages);
     }
 
-    internal void UpdateTurnMetadata(string? titleInput)
+    [RelayCommand(CanExecute = nameof(CanDeleteConversation))]
+    private void DeleteConversation()
     {
-        UpdatedAt = DateTimeOffset.Now;
-        if (titleInput is not null && string.IsNullOrWhiteSpace(Title))
+        if (!CanDeleteConversation)
         {
-            Title = CreateTitle(titleInput);
-        }
-    }
-
-    private bool CanRespondToToolApproval(ObservableToolApprovalRequestContent? request)
-    {
-        return !disposed && GenerationCommand is null && AgentConversationTurnController.CanRespondToToolApproval(this, request);
-    }
-
-    private Task RespondToToolApprovalAsync(ObservableToolApprovalRequestContent request, ToolApprovalResponseContent responseContent, CancellationToken cancellationToken)
-    {
-        if (disposed || !ReferenceEquals(ToolApprovalRequest, request))
-        {
-            return Task.CompletedTask;
+            return;
         }
 
-        return conversationTurnController.RespondToToolApprovalAsync(this, responseContent, cancellationToken);
+        conversationDeleteHandler.DeleteConversation(this);
     }
 
-    private static string CreateTitle(string input)
+    [RelayCommand(CanExecute = nameof(CanStopGeneration))]
+    private void StopGeneration()
     {
-        // TODO: Generate title based on first conversation content
-        string title = input.ReplaceLineEndings(" ").Trim();
-        const int maxLength = 40;
-        if (title.Length <= maxLength)
+        if (disposed)
         {
-            return title;
+            return;
         }
 
-        return title[..maxLength] + "...";
+        if (GenerationCommand is not { } command)
+        {
+            return;
+        }
+
+        SentryDiagnostics.AddBreadcrumb("Stop chat generation", SentryBreadcrumbCategories.AIChat, SentryBreadcrumbTypes.UI);
+        command.Cancel();
+        OnPropertyChanged(nameof(CanStopGeneration));
+        StopGenerationCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSendMessage))]
+    private async Task SendMessageAsync(CancellationToken cancellationToken)
+    {
+        if (!CanSendMessage)
+        {
+            return;
+        }
+
+        string input = InputText.Trim();
+        InputText = string.Empty;
+
+        // There should not be a pending tool approval request when sending a normal message.
+        Debug.Assert(ToolApprovalRequest is null);
+
+        ChatMessage inputMessage = new(ChatRole.User, input)
+        {
+            CreatedAt = DateTimeOffset.Now,
+            AuthorName = conversationTurnController.UserName,
+        };
+
+        await SendMessageCoreAsync(inputMessage, input, SendMessageCommand, cancellationToken);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
+    private Task ApproveToolApprovalAsync(CancellationToken cancellationToken)
+    {
+        return SendToolApprovalAsync(true, null, ApproveToolApprovalCommand, cancellationToken);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRespondToToolApproval))]
+    private Task DenyToolApprovalAsync(CancellationToken cancellationToken)
+    {
+        return SendToolApprovalAsync(false, "Rejected by user", DenyToolApprovalCommand, cancellationToken);
+    }
+
+    private async Task SendToolApprovalAsync(bool approved, string? reason, IAsyncRelayCommand command, CancellationToken cancellationToken)
+    {
+        ObservableToolApprovalRequestContent? request = ToolApprovalRequest;
+        if (request is null || disposed || !CanRespondToToolApproval || !ReferenceEquals(ToolApprovalRequest, request))
+        {
+            return;
+        }
+
+        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
+        ToolApprovalResponseContent responseContent = reason is null ? runtimeContent.CreateResponse(approved) : runtimeContent.CreateResponse(approved, reason);
+        ChatMessage responseMessage = new(ChatRole.User, [responseContent])
+        {
+            CreatedAt = DateTimeOffset.Now,
+            AuthorName = conversationTurnController.UserName,
+        };
+
+        await SendMessageCoreAsync(responseMessage, null, command, cancellationToken);
+    }
+
+    private async Task SendMessageCoreAsync(ChatMessage message, string? titleInput, IAsyncRelayCommand command, CancellationToken cancellationToken)
+    {
+        try
+        {
+            try
+            {
+                GenerationCommand = command;
+                await conversationTurnController.SendMessageAsync(this, message, titleInput, cancellationToken);
+            }
+            finally
+            {
+                GenerationCommand = null;
+            }
+        }
+        catch (AgentConversationException ex)
+        {
+            conversationTurnController.AddExceptionMessages(this, ex);
+        }
     }
 }

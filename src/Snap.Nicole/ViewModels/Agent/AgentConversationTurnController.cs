@@ -26,19 +26,14 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
 
     public string UserName { get => AgentOptionsNormalizer.NormalizeUserName(settings.AgentOptions.UserName); }
 
-    public static bool CanRespondToToolApproval(AgentConversationViewModel conversation, ObservableToolApprovalRequestContent? request)
+    public static bool CanRespondToToolApproval(AgentConversationViewModel conversation)
     {
         if (conversation.IsBusy)
         {
             return false;
         }
 
-        if (!ReferenceEquals(conversation.ToolApprovalRequest, request))
-        {
-            return false;
-        }
-
-        if (request?.CanRespond is not true)
+        if (conversation.ToolApprovalRequest?.CanRespond is not true)
         {
             return false;
         }
@@ -48,51 +43,40 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
 
     public async Task SendMessageAsync(AgentConversationViewModel conversation, ChatMessage inputMessage, string? titleInput, CancellationToken cancellationToken)
     {
-        AgentConversationTurnOperation operation = new()
+        ToolApprovalResponseContent? toolApprovalResponseContent = GetToolApprovalResponseContent(inputMessage);
+        AgentConversationToolApprovalTurnState? toolApprovalState = null;
+        if (toolApprovalResponseContent is not null)
         {
-            InputMessage = inputMessage,
-            TitleInput = titleInput,
-        };
+            ObservableToolApprovalRequestContent? request = conversation.ToolApprovalRequest;
+            if (request is null || !CanRespondToToolApproval(conversation) || !ReferenceEquals(conversation.ToolApprovalRequest, request))
+            {
+                return;
+            }
 
-        await RunTurnAsync(conversation, operation, cancellationToken);
-    }
-
-    public void AddExceptionMessages(AgentConversationViewModel conversation, ChatMessage inputMessage, string? titleInput, Exception ex)
-    {
-        ObservableChatMessage observableInputMessage = ObservableChatMessage.Create(inputMessage, functionContentJsonOptions);
-        conversation.Messages.Add(observableInputMessage);
-
-        ObservableErrorContent errorContent = ObservableErrorContent.Create(ex.Message);
-        ObservableChatMessage exceptionMessage = ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, content: errorContent);
-        conversation.Messages.Add(exceptionMessage);
-
-        conversation.UpdateTurnMetadata(titleInput);
-        conversation.UpdateConversationStatistics();
-    }
-
-    public async Task RespondToToolApprovalAsync(AgentConversationViewModel conversation, ToolApprovalResponseContent responseContent, CancellationToken cancellationToken)
-    {
-        ObservableToolApprovalRequestContent? request = conversation.ToolApprovalRequest;
-        if (!CanRespondToToolApproval(conversation, request) || request is null)
-        {
-            return;
+            toolApprovalState = new()
+            {
+                Request = request,
+                ResponseContent = toolApprovalResponseContent,
+            };
         }
 
         AgentConversationTurnOperation operation = new()
         {
-            InputMessage = new(ChatRole.User, [responseContent])
-            {
-                CreatedAt = DateTimeOffset.Now,
-                AuthorName = UserName,
-            },
-            ToolApprovalState = new()
-            {
-                Request = request,
-                ResponseContent = responseContent,
-            },
+            InputMessage = inputMessage,
+            TitleInput = toolApprovalResponseContent is null ? titleInput : null,
+            ToolApprovalState = toolApprovalState,
         };
 
         await RunTurnAsync(conversation, operation, cancellationToken);
+    }
+
+    public void AddExceptionMessages(AgentConversationViewModel conversation, Exception ex)
+    {
+        ObservableErrorContent errorContent = ObservableErrorContent.Create(ex.Message);
+        ObservableChatMessage exceptionMessage = ObservableChatMessage.Create(ChatRole.Assistant, DateTimeOffset.Now, content: errorContent);
+        conversation.Messages.Add(exceptionMessage);
+
+        conversation.UpdateConversationStatistics();
     }
 
     private static ObservableChatMessage? FindMessageById(ObservableChatMessageCollection messages, Guid messageId)
@@ -106,6 +90,34 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         }
 
         return null;
+    }
+
+    private static bool ShouldDisplayInputMessage(ChatMessage message)
+    {
+        return GetToolApprovalResponseContent(message) is null;
+    }
+
+    private static ToolApprovalResponseContent? GetToolApprovalResponseContent(ChatMessage message)
+    {
+        if (message.Contents is [ToolApprovalResponseContent responseContent])
+        {
+            return responseContent;
+        }
+
+        return null;
+    }
+
+    private static string CreateTitle(string input)
+    {
+        // TODO: Generate title based on first conversation content
+        string title = input.ReplaceLineEndings(" ").Trim();
+        const int maxLength = 40;
+        if (title.Length <= maxLength)
+        {
+            return title;
+        }
+
+        return title[..maxLength] + "...";
     }
 
     private static ObservableChatMessage? ApplyToolApprovalState(AgentConversationViewModel conversation, AgentConversationToolApprovalTurnState? state)
@@ -127,6 +139,17 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         return targetResponseMessage;
     }
 
+    private void AddInputMessage(AgentConversationViewModel conversation, ChatMessage inputMessage)
+    {
+        if (!ShouldDisplayInputMessage(inputMessage))
+        {
+            return;
+        }
+
+        ObservableChatMessage observableInputMessage = ObservableChatMessage.Create(inputMessage, functionContentJsonOptions);
+        conversation.Messages.Add(observableInputMessage);
+    }
+
     private async Task RunTurnAsync(AgentConversationViewModel conversation, AgentConversationTurnOperation operation, CancellationToken cancellationToken)
     {
         if (profileController.CreateRequestOptions(conversation.ModelProviderProfile, conversation.ModelProfile) is not { } requestOptions)
@@ -134,6 +157,8 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             // TODO: Consider throw there.
             return;
         }
+
+        AddInputMessage(conversation, operation.InputMessage);
 
         if (string.IsNullOrWhiteSpace(requestOptions.ApiKey))
         {
@@ -166,7 +191,11 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             TaskScheduler taskScheduler = App.Current.Threading.TaskScheduler;
             span.Finish(await agentService.RunStreamingAsync(streamingContext, taskScheduler, cancellationToken));
 
-            conversation.UpdateTurnMetadata(operation.TitleInput);
+            conversation.UpdatedAt = DateTimeOffset.Now;
+            if (operation.TitleInput is not null && string.IsNullOrWhiteSpace(conversation.Title))
+            {
+                conversation.Title = CreateTitle(operation.TitleInput);
+            }
 
             await runtimeController.SerializeConversationSessionAsync(conversation.Runtime, streamingContext.Agent, streamingContext.Session, cancellationToken);
             persistenceController.SaveConversation(conversation);

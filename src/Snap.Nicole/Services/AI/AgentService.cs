@@ -36,12 +36,6 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
 
         try
         {
-            if (ShouldDisplayInputMessage(context.InputMessage))
-            {
-                ObservableChatMessage inputMessage = ObservableChatMessage.Create(context.InputMessage, functionContentJsonOptions);
-                await taskScheduler.Run(ObservableChatMessageCollection.Add, conversation.Messages, inputMessage, cancellationToken);
-            }
-
             await Task.Yield();
             await foreach (AgentResponseUpdate update in context.Agent.RunStreamingAsync([context.InputMessage], context.Session, context.Options.AsAgentRunOptions(), cancellationToken))
             {
@@ -75,13 +69,6 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
 
             return SpanStatus.InternalError;
         }
-    }
-
-    private static bool ShouldDisplayInputMessage(ChatMessage message)
-    {
-        // This method is lifted out for future extensibility
-        // 1. Message with single ToolApprovalResponseContent is a special case where we don't want to display at all
-        return message.Contents is not [ToolApprovalResponseContent];
     }
 
     private static void ProcessPendingUpdate(AgentRunStreamingContext context, ExtendedAgentResponseUpdate pendingUpdate)
