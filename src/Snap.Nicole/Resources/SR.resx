@@ -339,6 +339,9 @@
   <data name="UIXamlPagesAgentPageLabelDefaultWorkspace" xml:space="preserve">
     <value>默认工作目录</value>
   </data>
+  <data name="UIXamlPagesAgentPageLabelMultipleWorkspaces" xml:space="preserve">
+    <value>{0} 个工作目录</value>
+  </data>
   <data name="UIXamlPagesAgentPageLabelChooseWorkspaceFolder" xml:space="preserve">
     <value>选择文件夹</value>
   </data>
@@ -352,7 +355,7 @@
     <value>确认外部工作目录</value>
   </data>
   <data name="UIXamlPagesAgentPageMessageExternalWorkspaceConfirmContent" xml:space="preserve">
-    <value>Agent 将能在此目录内读取和修改文件；Shell 启用后，命令也会从此目录运行：{0}</value>
+    <value>Agent 将能在这些目录内读取和修改文件；Shell 启用后，命令会从第一个目录运行：{0}</value>
   </data>
   <data name="UIXamlPagesAgentPageLabelConfirmWorkspace" xml:space="preserve">
     <value>确认</value>

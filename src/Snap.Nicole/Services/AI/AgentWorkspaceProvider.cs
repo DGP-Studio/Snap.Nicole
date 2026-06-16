@@ -21,13 +21,14 @@ internal sealed class AgentWorkspaceProvider
 
         if (workspace.Kind is AgentWorkspaceKind.ExternalFolder)
         {
-            string externalFolderPath = NormalizeExternalFolderPath(workspace.ExternalFolderPath);
+            IReadOnlyList<string> externalFolderPaths = NormalizeExternalFolderPaths(workspace.ExternalFolderPaths);
             return new()
             {
                 Kind = AgentWorkspaceKind.ExternalFolder,
-                WorkingDirectory = externalFolderPath,
+                WorkingDirectory = externalFolderPaths[0],
+                WorkingDirectories = externalFolderPaths,
                 MemoryDirectory = memoryDirectory,
-                ExternalFolderPath = externalFolderPath,
+                ExternalFolderPaths = externalFolderPaths,
             };
         }
 
@@ -38,6 +39,7 @@ internal sealed class AgentWorkspaceProvider
         {
             Kind = AgentWorkspaceKind.AppManaged,
             WorkingDirectory = workingDirectory,
+            WorkingDirectories = [workingDirectory],
             MemoryDirectory = memoryDirectory,
         };
     }
@@ -75,6 +77,29 @@ internal sealed class AgentWorkspaceProvider
         return fullPath;
     }
 
+    public IReadOnlyList<string> NormalizeExternalFolderPaths(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+
+        List<string> normalizedPaths = [];
+        HashSet<string> seenPaths = new(GetPathComparer());
+        foreach (string path in paths)
+        {
+            string normalizedPath = NormalizeExternalFolderPath(path);
+            if (seenPaths.Add(normalizedPath))
+            {
+                normalizedPaths.Add(normalizedPath);
+            }
+        }
+
+        if (normalizedPaths.Count is 0)
+        {
+            throw new DirectoryNotFoundException("External workspace folder is not configured.");
+        }
+
+        return normalizedPaths;
+    }
+
     public void DeleteAppManagedWorkspace(Guid conversationId)
     {
         string directory = GetAppManagedWorkspaceRoot(conversationId);
@@ -101,6 +126,11 @@ internal sealed class AgentWorkspaceProvider
     private static string GetAppManagedWorkspaceRoot(Guid conversationId)
     {
         return Path.Combine(WellKnownLocations.Cache, AgentWorkspacesDirectoryName, conversationId.ToString("N"));
+    }
+
+    private static StringComparer GetPathComparer()
+    {
+        return OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     }
 
     private static void EnsureDirectoryAccessible(string path)

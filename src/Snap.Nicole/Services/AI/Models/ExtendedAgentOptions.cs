@@ -156,7 +156,7 @@ internal sealed class ExtendedAgentOptions
         List<AIContextProvider> contextProviders = [];
         if (EnableFileAccess)
         {
-            contextProviders.Add(new AgentWorkspaceFileAccessProvider(new FileSystemAgentFileStore(workspace.WorkingDirectory), workspace.WorkingDirectory));
+            contextProviders.Add(new AgentWorkspaceFileAccessProvider(workspace.WorkingDirectories));
         }
 
         LocalShellExecutor? shellExecutor = null;

@@ -278,8 +278,11 @@
   <data name="UIXamlPagesAgentPageLabelDefaultWorkspace" xml:space="preserve">
     <value>Default workspace</value>
   </data>
+  <data name="UIXamlPagesAgentPageLabelMultipleWorkspaces" xml:space="preserve">
+    <value>{0} workspaces</value>
+  </data>
   <data name="UIXamlPagesAgentPageLabelChooseWorkspaceFolder" xml:space="preserve">
-    <value>Choose folder</value>
+    <value>Choose folders</value>
   </data>
   <data name="UIXamlPagesAgentPageLabelOpenWorkspaceFolder" xml:space="preserve">
     <value>Open folder</value>
@@ -291,7 +294,7 @@
     <value>Confirm external workspace</value>
   </data>
   <data name="UIXamlPagesAgentPageMessageExternalWorkspaceConfirmContent" xml:space="preserve">
-    <value>The agent will be able to read and modify files in this folder; if Shell is enabled, commands will also run from this folder: {0}</value>
+    <value>The agent will be able to read and modify files in these folders; if Shell is enabled, commands will run from the first folder: {0}</value>
   </data>
   <data name="UIXamlPagesAgentPageLabelConfirmWorkspace" xml:space="preserve">
     <value>Confirm</value>

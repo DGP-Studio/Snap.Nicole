@@ -104,11 +104,12 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
             return;
         }
 
-        toolApprovalRequest.WorkingDirectory = context.Workspace.WorkingDirectory;
+        string workingDirectory = string.Equals(functionCall.Name, "run_shell", StringComparison.Ordinal) ? context.Workspace.WorkingDirectory : string.Join(Environment.NewLine, context.Workspace.WorkingDirectories);
+        toolApprovalRequest.WorkingDirectory = workingDirectory;
         Dictionary<string, string> data = new()
         {
             [SentryData.Item] = functionCall.Name,
-            [SentryData.AgentWorkspaceDirectory] = context.Workspace.WorkingDirectory,
+            [SentryData.AgentWorkspaceDirectory] = string.Join("; ", context.Workspace.WorkingDirectories),
         };
         SentryDiagnostics.AddBreadcrumb("Workspace tool approval requested", SentryBreadcrumbCategories.AIChat, SentryBreadcrumbTypes.Navigation, data);
     }

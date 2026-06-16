@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -5,9 +6,9 @@ namespace Snap.Nicole.ViewModels.Agent;
 
 internal interface IAgentWorkspaceInteractionService
 {
-    ValueTask<string?> PickExternalFolderAsync(string? currentFolderPath, CancellationToken cancellationToken);
+    ValueTask<IReadOnlyList<string>> PickExternalFoldersAsync(IReadOnlyList<string> currentFolderPaths, CancellationToken cancellationToken);
 
-    ValueTask<bool> ConfirmExternalFolderAsync(string folderPath, CancellationToken cancellationToken);
+    ValueTask<bool> ConfirmExternalFoldersAsync(IReadOnlyList<string> folderPaths, CancellationToken cancellationToken);
 
     void OpenFolder(string folderPath);
 }

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Snap.Nicole.Services.AI.Models;
 
 internal sealed record AgentWorkspaceSnapshot
@@ -6,9 +8,11 @@ internal sealed record AgentWorkspaceSnapshot
 
     public required string WorkingDirectory { get; init; }
 
+    public required IReadOnlyList<string> WorkingDirectories { get; init; }
+
     public required string MemoryDirectory { get; init; }
 
-    public string? ExternalFolderPath { get; init; }
+    public IReadOnlyList<string> ExternalFolderPaths { get; init; } = [];
 
     public bool AgentEquals(AgentWorkspaceSnapshot? other)
     {
@@ -25,11 +29,30 @@ internal sealed record AgentWorkspaceSnapshot
         return Kind == other.Kind
             && PathEquals(WorkingDirectory, other.WorkingDirectory)
             && PathEquals(MemoryDirectory, other.MemoryDirectory)
-            && PathEquals(ExternalFolderPath, other.ExternalFolderPath);
+            && PathSequenceEquals(WorkingDirectories, other.WorkingDirectories)
+            && PathSequenceEquals(ExternalFolderPaths, other.ExternalFolderPaths);
     }
 
     private static bool PathEquals(string? x, string? y)
     {
         return string.Equals(x, y, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+    }
+
+    private static bool PathSequenceEquals(IReadOnlyList<string> x, IReadOnlyList<string> y)
+    {
+        if (x.Count != y.Count)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < x.Count; i++)
+        {
+            if (!PathEquals(x[i], y[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
