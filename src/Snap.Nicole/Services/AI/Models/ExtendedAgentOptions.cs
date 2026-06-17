@@ -43,14 +43,6 @@ internal sealed class ExtendedAgentOptions
 
     public int? MaximumIterationsPerRequest { get; init; }
 
-    public bool EnableFileMemory { get; init; }
-
-    public bool EnableFileAccess { get; init; }
-
-    public bool EnableShellExecutor { get; init; }
-
-    public bool EnableAgentSkillsProvider { get; init; }
-
     public bool AgentEquals(ExtendedAgentOptions? other)
     {
         if (ReferenceEquals(this, other))
@@ -73,10 +65,6 @@ internal sealed class ExtendedAgentOptions
             && MaxInputTokens == other.MaxInputTokens
             && MaxOutputTokens == other.MaxOutputTokens
             && MaximumIterationsPerRequest == other.MaximumIterationsPerRequest
-            && EnableFileMemory == other.EnableFileMemory
-            && EnableFileAccess == other.EnableFileAccess
-            && EnableShellExecutor == other.EnableShellExecutor
-            && EnableAgentSkillsProvider == other.EnableAgentSkillsProvider
             && string.Equals(SystemPrompt, other.SystemPrompt, StringComparison.Ordinal);
     }
 
@@ -99,10 +87,6 @@ internal sealed class ExtendedAgentOptions
             MaxOutputTokens = AgentOptionsNormalizer.NormalizeTokenLimit(agentOptions.MaxOutputTokens),
             SystemPrompt = AgentOptionsNormalizer.NormalizeSystemPrompt(appAgentOptions.SystemPrompt),
             MaximumIterationsPerRequest = AgentOptionsNormalizer.NormalizeMaximumIterationsPerRequest(appAgentOptions.MaximumIterationsPerRequest),
-            EnableFileMemory = appAgentOptions.EnableFileMemory,
-            EnableFileAccess = appAgentOptions.EnableFileAccess,
-            EnableShellExecutor = appAgentOptions.EnableShellExecutor,
-            EnableAgentSkillsProvider = appAgentOptions.EnableAgentSkillsProvider,
         };
     }
 
@@ -153,39 +137,29 @@ internal sealed class ExtendedAgentOptions
 
     private HarnessAgentOptions CreateHarnessAgentOptions(IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace, int maxContextWindowTokens, int maxOutputTokens, out IAsyncDisposable? resources)
     {
-        List<AIContextProvider> contextProviders = [];
-        if (EnableFileAccess)
-        {
-            contextProviders.Add(new AgentWorkspaceFileAccessProvider(workspace.WorkingDirectories));
-        }
-
-        LocalShellExecutor? shellExecutor = null;
-        if (EnableShellExecutor)
-        {
-            shellExecutor = CreateShellExecutor(workspace);
-        }
-
+        List<AIContextProvider> contextProviders = [new AgentWorkspaceFileAccessProvider(workspace.WorkingDirectories)];
+        LocalShellExecutor shellExecutor = CreateShellExecutor(workspace);
         resources = shellExecutor;
 
         return new()
         {
             ChatOptions = CreateHarnessChatOptions(tools, maxOutputTokens),
             ChatHistoryProvider = CreateChatHistoryProvider(serviceProvider),
-            AIContextProviders = contextProviders.Count is 0 ? null : contextProviders,
+            AIContextProviders = contextProviders,
             HarnessInstructions = string.Empty,
             MaxContextWindowTokens = maxContextWindowTokens,
             MaxOutputTokens = maxOutputTokens,
             MaximumIterationsPerRequest = MaximumIterationsPerRequest,
             DisableToolApproval = false,
-            DisableFileMemory = !EnableFileMemory,
-            FileMemoryStore = EnableFileMemory ? new FileSystemAgentFileStore(workspace.MemoryDirectory) : null,
+            DisableFileMemory = false,
+            FileMemoryStore = new FileSystemAgentFileStore(workspace.MemoryDirectory),
             DisableFileAccess = true,
             FileAccessStore = null,
             DisableWebSearch = true,
             DisableTodoProvider = true,
             DisableAgentModeProvider = true,
-            DisableAgentSkillsProvider = !EnableAgentSkillsProvider,
-            AgentSkillsSource = EnableAgentSkillsProvider ? EmptyAgentSkillsSource.Instance : null,
+            DisableAgentSkillsProvider = false,
+            AgentSkillsSource = EmptyAgentSkillsSource.Instance,
             DisableOpenTelemetry = true,
             ShellExecutor = shellExecutor,
         };
