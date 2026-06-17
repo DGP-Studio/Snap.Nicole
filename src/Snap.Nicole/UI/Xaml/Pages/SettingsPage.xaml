@@ -410,7 +410,7 @@
                                                                 </ComboBox>
                                                             </snuxc:SizeRestrictedContentControl>
                                                         </cwcont:SettingsCard>
-                                                        <StackPanel Spacing="16" Visibility="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem, Converter={StaticResource ModelProfileEditorVisibilityConverter}}">
+                                                        <StackPanel Spacing="3" Visibility="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem, Converter={StaticResource ModelProfileEditorVisibilityConverter}}">
                                                             <cwcont:SettingsCard Header="{snuxm:StringResource Name=UIXamlPagesSettingsPageLabelProfileModelId}">
                                                                 <TextBox Text="{Binding Settings.ModelProviderProfiles.CurrentItem.ModelProfiles.CurrentItem.ModelId, Mode=TwoWay}" />
                                                             </cwcont:SettingsCard>

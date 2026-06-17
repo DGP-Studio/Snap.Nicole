@@ -125,8 +125,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
     {
         return
         [
-            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.GetCurrentTime)),
-            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.ShowSummary))
+            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.GetCurrentTime))
         ];
     }
 }
