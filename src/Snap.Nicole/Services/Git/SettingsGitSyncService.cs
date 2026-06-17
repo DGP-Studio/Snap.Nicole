@@ -254,10 +254,7 @@ internal sealed class SettingsGitSyncService : ISettingsGitSyncService
                 };
             }
 
-            if (!string.Equals(
-                Path.GetFullPath(RepositoryPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                Path.GetFullPath(topLevel.Output.Trim()).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                StringComparison.OrdinalIgnoreCase))
+            if (!FileSystemPath.Equals(Path.GetFullPath(RepositoryPath), Path.GetFullPath(topLevel.Output.Trim())))
             {
                 return new()
                 {

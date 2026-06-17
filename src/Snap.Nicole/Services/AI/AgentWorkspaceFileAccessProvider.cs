@@ -1,5 +1,6 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Snap.Nicole.Core.IO;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -125,7 +126,7 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
             }
         }
 
-        fileNames.Sort(GetPathComparer());
+        fileNames.Sort(FileSystemPath.Comparer);
         return Task.FromResult(fileNames);
     }
 
@@ -159,7 +160,7 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
             }
         }
 
-        directoryNames.Sort(GetPathComparer());
+        directoryNames.Sort(FileSystemPath.Comparer);
         return Task.FromResult(directoryNames);
     }
 
@@ -192,7 +193,7 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
             await SearchDirectoryAsync(searchDirectory, search, results, cancellationToken);
         }
 
-        results.Sort((left, right) => GetPathComparer().Compare(left.FileName, right.FileName));
+        results.Sort((left, right) => FileSystemPath.Comparer.Compare(left.FileName, right.FileName));
         return results;
     }
 
@@ -380,8 +381,7 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
     {
         string localPath = relativePath.Replace('/', Path.DirectorySeparatorChar);
         string fullPath = Path.GetFullPath(Path.Combine(root.Directory, localPath));
-        StringComparison comparison = GetPathComparison();
-        if (!string.Equals(fullPath, root.Directory, comparison) && !fullPath.StartsWith(root.RootPath, comparison))
+        if (!FileSystemPath.IsEqualOrSubdirectory(root.Directory, fullPath))
         {
             throw new ArgumentException($"Invalid path: '{relativePath}'. The resolved path escapes the workspace root.", nameof(relativePath));
         }
@@ -627,32 +627,10 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
             {
                 Alias = workingDirectories.Count is 1 ? string.Empty : $"workspace{i + 1}",
                 Directory = Path.TrimEndingDirectorySeparator(directory),
-                RootPath = EnsureTrailingDirectorySeparator(directory),
             });
         }
 
         return createdRoots;
-    }
-
-    private static string EnsureTrailingDirectorySeparator(string path)
-    {
-        string fullPath = Path.GetFullPath(path);
-        if (fullPath.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal) || fullPath.EndsWith(Path.AltDirectorySeparatorChar.ToString(), StringComparison.Ordinal))
-        {
-            return fullPath;
-        }
-
-        return fullPath + Path.DirectorySeparatorChar;
-    }
-
-    private static StringComparison GetPathComparison()
-    {
-        return OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-    }
-
-    private static StringComparer GetPathComparer()
-    {
-        return OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     }
 
     private sealed class WorkspaceRoot
@@ -660,8 +638,6 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
         public required string Alias { get; init; }
 
         public required string Directory { get; init; }
-
-        public required string RootPath { get; init; }
     }
 
     private sealed class WorkspacePath

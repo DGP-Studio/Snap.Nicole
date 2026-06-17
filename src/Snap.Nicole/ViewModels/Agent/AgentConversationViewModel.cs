@@ -5,6 +5,7 @@ using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Resources;
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.AI.Observables;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -68,9 +69,9 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(WorkspaceDisplayName), nameof(WorkspaceDisplayPath))]
     [NotifyCanExecuteChangedFor(nameof(SelectWorkspaceCommand), nameof(OpenWorkspaceCommand), nameof(ResetWorkspaceCommand))]
-    public partial AgentConversationWorkspace Workspace { get; set; } = new();
+    public partial List<string> ExternalDirectories { get; set; } = [];
 
-    partial void OnWorkspaceChanged(AgentConversationWorkspace value)
+    partial void OnExternalDirectoriesChanged(List<string> value)
     {
         Runtime.Reset();
     }

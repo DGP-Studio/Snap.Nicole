@@ -279,22 +279,22 @@
     <value>Default workspace</value>
   </data>
   <data name="UIXamlPagesAgentPageLabelMultipleWorkspaces" xml:space="preserve">
-    <value>{0} workspaces</value>
+    <value>{0} external folders</value>
   </data>
   <data name="UIXamlPagesAgentPageLabelChooseWorkspaceFolder" xml:space="preserve">
-    <value>Choose folders</value>
+    <value>Choose external folders</value>
   </data>
   <data name="UIXamlPagesAgentPageLabelOpenWorkspaceFolder" xml:space="preserve">
-    <value>Open folder</value>
+    <value>Open folders</value>
   </data>
   <data name="UIXamlPagesAgentPageLabelResetWorkspace" xml:space="preserve">
-    <value>Reset to default</value>
+    <value>Clear external folders</value>
   </data>
   <data name="UIXamlPagesAgentPageMessageExternalWorkspaceConfirmTitle" xml:space="preserve">
-    <value>Confirm external workspace</value>
+    <value>Confirm external folders</value>
   </data>
   <data name="UIXamlPagesAgentPageMessageExternalWorkspaceConfirmContent" xml:space="preserve">
-    <value>The agent will be able to read and modify files in these folders; if Shell is enabled, commands will run from the first folder: {0}</value>
+    <value>The agent will be able to read and modify files in these external folders. Shell commands will continue to run from the default workspace: {0}</value>
   </data>
   <data name="UIXamlPagesAgentPageLabelConfirmWorkspace" xml:space="preserve">
     <value>Confirm</value>

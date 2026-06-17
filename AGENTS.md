@@ -40,7 +40,8 @@ src
 
 ### Syntax and style
 
-**IMPORTANT**: When writing code, find the best balance between **high performance** and **clean code**.
+**IMPORTANT**: Balance **high performance** with **clean code** when writing.
+**IMPORTANT**: This project is in early development/close beta; forward/backward compatibility is not a concern.
 
 - Always try your best to avoid memory leak. Especially when:
 	- Subscribing events, which is extremely dangerous when not properly unsubscribed.

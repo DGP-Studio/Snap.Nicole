@@ -20,7 +20,7 @@ internal sealed class AgentConversationRuntimeController(IServiceProvider servic
         AgentWorkspaceSnapshot workspace;
         try
         {
-            workspace = workspaceProvider.CreateSnapshot(conversation.Id, conversation.Workspace);
+            workspace = workspaceProvider.CreateSnapshot(conversation.Id, conversation.ExternalDirectories);
         }
         catch (Exception ex) when (AgentWorkspaceProvider.IsWorkspaceException(ex))
         {

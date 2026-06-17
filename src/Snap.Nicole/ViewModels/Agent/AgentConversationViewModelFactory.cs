@@ -20,7 +20,7 @@ internal sealed class AgentConversationViewModelFactory(AgentConversationTurnCon
         conversation.CreatedAt = data.CreatedAt;
         conversation.UpdatedAt = data.UpdatedAt;
         conversation.Runtime.SerializedSessionState = data.SerializedSessionState?.Clone();
-        conversation.Workspace = data.Workspace?.Clone() ?? new();
+        conversation.ExternalDirectories = [.. data.ExternalDirectories];
         conversation.Messages = new(data.Messages);
         conversation.ToolApprovalRequest = data.ToolApprovalRequest;
         conversation.UpdateConversationStatistics();

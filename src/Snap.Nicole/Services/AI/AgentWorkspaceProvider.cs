@@ -12,34 +12,21 @@ internal sealed class AgentWorkspaceProvider
     private const string WorkingDirectoryName = "working";
     private const string MemoryDirectoryName = "memory";
 
-    public AgentWorkspaceSnapshot CreateSnapshot(Guid conversationId, AgentConversationWorkspace workspace)
+    public AgentWorkspaceSnapshot CreateSnapshot(Guid conversationId, IReadOnlyList<string> externalDirectories)
     {
-        ArgumentNullException.ThrowIfNull(workspace);
+        ArgumentNullException.ThrowIfNull(externalDirectories);
 
-        string memoryDirectory = GetMemoryDirectory(conversationId);
+        string memoryDirectory = GetMemoryDirectory();
         Directory.CreateDirectory(memoryDirectory);
-
-        if (workspace.Kind is AgentWorkspaceKind.ExternalFolder)
-        {
-            IReadOnlyList<string> externalFolderPaths = NormalizeExternalFolderPaths(workspace.ExternalFolderPaths);
-            return new()
-            {
-                Kind = AgentWorkspaceKind.ExternalFolder,
-                WorkingDirectory = externalFolderPaths[0],
-                WorkingDirectories = externalFolderPaths,
-                MemoryDirectory = memoryDirectory,
-                ExternalFolderPaths = externalFolderPaths,
-            };
-        }
 
         string workingDirectory = GetAppManagedWorkingDirectory(conversationId);
         Directory.CreateDirectory(workingDirectory);
 
+        IReadOnlyList<string> normalizedExternalDirectories = externalDirectories.Count > 0 ? NormalizeExternalDirectories(externalDirectories) : [];
         return new()
         {
-            Kind = AgentWorkspaceKind.AppManaged,
             WorkingDirectory = workingDirectory,
-            WorkingDirectories = [workingDirectory],
+            WorkingDirectories = [workingDirectory, .. normalizedExternalDirectories],
             MemoryDirectory = memoryDirectory,
         };
     }
@@ -49,23 +36,23 @@ internal sealed class AgentWorkspaceProvider
         return Path.Combine(GetAppManagedWorkspaceRoot(conversationId), WorkingDirectoryName);
     }
 
-    public string GetMemoryDirectory(Guid conversationId)
+    public string GetMemoryDirectory()
     {
-        return Path.Combine(GetAppManagedWorkspaceRoot(conversationId), MemoryDirectoryName);
+        return Path.Combine(GetAppManagedWorkspacesRoot(), MemoryDirectoryName);
     }
 
-    public string NormalizeExternalFolderPath(string? path)
+    public string NormalizeExternalDirectory(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            throw new DirectoryNotFoundException("External workspace folder is not configured.");
+            throw new DirectoryNotFoundException("External workspace directory is not configured.");
         }
 
         string fullPath = Path.GetFullPath(path.Trim());
         DirectoryInfo directory = new(fullPath);
         if (!directory.Exists)
         {
-            throw new DirectoryNotFoundException($"External workspace folder does not exist: {fullPath}");
+            throw new DirectoryNotFoundException($"External workspace directory does not exist: {fullPath}");
         }
 
         if ((directory.Attributes & FileAttributes.Directory) == 0)
@@ -77,15 +64,15 @@ internal sealed class AgentWorkspaceProvider
         return fullPath;
     }
 
-    public IReadOnlyList<string> NormalizeExternalFolderPaths(IEnumerable<string> paths)
+    public IReadOnlyList<string> NormalizeExternalDirectories(IEnumerable<string> paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
 
         List<string> normalizedPaths = [];
-        HashSet<string> seenPaths = new(GetPathComparer());
+        HashSet<string> seenPaths = new(FileSystemPath.Comparer);
         foreach (string path in paths)
         {
-            string normalizedPath = NormalizeExternalFolderPath(path);
+            string normalizedPath = NormalizeExternalDirectory(path);
             if (seenPaths.Add(normalizedPath))
             {
                 normalizedPaths.Add(normalizedPath);
@@ -94,7 +81,7 @@ internal sealed class AgentWorkspaceProvider
 
         if (normalizedPaths.Count is 0)
         {
-            throw new DirectoryNotFoundException("External workspace folder is not configured.");
+            throw new DirectoryNotFoundException("External workspace directory is not configured.");
         }
 
         return normalizedPaths;
@@ -125,12 +112,12 @@ internal sealed class AgentWorkspaceProvider
 
     private static string GetAppManagedWorkspaceRoot(Guid conversationId)
     {
-        return Path.Combine(WellKnownLocations.Cache, AgentWorkspacesDirectoryName, conversationId.ToString("N"));
+        return Path.Combine(GetAppManagedWorkspacesRoot(), conversationId.ToString("N"));
     }
 
-    private static StringComparer GetPathComparer()
+    private static string GetAppManagedWorkspacesRoot()
     {
-        return OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        return Path.Combine(WellKnownLocations.Cache, AgentWorkspacesDirectoryName);
     }
 
     private static void EnsureDirectoryAccessible(string path)

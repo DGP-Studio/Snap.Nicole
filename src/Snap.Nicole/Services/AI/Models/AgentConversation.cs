@@ -1,4 +1,5 @@
 using Snap.Nicole.Services.AI.Observables;
+using System.Collections.Generic;
 using System.Text.Json;
 
 namespace Snap.Nicole.Services.AI.Models;
@@ -19,7 +20,7 @@ internal sealed class AgentConversation
 
     public JsonElement? SerializedSessionState { get; init; }
 
-    public AgentConversationWorkspace Workspace { get; init; } = new();
+    public List<string> ExternalDirectories { get; init; } = [];
 
     public ObservableToolApprovalRequestContent? ToolApprovalRequest { get; init; }
 

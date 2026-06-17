@@ -19,37 +19,25 @@ internal sealed class AgentConversationWorkspaceController(IServiceProvider serv
 
     public StringResourceValue GetWorkspaceDisplayName(AgentConversationViewModel conversation)
     {
-        AgentConversationWorkspace workspace = conversation.Workspace;
-        if (workspace.Kind is not AgentWorkspaceKind.ExternalFolder || workspace.ExternalFolderPaths.Count is 0)
+        if (conversation.ExternalDirectories.Count is 0)
         {
             return SRName.UIXamlPagesAgentPageLabelDefaultWorkspace;
         }
 
-        if (workspace.ExternalFolderPaths.Count > 1)
+        if (conversation.ExternalDirectories.Count > 1)
         {
-            return StringResourceValue.FromName(SRName.UIXamlPagesAgentPageLabelMultipleWorkspaces, workspace.ExternalFolderPaths.Count);
+            return StringResourceValue.FromName(SRName.UIXamlPagesAgentPageLabelMultipleWorkspaces, conversation.ExternalDirectories.Count);
         }
 
-        string displayPath = GetDisplayPath(workspace.ExternalFolderPaths[0]);
+        string displayPath = GetDisplayPath(conversation.ExternalDirectories[0]);
         string? name = Path.GetFileName(displayPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         return string.IsNullOrWhiteSpace(name) ? StringResourceValue.FromText(displayPath) : StringResourceValue.FromText(name);
     }
 
     public string GetWorkspaceDisplayPath(AgentConversationViewModel conversation)
     {
-        AgentConversationWorkspace workspace = conversation.Workspace;
-        if (workspace.Kind is not AgentWorkspaceKind.ExternalFolder)
-        {
-            return workspaceProvider.GetAppManagedWorkingDirectory(conversation.Id);
-        }
-
-        if (workspace.ExternalFolderPaths.Count is 0)
-        {
-            return string.Empty;
-        }
-
-        List<string> displayPaths = [];
-        foreach (string path in workspace.ExternalFolderPaths)
+        List<string> displayPaths = [GetDisplayPath(workspaceProvider.GetAppManagedWorkingDirectory(conversation.Id))];
+        foreach (string path in conversation.ExternalDirectories)
         {
             displayPaths.Add(GetDisplayPath(path));
         }
@@ -59,26 +47,22 @@ internal sealed class AgentConversationWorkspaceController(IServiceProvider serv
 
     public async Task SelectExternalWorkspaceAsync(AgentConversationViewModel conversation, CancellationToken cancellationToken)
     {
-        IReadOnlyList<string> selectedFolderPaths = await interactionService.PickExternalFoldersAsync(conversation.Workspace.ExternalFolderPaths, cancellationToken);
-        if (selectedFolderPaths.Count is 0)
+        IReadOnlyList<string> selectedDirectories = await interactionService.PickExternalFoldersAsync(conversation.ExternalDirectories, cancellationToken);
+        if (selectedDirectories.Count is 0)
         {
             return;
         }
 
         try
         {
-            IReadOnlyList<string> normalizedPaths = workspaceProvider.NormalizeExternalFolderPaths(selectedFolderPaths);
-            bool confirmed = await interactionService.ConfirmExternalFoldersAsync(normalizedPaths, cancellationToken);
+            IReadOnlyList<string> normalizedDirectories = workspaceProvider.NormalizeExternalDirectories(selectedDirectories);
+            bool confirmed = await interactionService.ConfirmExternalFoldersAsync(normalizedDirectories, cancellationToken);
             if (!confirmed)
             {
                 return;
             }
 
-            SetWorkspace(conversation, new()
-            {
-                Kind = AgentWorkspaceKind.ExternalFolder,
-                ExternalFolderPaths = [.. normalizedPaths],
-            });
+            SetExternalDirectories(conversation, normalizedDirectories);
         }
         catch (OperationCanceledException)
         {
@@ -92,14 +76,14 @@ internal sealed class AgentConversationWorkspaceController(IServiceProvider serv
 
     public void ResetWorkspace(AgentConversationViewModel conversation)
     {
-        SetWorkspace(conversation, new());
+        SetExternalDirectories(conversation, []);
     }
 
     public void OpenWorkspace(AgentConversationViewModel conversation)
     {
         try
         {
-            AgentWorkspaceSnapshot workspace = workspaceProvider.CreateSnapshot(conversation.Id, conversation.Workspace);
+            AgentWorkspaceSnapshot workspace = workspaceProvider.CreateSnapshot(conversation.Id, conversation.ExternalDirectories);
             foreach (string workingDirectory in workspace.WorkingDirectories)
             {
                 interactionService.OpenFolder(workingDirectory);
@@ -111,9 +95,9 @@ internal sealed class AgentConversationWorkspaceController(IServiceProvider serv
         }
     }
 
-    private void SetWorkspace(AgentConversationViewModel conversation, AgentConversationWorkspace workspace)
+    private void SetExternalDirectories(AgentConversationViewModel conversation, IReadOnlyList<string> externalDirectories)
     {
-        conversation.Workspace = workspace;
+        conversation.ExternalDirectories = [.. externalDirectories];
         conversation.UpdatedAt = DateTimeOffset.Now;
         persistenceController.SaveConversation(conversation);
     }
