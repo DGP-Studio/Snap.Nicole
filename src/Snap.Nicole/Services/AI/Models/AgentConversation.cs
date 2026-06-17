@@ -5,23 +5,23 @@ namespace Snap.Nicole.Services.AI.Models;
 
 internal sealed class AgentConversation
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; init; } = Guid.NewGuid();
 
-    public string Title { get; set; } = string.Empty;
+    public string Title { get; init; } = string.Empty;
 
-    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
+    public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.Now;
 
-    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
+    public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.Now;
 
-    public Guid? ModelProviderProfileId { get; set; }
+    public Guid? ModelProviderProfileId { get; init; }
 
-    public Guid? ModelProfileId { get; set; }
+    public Guid? ModelProfileId { get; init; }
 
-    public JsonElement? SerializedSessionState { get; set; }
+    public JsonElement? SerializedSessionState { get; init; }
 
-    public AgentConversationWorkspace Workspace { get; set; } = new();
+    public AgentConversationWorkspace Workspace { get; init; } = new();
 
-    public ObservableToolApprovalRequestContent? ToolApprovalRequest { get; set; }
+    public ObservableToolApprovalRequestContent? ToolApprovalRequest { get; init; }
 
-    public ObservableChatMessageCollection Messages { get; set; } = [];
+    public ObservableChatMessageCollection Messages { get; init; } = [];
 }
