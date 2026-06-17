@@ -23,7 +23,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
     public ValueTask<AgentCreationResult> CreateAgentAsync(ExtendedAgentOptions options, AgentWorkspaceSnapshot workspace, CancellationToken cancellationToken = default)
     {
         IChatClient chatClient = chatClientFactory.Create(options);
-        return ValueTask.FromResult(options.CreateHarnessAgent(chatClient, CreateBuiltInTools(), serviceProvider, workspace));
+        return options.CreateHarnessAgentAsync(chatClient, CreateBuiltInTools(), serviceProvider, workspace, cancellationToken);
     }
 
     public async ValueTask<SpanStatus> RunStreamingAsync(AgentRunStreamingContext context, TaskScheduler taskScheduler, CancellationToken cancellationToken)

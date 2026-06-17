@@ -126,7 +126,6 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
             }
         }
 
-        fileNames.Sort(FileSystemPath.Comparer);
         return Task.FromResult(fileNames);
     }
 
@@ -160,7 +159,6 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
             }
         }
 
-        directoryNames.Sort(FileSystemPath.Comparer);
         return Task.FromResult(directoryNames);
     }
 
@@ -193,7 +191,6 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
             await SearchDirectoryAsync(searchDirectory, search, results, cancellationToken);
         }
 
-        results.Sort((left, right) => FileSystemPath.Comparer.Compare(left.FileName, right.FileName));
         return results;
     }
 
@@ -381,7 +378,7 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
     {
         string localPath = relativePath.Replace('/', Path.DirectorySeparatorChar);
         string fullPath = Path.GetFullPath(Path.Combine(root.Directory, localPath));
-        if (!FileSystemPath.IsEqualOrSubdirectory(root.Directory, fullPath))
+        if (!Path.IsEqualOrSubdirectory(root.Directory, fullPath))
         {
             throw new ArgumentException($"Invalid path: '{relativePath}'. The resolved path escapes the workspace root.", nameof(relativePath));
         }

@@ -7,6 +7,8 @@ using OpenAI.Chat;
 using Snap.Nicole.Services.AI.Compatibility.OpenAIChatCompletion;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Models;
 
@@ -112,8 +114,10 @@ internal sealed class ExtendedAgentOptions
         return new(chatOptions);
     }
 
-    public AgentCreationResult CreateHarnessAgent(IChatClient chatClient, IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace)
+    public async ValueTask<AgentCreationResult> CreateHarnessAgentAsync(IChatClient chatClient, IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         int maxOutputTokens = Math.Clamp(MaxOutputTokens ?? DefaultMaxOutputTokens, 1, int.MaxValue - 1);
         int maxContextWindowTokens = Math.Clamp(MaxContextWindowTokens ?? ((MaxInputTokens ?? DefaultMaxInputTokens) + maxOutputTokens), maxOutputTokens + 1, int.MaxValue);
 
@@ -130,7 +134,11 @@ internal sealed class ExtendedAgentOptions
         }
         catch
         {
-            resources?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            if (resources is not null)
+            {
+                await resources.DisposeAsync();
+            }
+
             throw;
         }
     }

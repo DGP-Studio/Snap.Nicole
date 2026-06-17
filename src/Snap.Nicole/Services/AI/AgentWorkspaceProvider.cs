@@ -69,7 +69,7 @@ internal sealed class AgentWorkspaceProvider
         ArgumentNullException.ThrowIfNull(paths);
 
         List<string> normalizedPaths = [];
-        HashSet<string> seenPaths = new(FileSystemPath.Comparer);
+        HashSet<string> seenPaths = new();
         foreach (string path in paths)
         {
             string normalizedPath = NormalizeExternalDirectory(path);

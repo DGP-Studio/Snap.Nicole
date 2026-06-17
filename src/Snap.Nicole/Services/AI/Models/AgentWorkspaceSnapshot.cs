@@ -1,5 +1,6 @@
 using Snap.Nicole.Core.IO;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Snap.Nicole.Services.AI.Models;
 
@@ -23,14 +24,9 @@ internal sealed record AgentWorkspaceSnapshot
             return false;
         }
 
-        return PathEquals(WorkingDirectory, other.WorkingDirectory)
-            && PathEquals(MemoryDirectory, other.MemoryDirectory)
+        return Path.IsEqual(WorkingDirectory, other.WorkingDirectory)
+            && Path.IsEqual(MemoryDirectory, other.MemoryDirectory)
             && PathSequenceEquals(WorkingDirectories, other.WorkingDirectories);
-    }
-
-    private static bool PathEquals(string? x, string? y)
-    {
-        return FileSystemPath.Equals(x, y);
     }
 
     private static bool PathSequenceEquals(IReadOnlyList<string> x, IReadOnlyList<string> y)
@@ -42,7 +38,7 @@ internal sealed record AgentWorkspaceSnapshot
 
         for (int i = 0; i < x.Count; i++)
         {
-            if (!PathEquals(x[i], y[i]))
+            if (!Path.IsEqual(x[i], y[i]))
             {
                 return false;
             }
