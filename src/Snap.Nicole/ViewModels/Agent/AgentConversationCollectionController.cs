@@ -1,5 +1,6 @@
 using Snap.Nicole.Core.Collections.ObjectModel;
 using Snap.Nicole.Core.Diagnostics;
+using Snap.Nicole.Services.AI.Agent.Models;
 using Snap.Nicole.Services.AI.Models;
 using System.Linq;
 using System.Threading;

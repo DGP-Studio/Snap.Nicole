@@ -11,6 +11,7 @@ using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Core.Text.Json;
 using Snap.Nicole.Core.Threading;
 using Snap.Nicole.Services.AI;
+using Snap.Nicole.Services.AI.Agent;
 using Snap.Nicole.Services.Git;
 using Snap.Nicole.Services.Settings;
 using Snap.Nicole.UI.Shell;

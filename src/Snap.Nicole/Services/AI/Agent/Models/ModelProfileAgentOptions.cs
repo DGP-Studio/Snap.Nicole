@@ -2,7 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Core;
 
-namespace Snap.Nicole.Services.AI.Models;
+namespace Snap.Nicole.Services.AI.Agent.Models;
 
 [GeneratedCopyFrom<ModelProfileAgentOptions>]
 internal sealed partial class ModelProfileAgentOptions : ObservableObject, ICopyFrom<ModelProfileAgentOptions>

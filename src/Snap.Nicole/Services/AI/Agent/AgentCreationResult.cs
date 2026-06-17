@@ -1,6 +1,6 @@
 using Microsoft.Agents.AI;
 
-namespace Snap.Nicole.Services.AI;
+namespace Snap.Nicole.Services.AI.Agent;
 
 internal sealed class AgentCreationResult
 {

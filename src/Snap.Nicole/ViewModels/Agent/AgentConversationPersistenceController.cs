@@ -1,5 +1,5 @@
-using Snap.Nicole.Services.AI;
-using Snap.Nicole.Services.AI.Models;
+using Snap.Nicole.Services.AI.Agent;
+using Snap.Nicole.Services.AI.Agent.Models;
 using System.Collections.Generic;
 
 namespace Snap.Nicole.ViewModels.Agent;

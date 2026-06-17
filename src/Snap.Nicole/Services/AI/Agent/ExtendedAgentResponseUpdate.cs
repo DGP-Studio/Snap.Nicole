@@ -4,7 +4,7 @@ using Snap.Nicole.Services.AI.Observables;
 using System.Collections.Generic;
 using System.Text.Json;
 
-namespace Snap.Nicole.Services.AI;
+namespace Snap.Nicole.Services.AI.Agent;
 
 internal sealed class ExtendedAgentResponseUpdate
 {

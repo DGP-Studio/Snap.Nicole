@@ -1,3 +1,4 @@
+using Snap.Nicole.Services.AI.Agent.Models;
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.Settings;
 using System.Diagnostics;

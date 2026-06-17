@@ -1,10 +1,10 @@
-using Snap.Nicole.Services.AI.Models;
+using Snap.Nicole.Services.AI.Agent.Models;
 using System.Threading;
 using Microsoft.Agents.AI;
 using System.Threading.Tasks;
 using Sentry;
 
-namespace Snap.Nicole.Services.AI;
+namespace Snap.Nicole.Services.AI.Agent;
 
 internal interface IAgentService
 {

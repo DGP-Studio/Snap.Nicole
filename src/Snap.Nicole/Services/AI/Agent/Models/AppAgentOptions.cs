@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Snap.Nicole.Core;
 
-namespace Snap.Nicole.Services.AI.Models;
+namespace Snap.Nicole.Services.AI.Agent.Models;
 
 // DO NOT use AgentOptionsNormalizer.Normalize* call in the setter, because the options
 // from UI will be normalized eventually before using, and we don't want to normalize them twice.

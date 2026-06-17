@@ -6,10 +6,11 @@ using OpenAI;
 using OpenAI.Responses;
 using Snap.Nicole.Core;
 using Snap.Nicole.Services.AI.Compatibility.OpenAIChatCompletion;
+using Snap.Nicole.Services.AI.Agent.Models;
 using Snap.Nicole.Services.AI.Models;
 using System.ClientModel;
 
-namespace Snap.Nicole.Services.AI;
+namespace Snap.Nicole.Services.AI.Agent;
 
 internal sealed class AgentChatClientFactory(IServiceProvider serviceProvider)
 {

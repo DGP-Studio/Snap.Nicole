@@ -1,4 +1,4 @@
-namespace Snap.Nicole.Services.AI.Models;
+namespace Snap.Nicole.Services.AI.Agent.Models;
 
 internal static class AgentOptionsNormalizer
 {

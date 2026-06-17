@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Resources;
-using Snap.Nicole.Services.AI;
+using Snap.Nicole.Services.AI.Agent;
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.AI.Observables;
 using System.Collections.Generic;

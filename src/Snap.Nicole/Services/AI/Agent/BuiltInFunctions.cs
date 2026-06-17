@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using Snap.Nicole.Core.Diagnostics;
 
-namespace Snap.Nicole.Services.AI;
+namespace Snap.Nicole.Services.AI.Agent;
 
 internal static class BuiltInFunctions
 {

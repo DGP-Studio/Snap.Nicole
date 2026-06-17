@@ -2,7 +2,7 @@ using Snap.Nicole.Services.AI.Observables;
 using System.Collections.Generic;
 using System.Text.Json;
 
-namespace Snap.Nicole.Services.AI.Models;
+namespace Snap.Nicole.Services.AI.Agent.Models;
 
 internal sealed class AgentConversation
 {

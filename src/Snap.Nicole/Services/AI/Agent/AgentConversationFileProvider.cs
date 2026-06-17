@@ -1,12 +1,12 @@
 using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Core.IO;
 using Snap.Nicole.Core.Text.Json;
-using Snap.Nicole.Services.AI.Models;
+using Snap.Nicole.Services.AI.Agent.Models;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
-namespace Snap.Nicole.Services.AI;
+namespace Snap.Nicole.Services.AI.Agent;
 
 internal sealed class AgentConversationFileProvider(IServiceProvider serviceProvider) : IAgentConversationProvider
 {

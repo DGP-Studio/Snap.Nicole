@@ -1,10 +1,10 @@
 using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Core.IO;
-using Snap.Nicole.Services.AI.Models;
+using Snap.Nicole.Services.AI.Agent.Models;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Snap.Nicole.Services.AI;
+namespace Snap.Nicole.Services.AI.Agent;
 
 internal sealed class AgentWorkspaceProvider
 {

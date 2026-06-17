@@ -4,7 +4,7 @@ using Sentry;
 using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Core.Text.Json;
 using Snap.Nicole.Core.Threading;
-using Snap.Nicole.Services.AI.Models;
+using Snap.Nicole.Services.AI.Agent.Models;
 using Snap.Nicole.Services.AI.Observables;
 using Snap.Nicole.ViewModels.Agent;
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Snap.Nicole.Services.AI;
+namespace Snap.Nicole.Services.AI.Agent;
 
 internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentService
 {

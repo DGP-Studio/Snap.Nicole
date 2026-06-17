@@ -1,5 +1,5 @@
 using Microsoft.Agents.AI;
-using Snap.Nicole.Services.AI.Models;
+using Snap.Nicole.Services.AI.Agent.Models;
 using System.Text.Json;
 using System.Threading.Tasks;
 
