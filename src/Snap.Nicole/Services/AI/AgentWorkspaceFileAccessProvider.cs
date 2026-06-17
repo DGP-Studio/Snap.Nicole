@@ -3,7 +3,6 @@ using Microsoft.Extensions.AI;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
-using System.IO.Enumeration;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -13,12 +12,14 @@ namespace Snap.Nicole.Services.AI;
 
 internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
 {
-    private const string SaveFileFunctionName = "FileAccess_SaveFile";
-    private const string ReadFileFunctionName = "FileAccess_ReadFile";
-    private const string DeleteFileFunctionName = "FileAccess_DeleteFile";
-    private const string ListDirectoryFunctionName = "FileAccess_ListDirectory";
-    private const string SearchFilesFunctionName = "FileAccess_SearchFiles";
+    private const string SaveFileFunctionName = "file_access_save_file";
+    private const string ReadFileFunctionName = "file_access_read_file";
+    private const string DeleteFileFunctionName = "file_access_delete_file";
+    private const string ListFilesFunctionName = "file_access_list_files";
+    private const string ListSubdirectoriesFunctionName = "file_access_list_subdirectories";
+    private const string SearchFilesFunctionName = "file_access_search_files";
     private const int RegexTimeoutSeconds = 5;
+    private const int SearchSnippetContextLength = 50;
 
     private readonly IReadOnlyList<WorkspaceRoot> roots;
     private readonly IReadOnlyList<AITool> tools;
@@ -28,15 +29,16 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
         roots = CreateRoots(workingDirectories);
         tools =
         [
-            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(SaveFileAsync, CreateFunctionOptions(SaveFileFunctionName, "Writes UTF-8 text to a file under a workspace root. This operation requires user approval."))),
-            AIFunctionFactory.Create(ReadFileAsync, CreateFunctionOptions(ReadFileFunctionName, "Reads UTF-8 text from a file under a workspace root.")),
-            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(DeleteFileAsync, CreateFunctionOptions(DeleteFileFunctionName, "Deletes a file under a workspace root. This operation requires user approval."))),
-            AIFunctionFactory.Create(ListDirectoryAsync, CreateFunctionOptions(ListDirectoryFunctionName, "Lists direct child files and directories under a workspace directory.")),
-            AIFunctionFactory.Create(SearchFilesAsync, CreateFunctionOptions(SearchFilesFunctionName, "Searches file paths under a workspace directory with a regular expression.")),
+            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(SaveFileAsync, CreateFunctionOptions(SaveFileFunctionName, "Save a UTF-8 text file under a workspace root. By default, does not overwrite an existing file unless overwrite is set to true. This operation requires user approval."))),
+            AIFunctionFactory.Create(ReadFileAsync, CreateFunctionOptions(ReadFileFunctionName, "Read the UTF-8 text content of a file under a workspace root. Returns the file content or a message indicating the file was not found.")),
+            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(DeleteFileAsync, CreateFunctionOptions(DeleteFileFunctionName, "Delete a file under a workspace root. This operation requires user approval."))),
+            AIFunctionFactory.Create(ListFilesAsync, CreateFunctionOptions(ListFilesFunctionName, "List the direct child file names of a workspace directory. Omit the directory, or pass an empty string, to list the root.")),
+            AIFunctionFactory.Create(ListSubdirectoriesAsync, CreateFunctionOptions(ListSubdirectoriesFunctionName, "List the direct child subdirectory names of a workspace directory. Omit the directory, or pass an empty string, to list the root.")),
+            AIFunctionFactory.Create(SearchFilesAsync, CreateFunctionOptions(SearchFilesFunctionName, "Search the contents of all workspace files recursively using a regular expression pattern. Optionally filter which files to search using a glob pattern.")),
         ];
     }
 
-    public override IReadOnlyList<string> StateKeys { get => Array.Empty<string>(); }
+    public override IReadOnlyList<string> StateKeys { get => []; }
 
     protected override ValueTask<AIContext> ProvideAIContextAsync(InvokingContext context, CancellationToken cancellationToken = default)
     {
@@ -49,12 +51,13 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
         return new(aiContext);
     }
 
-    private async Task<string> SaveFileAsync([Description("Workspace-relative file path. With multiple workspace roots, prefix the path with a workspace alias such as 'workspace1/file.txt'. Absolute paths and '..' segments are rejected.")] string fileName, [Description("UTF-8 text content to write.")] string content, [Description("Set true to overwrite an existing file.")] bool overwrite = false, CancellationToken cancellationToken = default)
+    [Description("Save a file with the given name and content. By default, does not overwrite an existing file unless overwrite is set to true. This operation requires user approval.")]
+    private async Task<string> SaveFileAsync([Description("Workspace-relative file path. With multiple workspace roots, prefix the path with a workspace alias such as 'workspace1/file.txt'. Absolute paths and '..' segments are rejected.")] string fileName, [Description("UTF-8 text content to write.")] string content, [Description("Whether to overwrite the file if it already exists.")] bool overwrite = false, CancellationToken cancellationToken = default)
     {
         WorkspacePath path = ResolveFilePath(fileName);
         if (!overwrite && File.Exists(path.FullPath))
         {
-            return $"File already exists: {path.DisplayPath}";
+            return $"File '{path.DisplayPath}' already exists. To replace it, save again with overwrite set to true.";
         }
 
         string? directory = Path.GetDirectoryName(path.FullPath);
@@ -64,61 +67,49 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
         }
 
         await File.WriteAllTextAsync(path.FullPath, content, Encoding.UTF8, cancellationToken);
-        return $"Saved file: {path.DisplayPath}";
+        return $"File '{path.DisplayPath}' saved.";
     }
 
+    [Description("Read the content of a file by name. Returns the file content or a message indicating the file was not found.")]
     private async Task<string> ReadFileAsync([Description("Workspace-relative file path. With multiple workspace roots, prefix the path with a workspace alias such as 'workspace1/file.txt'. Absolute paths and '..' segments are rejected.")] string fileName, CancellationToken cancellationToken = default)
     {
         WorkspacePath path = ResolveFilePath(fileName);
         if (!File.Exists(path.FullPath))
         {
-            return $"File not found: {path.DisplayPath}";
+            return $"File '{path.DisplayPath}' not found.";
         }
 
         return await File.ReadAllTextAsync(path.FullPath, Encoding.UTF8, cancellationToken);
     }
 
+    [Description("Delete a file by name. This operation requires user approval.")]
     private Task<string> DeleteFileAsync([Description("Workspace-relative file path. With multiple workspace roots, prefix the path with a workspace alias such as 'workspace1/file.txt'. Absolute paths and '..' segments are rejected.")] string fileName, CancellationToken cancellationToken = default)
     {
         WorkspacePath path = ResolveFilePath(fileName);
         if (!File.Exists(path.FullPath))
         {
-            return Task.FromResult($"File not found: {path.DisplayPath}");
+            return Task.FromResult($"File '{path.DisplayPath}' not found.");
         }
 
         File.Delete(path.FullPath);
-        return Task.FromResult($"Deleted file: {path.DisplayPath}");
+        return Task.FromResult($"File '{path.DisplayPath}' deleted.");
     }
 
-    private Task<IReadOnlyList<string>> ListDirectoryAsync([Description("Workspace-relative directory path. With multiple workspace roots, use empty or null to list workspace aliases, or prefix the path with a workspace alias such as 'workspace1/src'.")] string? directory = null, CancellationToken cancellationToken = default)
+    [Description("List the direct child file names of a directory. Omit the directory, or pass an empty string, to list the root. To enumerate files in a subdirectory, pass its workspace-relative path.")]
+    private Task<List<string>> ListFilesAsync([Description("Workspace-relative directory path. With multiple workspace roots, prefix the path with a workspace alias such as 'workspace1/src'. Omit or pass an empty string to list the root.")] string? directory = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(directory) && roots.Count > 1)
         {
-            return Task.FromResult(CreateRootAliasEntries());
+            return Task.FromResult(new List<string>());
         }
 
         WorkspacePath path = ResolveDirectoryPath(directory);
         if (!Directory.Exists(path.FullPath))
         {
-            return Task.FromResult((IReadOnlyList<string>)Array.Empty<string>());
+            return Task.FromResult(new List<string>());
         }
 
-        List<string> entries = [];
-        foreach (string childDirectory in Directory.EnumerateDirectories(path.FullPath))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (HasReparsePoint(childDirectory))
-            {
-                continue;
-            }
-
-            string? name = Path.GetFileName(childDirectory);
-            if (name is not null)
-            {
-                entries.Add($"{name}/");
-            }
-        }
-
+        List<string> fileNames = [];
         foreach (string childFile in Directory.EnumerateFiles(path.FullPath))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -130,39 +121,82 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
             string? name = Path.GetFileName(childFile);
             if (name is not null)
             {
-                entries.Add(name);
+                fileNames.Add(name);
             }
         }
 
-        entries.Sort(GetPathComparer());
-        return Task.FromResult((IReadOnlyList<string>)entries);
+        fileNames.Sort(GetPathComparer());
+        return Task.FromResult(fileNames);
     }
 
-    private Task<IReadOnlyList<string>> SearchFilesAsync([Description("Regular expression pattern matched against workspace-relative file paths. File contents are not read.")] string regexPattern, [Description("Workspace-relative directory path. With multiple workspace roots, use empty or null to search all roots, or prefix the path with a workspace alias such as 'workspace1/src'.")] string? directory = null, [Description("Optional glob pattern such as '*.cs', '*.md', or 'src/*.cs'.")] string? filePattern = null, CancellationToken cancellationToken = default)
+    [Description("List the direct child subdirectory names of a directory. Omit the directory, or pass an empty string, to list the root. To enumerate subdirectories of a subdirectory, pass its workspace-relative path. Use this together with file_access_list_files to explore the directory tree level by level.")]
+    private Task<List<string>> ListSubdirectoriesAsync([Description("Workspace-relative directory path. With multiple workspace roots, use empty or null to list workspace aliases, or prefix the path with a workspace alias such as 'workspace1/src'.")] string? directory = null, CancellationToken cancellationToken = default)
     {
-        FilePathSearch search = new()
+        if (string.IsNullOrWhiteSpace(directory) && roots.Count > 1)
         {
-            Regex = new(regexPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(RegexTimeoutSeconds)),
-            FilePattern = filePattern,
-        };
-        IReadOnlyList<WorkspacePath> searchDirectories = ResolveSearchDirectories(directory);
-        List<string> results = [];
-        foreach (WorkspacePath searchDirectory in searchDirectories)
+            return Task.FromResult(CreateRootAliasEntries());
+        }
+
+        WorkspacePath path = ResolveDirectoryPath(directory);
+        if (!Directory.Exists(path.FullPath))
+        {
+            return Task.FromResult(new List<string>());
+        }
+
+        List<string> directoryNames = [];
+        foreach (string childDirectory in Directory.EnumerateDirectories(path.FullPath))
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (HasReparsePoint(childDirectory))
+            {
+                continue;
+            }
+
+            string? name = Path.GetFileName(childDirectory);
+            if (name is not null)
+            {
+                directoryNames.Add(name);
+            }
+        }
+
+        directoryNames.Sort(GetPathComparer());
+        return Task.FromResult(directoryNames);
+    }
+
+    [Description(
+        """
+        Search the contents of all workspace files recursively, across all subdirectories, using a regular expression pattern (case-insensitive).
+        Optionally filter which files to search using a glob pattern matched against each file's path as returned by file_access_read_file:
+        - '*' matches within a single path segment
+        - '**' matches across subdirectories, so use "**/*.md" to match markdown files at any depth, or "workspace1/src/**" to restrict the search to a subtree.
+
+        Returns matching results whose file names are workspace-relative paths usable with file_access_read_file, along with snippets and matching lines with line numbers.
+        """)]
+    private async Task<List<FileSearchResult>> SearchFilesAsync([Description("A regular expression pattern to match against file contents, case-insensitively.")] string regexPattern, [Description("Optional glob pattern to filter which files to search, such as '*.cs', '**/*.md', 'src/**/*.cs', or 'workspace1/src/**'. Leave empty or omit to search all workspace files.")] string? filePattern = null, CancellationToken cancellationToken = default)
+    {
+        FileContentSearch search = new()
+        {
+            Regex = new(regexPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(RegexTimeoutSeconds)),
+            FilePattern = CreateFilePatternMatcher(filePattern),
+        };
+        List<FileSearchResult> results = [];
+        foreach (WorkspaceRoot root in roots)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WorkspacePath searchDirectory = CreateWorkspacePath(root, string.Empty);
             if (!Directory.Exists(searchDirectory.FullPath))
             {
                 continue;
             }
 
-            SearchDirectory(searchDirectory, search, results, cancellationToken);
+            await SearchDirectoryAsync(searchDirectory, search, results, cancellationToken);
         }
 
-        results.Sort(GetPathComparer());
-        return Task.FromResult((IReadOnlyList<string>)results);
+        results.Sort((left, right) => GetPathComparer().Compare(left.FileName, right.FileName));
+        return results;
     }
 
-    private void SearchDirectory(WorkspacePath searchDirectory, FilePathSearch search, List<string> results, CancellationToken cancellationToken)
+    private async Task SearchDirectoryAsync(WorkspacePath searchDirectory, FileContentSearch search, List<FileSearchResult> results, CancellationToken cancellationToken)
     {
         EnumerationOptions options = new()
         {
@@ -176,36 +210,101 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
             cancellationToken.ThrowIfCancellationRequested();
             string relativePath = GetRootRelativePath(searchDirectory.Root, filePath);
             string displayPath = CreateDisplayPath(searchDirectory.Root, relativePath);
-            if (!MatchesFilePattern(relativePath, search.FilePattern) || !search.Regex.IsMatch(displayPath))
+            if (search.FilePattern is not null && !search.FilePattern.Matches(relativePath, displayPath))
             {
                 continue;
             }
 
-            results.Add(displayPath);
+            string content;
+            try
+            {
+                content = await File.ReadAllTextAsync(filePath, Encoding.UTF8, cancellationToken);
+            }
+            catch (Exception ex) when (AgentWorkspaceProvider.IsWorkspaceException(ex))
+            {
+                continue;
+            }
+
+            FileSearchResult? result = CreateSearchResult(displayPath, content, search.Regex);
+            if (result is not null)
+            {
+                results.Add(result);
+            }
         }
+    }
+
+    private static FileSearchResult? CreateSearchResult(string fileName, string content, Regex regex)
+    {
+        string[] lines = content.Split('\n');
+        List<FileSearchMatch> matchingLines = [];
+        string? firstSnippet = null;
+        int lineStartOffset = 0;
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            Match match = regex.Match(lines[i]);
+            if (match.Success)
+            {
+                matchingLines.Add(new()
+                {
+                    LineNumber = i + 1,
+                    Line = lines[i].TrimEnd('\r'),
+                });
+
+                if (firstSnippet is null)
+                {
+                    int charIndex = lineStartOffset + match.Index;
+                    int snippetStart = Math.Max(0, charIndex - SearchSnippetContextLength);
+                    int snippetEnd = Math.Min(content.Length, charIndex + match.Value.Length + SearchSnippetContextLength);
+                    firstSnippet = content.Substring(snippetStart, snippetEnd - snippetStart);
+                }
+            }
+
+            lineStartOffset += lines[i].Length + 1;
+        }
+
+        if (matchingLines.Count is 0)
+        {
+            return null;
+        }
+
+        return new()
+        {
+            FileName = fileName,
+            Snippet = firstSnippet ?? string.Empty,
+            MatchingLines = matchingLines,
+        };
     }
 
     private string CreateInstructions()
     {
         StringBuilder builder = new();
+        builder.AppendLine("## Workspace File Access");
+        builder.AppendLine("You have access to workspace files via the `file_access_*` tools for reading, writing, deleting, listing, and searching files.");
+        builder.AppendLine("These files persist beyond the current session and may be shared by future sessions that use the same workspace.");
+        builder.AppendLine("Use these tools to read input data provided by the user, write output artifacts, and manage files the user has asked you to work with.");
+        builder.AppendLine();
         if (roots.Count is 1)
         {
-            builder.AppendLine("Workspace file access is rooted at:");
+            builder.AppendLine("The workspace root is:");
             builder.AppendLine(roots[0].Directory);
-            builder.AppendLine("Use only relative paths for workspace file operations.");
+            builder.AppendLine("Use paths relative to this root, for example `src/file.cs`.");
         }
         else
         {
-            builder.AppendLine("Workspace file access has multiple roots:");
+            builder.AppendLine("The accessible workspace roots are:");
             foreach (WorkspaceRoot root in roots)
             {
-                builder.AppendLine($"{root.Alias}: {root.Directory}");
+                builder.AppendLine($"- `{root.Alias}`: {root.Directory}");
             }
 
-            builder.AppendLine("Use paths prefixed with a workspace alias, for example workspace1/README.md. Use FileAccess_ListDirectory with an empty path to list workspace aliases.");
+            builder.AppendLine("Use paths prefixed with a workspace alias, for example `workspace1/README.md`. At the virtual root, `file_access_list_subdirectories` returns the available aliases.");
         }
 
-        builder.Append("Absolute paths and parent-directory traversal are rejected. Directory entries ending with '/' are directories. Saving and deleting files require explicit user approval.");
+        builder.AppendLine();
+        builder.AppendLine("- Never delete or overwrite existing files unless the user has explicitly asked you to do so. Saving and deleting files require explicit user approval.");
+        builder.AppendLine("- Absolute paths and parent-directory traversal are rejected.");
+        builder.Append("- Files may be organized into subdirectories. Use `file_access_list_files` and `file_access_list_subdirectories` to explore the tree level by level, or `file_access_search_files` to search file contents recursively across the whole workspace.");
         return builder.ToString();
     }
 
@@ -234,23 +333,6 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
     {
         string normalizedPath = NormalizeDirectoryPath(path);
         return ResolveWorkspacePath(normalizedPath);
-    }
-
-    private IReadOnlyList<WorkspacePath> ResolveSearchDirectories(string? path)
-    {
-        string normalizedPath = NormalizeDirectoryPath(path);
-        if (normalizedPath.Length is 0 && roots.Count > 1)
-        {
-            List<WorkspacePath> paths = [];
-            foreach (WorkspaceRoot root in roots)
-            {
-                paths.Add(CreateWorkspacePath(root, string.Empty));
-            }
-
-            return paths;
-        }
-
-        return [ResolveWorkspacePath(normalizedPath)];
     }
 
     private WorkspacePath ResolveWorkspacePath(string normalizedPath)
@@ -323,12 +405,12 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
         return $"{root.Alias}/{relativePath}";
     }
 
-    private IReadOnlyList<string> CreateRootAliasEntries()
+    private List<string> CreateRootAliasEntries()
     {
         List<string> entries = [];
         foreach (WorkspaceRoot root in roots)
         {
-            entries.Add($"{root.Alias}/");
+            entries.Add(root.Alias);
         }
 
         return entries;
@@ -350,16 +432,62 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
         return Path.GetRelativePath(root.Directory, fullPath).Replace('\\', '/');
     }
 
-    private static bool MatchesFilePattern(string relativePath, string? filePattern)
+    private static FilePatternMatcher? CreateFilePatternMatcher(string? filePattern)
     {
         if (string.IsNullOrWhiteSpace(filePattern))
         {
-            return true;
+            return null;
         }
 
         string normalizedPattern = filePattern.Trim().Replace('\\', '/');
-        string fileName = Path.GetFileName(relativePath);
-        return FileSystemName.MatchesSimpleExpression(normalizedPattern, relativePath, true) || FileSystemName.MatchesSimpleExpression(normalizedPattern, fileName, true);
+        Regex pathRegex = new(CreateGlobRegexPattern(normalizedPattern), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(RegexTimeoutSeconds));
+        Regex? fileNameRegex = normalizedPattern.Contains('/', StringComparison.Ordinal) ? null : pathRegex;
+        return new()
+        {
+            PathRegex = pathRegex,
+            FileNameRegex = fileNameRegex,
+        };
+    }
+
+    private static string CreateGlobRegexPattern(string pattern)
+    {
+        StringBuilder builder = new();
+        builder.Append('^');
+        for (int i = 0; i < pattern.Length; i++)
+        {
+            char ch = pattern[i];
+            if (ch is '*')
+            {
+                if (i + 1 < pattern.Length && pattern[i + 1] is '*')
+                {
+                    if (i + 2 < pattern.Length && pattern[i + 2] is '/')
+                    {
+                        builder.Append("(?:.*/)?");
+                        i += 2;
+                    }
+                    else
+                    {
+                        builder.Append(".*");
+                        i++;
+                    }
+                }
+                else
+                {
+                    builder.Append("[^/]*");
+                }
+            }
+            else if (ch is '?')
+            {
+                builder.Append("[^/]");
+            }
+            else
+            {
+                builder.Append(Regex.Escape(ch.ToString()));
+            }
+        }
+
+        builder.Append('$');
+        return builder.ToString();
     }
 
     private static string NormalizeFilePath(string path)
@@ -547,10 +675,28 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
         public required string DisplayPath { get; init; }
     }
 
-    private sealed class FilePathSearch
+    private sealed class FileContentSearch
     {
         public required Regex Regex { get; init; }
 
-        public string? FilePattern { get; init; }
+        public FilePatternMatcher? FilePattern { get; init; }
+    }
+
+    private sealed class FilePatternMatcher
+    {
+        public required Regex PathRegex { get; init; }
+
+        public Regex? FileNameRegex { get; init; }
+
+        public bool Matches(string relativePath, string displayPath)
+        {
+            if (PathRegex.IsMatch(relativePath) || PathRegex.IsMatch(displayPath))
+            {
+                return true;
+            }
+
+            string fileName = Path.GetFileName(relativePath);
+            return FileNameRegex is not null && FileNameRegex.IsMatch(fileName);
+        }
     }
 }
