@@ -134,11 +134,7 @@ internal sealed class ExtendedAgentOptions
         }
         catch
         {
-            if (resources is not null)
-            {
-                await resources.DisposeAsync();
-            }
-
+            await (resources?.DisposeAsync() ?? ValueTask.CompletedTask);
             throw;
         }
     }

@@ -1,6 +1,6 @@
 using Snap.Nicole.Resources;
 
-namespace Snap.Nicole.ViewModels.Agent;
+namespace Snap.Nicole.Services.AI;
 
 internal sealed class AgentConversationException : Exception
 {
