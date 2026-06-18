@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Snap.Nicole.ViewModels.Agent;
+namespace Snap.Nicole.ViewModels.Agent.Workspace;
 
 internal interface IAgentWorkspaceInteractionService
 {

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
 using OpenAI.Chat;
 using Snap.Nicole.Services.AI.Agent;
+using Snap.Nicole.Services.AI.Agent.Workspace;
 using Snap.Nicole.Services.AI.Compatibility.OpenAIChatCompletion;
 using Snap.Nicole.Services.AI.Models;
 using System.Collections.Generic;

@@ -1,6 +1,7 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Services.AI.Agent.Models;
+using Snap.Nicole.Services.AI.Agent.Workspace;
 using Snap.Nicole.Services.AI.Observables;
 using Snap.Nicole.ViewModels.Agent;
 

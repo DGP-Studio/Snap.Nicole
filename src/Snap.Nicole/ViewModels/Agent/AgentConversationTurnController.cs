@@ -6,6 +6,7 @@ using Snap.Nicole.Core.Text.Json;
 using Snap.Nicole.Resources;
 using Snap.Nicole.Services.AI.Agent;
 using Snap.Nicole.Services.AI.Agent.Models;
+using Snap.Nicole.Services.AI.Agent.Workspace;
 using Snap.Nicole.Services.AI.Observables;
 using Snap.Nicole.Services.Settings;
 using System.Runtime.Serialization;

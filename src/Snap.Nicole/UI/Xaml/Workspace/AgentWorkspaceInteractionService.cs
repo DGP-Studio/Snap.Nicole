@@ -3,14 +3,14 @@ using Microsoft.UI.Xaml.Controls;
 using Snap.Nicole.Core.Hosting;
 using Snap.Nicole.Resources;
 using Snap.Nicole.UI.Xaml.Windows;
-using Snap.Nicole.ViewModels.Agent;
+using Snap.Nicole.ViewModels.Agent.Workspace;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Snap.Nicole.UI.Xaml;
+namespace Snap.Nicole.UI.Xaml.Workspace;
 
 internal sealed class AgentWorkspaceInteractionService(IWindowLifeTime<MainWindow> mainWindowLifeTime) : IAgentWorkspaceInteractionService
 {

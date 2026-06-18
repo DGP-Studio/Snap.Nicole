@@ -6,6 +6,7 @@ using Snap.Nicole.Resources;
 using Snap.Nicole.Services.AI.Agent;
 using Snap.Nicole.Services.AI.Models;
 using Snap.Nicole.Services.AI.Observables;
+using Snap.Nicole.ViewModels.Agent.Workspace;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;

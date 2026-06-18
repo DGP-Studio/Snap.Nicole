@@ -2,6 +2,7 @@ using Microsoft.Agents.AI;
 using Snap.Nicole.Core.Text.Json;
 using Snap.Nicole.Services.AI.Agent;
 using Snap.Nicole.Services.AI.Agent.Models;
+using Snap.Nicole.Services.AI.Agent.Workspace;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;

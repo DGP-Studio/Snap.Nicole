@@ -5,6 +5,7 @@ using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Core.Text.Json;
 using Snap.Nicole.Core.Threading;
 using Snap.Nicole.Services.AI.Agent.Models;
+using Snap.Nicole.Services.AI.Agent.Workspace;
 using Snap.Nicole.Services.AI.Observables;
 using Snap.Nicole.ViewModels.Agent;
 using System.Collections.Generic;
@@ -117,8 +118,9 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
     private static bool IsWorkspaceScopedApprovalTool(string name)
     {
         return string.Equals(name, "run_shell", StringComparison.Ordinal)
-            || string.Equals(name, "FileAccess_SaveFile", StringComparison.Ordinal)
-            || string.Equals(name, "FileAccess_DeleteFile", StringComparison.Ordinal);
+            || string.Equals(name, "Write", StringComparison.Ordinal)
+            || string.Equals(name, "FileAccess_DeleteFile", StringComparison.Ordinal)
+            || string.Equals(name, "Edit", StringComparison.Ordinal);
     }
 
     private static IList<AITool> CreateBuiltInTools()

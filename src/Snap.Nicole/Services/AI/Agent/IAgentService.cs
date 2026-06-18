@@ -1,4 +1,5 @@
 using Snap.Nicole.Services.AI.Agent.Models;
+using Snap.Nicole.Services.AI.Agent.Workspace;
 using System.Threading;
 using Microsoft.Agents.AI;
 using System.Threading.Tasks;

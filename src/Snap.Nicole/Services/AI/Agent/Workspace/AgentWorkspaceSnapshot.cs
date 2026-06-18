@@ -2,7 +2,7 @@ using Snap.Nicole.Core.IO;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Snap.Nicole.Services.AI.Agent.Models;
+namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
 internal sealed record AgentWorkspaceSnapshot
 {

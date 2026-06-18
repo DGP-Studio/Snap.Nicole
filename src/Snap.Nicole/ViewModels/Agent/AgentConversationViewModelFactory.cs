@@ -1,4 +1,5 @@
 using Snap.Nicole.Services.AI.Agent.Models;
+using Snap.Nicole.ViewModels.Agent.Workspace;
 
 namespace Snap.Nicole.ViewModels.Agent;
 
