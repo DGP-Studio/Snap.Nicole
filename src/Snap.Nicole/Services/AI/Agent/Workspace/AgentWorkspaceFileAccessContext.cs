@@ -2,6 +2,7 @@ using Snap.Nicole.Core.IO;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
@@ -9,7 +10,7 @@ internal sealed class AgentWorkspaceFileAccessContext
 {
     private readonly IReadOnlyList<WorkspaceRoot> roots;
     private readonly HashSet<string> readFilePaths = new(StringComparer.OrdinalIgnoreCase);
-    private readonly object readFilePathsLock = new();
+    private readonly Lock readFilePathsLock = new();
 
     public AgentWorkspaceFileAccessContext(IReadOnlyList<string> workingDirectories)
     {

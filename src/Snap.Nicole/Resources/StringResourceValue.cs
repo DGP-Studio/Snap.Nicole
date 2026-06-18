@@ -2,11 +2,13 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Snap.Nicole.Core.ComponentModel;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Threading;
 
 namespace Snap.Nicole.Resources;
 
 internal sealed class StringResourceValue : ObservableObject
 {
+    private static readonly Lock registeredValuesLock = new();
     private static readonly List<WeakReference<StringResourceValue>> registeredValues = [];
 
     static StringResourceValue()
@@ -16,7 +18,7 @@ internal sealed class StringResourceValue : ObservableObject
 
     private StringResourceValue()
     {
-        lock (registeredValues)
+        lock (registeredValuesLock)
         {
             registeredValues.Add(new(this));
         }
@@ -90,7 +92,7 @@ internal sealed class StringResourceValue : ObservableObject
         }
 
         List<StringResourceValue> values = [];
-        lock (registeredValues)
+        lock (registeredValuesLock)
         {
             for (int i = registeredValues.Count - 1; i >= 0; i--)
             {
