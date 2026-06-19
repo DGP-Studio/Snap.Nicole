@@ -38,7 +38,7 @@ internal sealed class AgentWorkspaceFileAccessReadTool : AgentWorkspaceFileAcces
         """)]
     private async Task<string> ReadAsync([Description("The absolute path to the file to read")] string file_path, [Description("The number of lines to read. Only provide if the file is too large to read at once.")][DefaultValue(null)] int? limit, [Description("The line number to start reading from. Only provide if the file is too large to read at once")][DefaultValue(0)] int offset, [Description("""Page range for PDF files (e.g., "1-5", "3", "10-20"). Only applicable to PDF files. Maximum 20 pages per request.""")][DefaultValue(null)] string? pages, CancellationToken cancellationToken = default)
     {
-        AgentWorkspaceFileAccessContext.WorkspacePath path = Context.ResolveAbsoluteFilePath(file_path);
+        AgentWorkspacePath path = Context.ResolveAbsoluteFilePath(file_path);
         if (!File.Exists(path.FullPath))
         {
             if (Directory.Exists(path.FullPath))

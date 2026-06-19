@@ -28,7 +28,7 @@ internal sealed class AgentWorkspaceFileAccessWriteTool : AgentWorkspaceFileAcce
         """)]
     private async Task<string> WriteAsync([Description("The absolute path to the file to write (must be absolute, not relative)")] string file_path, [Description("The content to write to the file")] string content, CancellationToken cancellationToken = default)
     {
-        AgentWorkspaceFileAccessContext.WorkspacePath path = Context.ResolveAbsoluteFilePath(file_path);
+        AgentWorkspacePath path = Context.ResolveAbsoluteFilePath(file_path);
         if (Directory.Exists(path.FullPath))
         {
             throw new InvalidOperationException($"'{path.DisplayPath}' is a directory. Write requires a file path.");

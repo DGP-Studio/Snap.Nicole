@@ -46,7 +46,7 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
         string normalizedOutputMode = NormalizeGrepOutputMode(output_mode);
         int normalizedOffset = NormalizeNonNegativeOption(offset, nameof(offset), 0);
         int normalizedHeadLimit = NormalizeNonNegativeOption(head_limit, nameof(head_limit), DefaultGrepHeadLimit);
-        AgentWorkspaceFileAccessContext.WorkspacePath searchPath = Context.ResolveGrepSearchPath(path);
+        AgentWorkspacePath searchPath = Context.ResolveGrepSearchPath(path);
         ProcessStartInfo startInfo = CreateGrepStartInfo(searchPath, pattern, glob, type, normalizedOutputMode, context, before_context, after_context, ignore_case, show_line_numbers, only_matching, multiline);
         GrepProcessResult result = await RunRipgrepAsync(startInfo, cancellationToken);
         if (result.ExitCode is 1)
@@ -62,7 +62,7 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
         return WindowGrepOutput(CreateGrepOutputLines(result.StandardOutput, searchPath.Root), normalizedOffset, normalizedHeadLimit);
     }
 
-    private static ProcessStartInfo CreateGrepStartInfo(AgentWorkspaceFileAccessContext.WorkspacePath searchPath, string pattern, string? glob, string? type, string outputMode, int? context, int? beforeContext, int? afterContext, bool ignoreCase, bool showLineNumbers, bool onlyMatching, bool multiline)
+    private static ProcessStartInfo CreateGrepStartInfo(AgentWorkspacePath searchPath, string pattern, string? glob, string? type, string outputMode, int? context, int? beforeContext, int? afterContext, bool ignoreCase, bool showLineNumbers, bool onlyMatching, bool multiline)
     {
         ProcessStartInfo startInfo = new()
         {
@@ -246,7 +246,7 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
         }
     }
 
-    private List<string> CreateGrepOutputLines(string standardOutput, AgentWorkspaceFileAccessContext.WorkspaceRoot root)
+    private List<string> CreateGrepOutputLines(string standardOutput, AgentWorkspaceRoot root)
     {
         List<string> lines = [];
         foreach (string rawLine in standardOutput.Split('\n'))
@@ -263,7 +263,7 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
         return lines;
     }
 
-    private string CreateGrepDisplayLine(string line, AgentWorkspaceFileAccessContext.WorkspaceRoot root)
+    private string CreateGrepDisplayLine(string line, AgentWorkspaceRoot root)
     {
         if (Context.Roots.Count is 1 || string.Equals(line, "--", StringComparison.Ordinal))
         {

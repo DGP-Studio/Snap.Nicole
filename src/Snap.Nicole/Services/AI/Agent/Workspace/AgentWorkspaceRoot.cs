@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
 public sealed class AgentWorkspaceRoot
@@ -5,4 +7,9 @@ public sealed class AgentWorkspaceRoot
     public required string Alias { get; init; }
 
     public required string Directory { get; init; }
+
+    public string GetRelativePath(string fullPath)
+    {
+        return Path.GetRelativePath(Directory, fullPath).Replace('\\', '/');
+    }
 }

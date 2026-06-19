@@ -30,7 +30,7 @@ internal sealed class AgentWorkspaceFileAccessGlobTool : AgentWorkspaceFileAcces
     private Task<List<string>> GlobAsync([Description("The directory to search in. If not specified, the current working directory will be used. IMPORTANT: Omit this field to use the default directory. DO NOT enter \"undefined\" or \"null\" - simply omit it for the default behavior. Must be a valid directory path if provided.")][DefaultValue(null)] string? path, [Description("The glob pattern to match files against")] string pattern, CancellationToken cancellationToken = default)
     {
         FilePatternMatcher patternMatcher = CreateRequiredFilePatternMatcher(pattern);
-        AgentWorkspaceFileAccessContext.WorkspacePath searchDirectory = Context.ResolveGlobDirectoryPath(path);
+        AgentWorkspacePath searchDirectory = Context.ResolveGlobDirectoryPath(path);
         if (!Directory.Exists(searchDirectory.FullPath))
         {
             return Task.FromResult(new List<string>());
@@ -48,7 +48,7 @@ internal sealed class AgentWorkspaceFileAccessGlobTool : AgentWorkspaceFileAcces
         {
             cancellationToken.ThrowIfCancellationRequested();
             string searchRelativePath = Path.GetRelativePath(searchDirectory.FullPath, filePath).Replace('\\', '/');
-            string rootRelativePath = Context.GetRootRelativePath(searchDirectory.Root, filePath);
+            string rootRelativePath = searchDirectory.Root.GetRelativePath(filePath);
             string displayPath = Context.CreateDisplayPath(searchDirectory.Root, rootRelativePath);
             if (!patternMatcher.Matches(searchRelativePath, displayPath) && !patternMatcher.Matches(rootRelativePath, displayPath))
             {

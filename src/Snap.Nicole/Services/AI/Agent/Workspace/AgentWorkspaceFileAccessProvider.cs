@@ -35,7 +35,7 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
 
     private string CreateInstructions()
     {
-        IReadOnlyList<AgentWorkspaceFileAccessContext.WorkspaceRoot> roots = fileAccessContext.Roots;
+        IReadOnlyList<AgentWorkspaceRoot> roots = fileAccessContext.Roots;
         StringBuilder builder = new();
         builder.AppendLine("## Workspace File Access");
         builder.AppendLine("You have access to workspace files via `Read` for reading files, `Write` for full file replacement, `Edit` for exact string replacement, `Glob` for file pattern matching, and `Grep` for content search.");
@@ -51,7 +51,7 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
         else
         {
             builder.AppendLine("The accessible workspace roots are:");
-            foreach (AgentWorkspaceFileAccessContext.WorkspaceRoot root in roots)
+            foreach (AgentWorkspaceRoot root in roots)
             {
                 builder.AppendLine($"- `{root.Alias}`: {root.Directory}");
             }
