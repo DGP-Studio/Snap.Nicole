@@ -36,18 +36,18 @@ internal sealed class AgentWorkspaceFileAccessEditTool(AgentWorkspaceFileAccessC
         AgentWorkspacePath path = Context.ResolveAbsoluteFilePath(filePath);
         if (!File.Exists(path.FullPath))
         {
-            return $"File '{path.DisplayPath}' not found.";
+            return $"File '{path.FullPath}' not found.";
         }
 
-        InvalidOperationException.ThrowIfNot(Context.WasFileRead(path.FullPath), $"File '{path.DisplayPath}' must be read with {AgentWorkspaceFileAccessToolNames.Read} tool before editing.");
+        InvalidOperationException.ThrowIfNot(Context.WasFileRead(path.FullPath), $"File '{path.FullPath}' must be read with {AgentWorkspaceFileAccessToolNames.Read} tool before editing.");
         ArgumentException.ThrowIfNullOrEmpty(oldString, "oldString cannot be empty", nameof(oldString));
         ArgumentException.ThrowIf(string.Equals(oldString, newString, StringComparison.Ordinal), "newString must be different from oldString.", nameof(newString));
 
-        int replacementCount = await EditCoreAsync(path.FullPath, oldString, newString, replaceAll, path.DisplayPath, cancellationToken);
-        return $"File '{path.DisplayPath}' edited. Replaced {replacementCount} occurrence(s).";
+        int replacementCount = await EditCoreAsync(path.FullPath, oldString, newString, replaceAll, cancellationToken);
+        return $"File '{path.FullPath}' edited. Replaced {replacementCount} occurrence(s).";
     }
 
-    private static async Task<int> EditCoreAsync(string sourcePath, string oldString, string newString, bool replaceAll, string displayPath, CancellationToken cancellationToken)
+    private static async Task<int> EditCoreAsync(string sourcePath, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
     {
         int[] prefixTable = CreateKMPPrefixTable(oldString);
         using IMemoryOwner<char> readBufferOwner = MemoryPool<char>.Shared.Rent(StreamBufferSize);
@@ -92,7 +92,7 @@ internal sealed class AgentWorkspaceFileAccessEditTool(AgentWorkspaceFileAccessC
                                 replacementCount++;
                                 if (!replaceAll && replacementCount > 1)
                                 {
-                                    throw new InvalidOperationException($"oldString is not unique in '{displayPath}'. Pass replaceAll true to replace every occurrence.");
+                                    throw new InvalidOperationException($"oldString is not unique in '{sourcePath}'. Pass replaceAll true to replace every occurrence.");
                                 }
 
                                 await AppendReplacementAsync(writer, outputBuffer, newString, cancellationToken);
@@ -116,7 +116,7 @@ internal sealed class AgentWorkspaceFileAccessEditTool(AgentWorkspaceFileAccessC
             }
         }
 
-        InvalidOperationException.ThrowIf(replacementCount is 0, $"oldString was not found in '{displayPath}'.");
+        InvalidOperationException.ThrowIf(replacementCount is 0, $"oldString was not found in '{sourcePath}'.");
         temporaryStream.Commit();
         return replacementCount;
     }

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Snap.Nicole.Core;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -27,9 +28,13 @@ internal sealed class AgentWorkspaceFileAccessGlobTool : AgentWorkspaceFileAcces
     [Description("""
         Fast file pattern matching. Supports glob patterns like "**/*.js" or "src/**/*.ts". Returns matching file paths sorted by modification time.
         """)]
-    private Task<List<string>> GlobAsync([Description("The directory to search in. If not specified, the current working directory will be used. IMPORTANT: Omit this field to use the default directory. DO NOT enter \"undefined\" or \"null\" - simply omit it for the default behavior. Must be a valid directory path if provided.")][DefaultValue(null)] string? path, [Description("The glob pattern to match files against")] string pattern, CancellationToken cancellationToken = default)
+    private Task<List<string>> GlobAsync(
+        [Description("""The absolute directory to search in. If not specified, the current working directory will be used. IMPORTANT: Omit this field to use the default directory. DO NOT enter "undefined" or "null" - simply omit it for the default behavior.""")][DefaultValue(null)] string? path,
+        [Description("The glob pattern to match files against")] string pattern,
+        CancellationToken cancellationToken = default)
     {
-        FilePatternMatcher patternMatcher = CreateRequiredFilePatternMatcher(pattern);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pattern, "Glob pattern cannot be empty.", nameof(pattern));
+        FilePatternMatcher patternMatcher = CreateFilePatternMatcher(pattern);
         AgentWorkspacePath searchDirectory = Context.ResolveGlobDirectoryPath(path);
         if (!Directory.Exists(searchDirectory.FullPath))
         {
@@ -49,15 +54,16 @@ internal sealed class AgentWorkspaceFileAccessGlobTool : AgentWorkspaceFileAcces
             cancellationToken.ThrowIfCancellationRequested();
             string searchRelativePath = Path.GetRelativePath(searchDirectory.FullPath, filePath).Replace('\\', '/');
             string rootRelativePath = searchDirectory.Root.GetRelativePath(filePath);
-            string displayPath = Context.CreateDisplayPath(searchDirectory.Root, rootRelativePath);
-            if (!patternMatcher.Matches(searchRelativePath, displayPath) && !patternMatcher.Matches(rootRelativePath, displayPath))
+            string fullPath = Path.GetFullPath(filePath);
+            string normalizedFullPath = fullPath.Replace('\\', '/');
+            if (!patternMatcher.Matches(searchRelativePath, normalizedFullPath) && !patternMatcher.Matches(rootRelativePath, normalizedFullPath))
             {
                 continue;
             }
 
             results.Add(new()
             {
-                FilePath = displayPath,
+                FilePath = fullPath,
                 LastWriteTimeUtc = File.GetLastWriteTimeUtc(filePath),
             });
         }
@@ -77,16 +83,16 @@ internal sealed class AgentWorkspaceFileAccessGlobTool : AgentWorkspaceFileAcces
         return Task.FromResult(paths);
     }
 
-    private static FilePatternMatcher? CreateFilePatternMatcher(string? filePattern)
+    private static FilePatternMatcher CreateFilePatternMatcher(string filePattern)
     {
-        if (string.IsNullOrWhiteSpace(filePattern))
-        {
-            return null;
-        }
+        int length = filePattern.Length;
+        Span<char> normalizedPattern = length <= 1024 ? stackalloc char[length] : new char[length];
+        filePattern.AsSpan().CopyTo(normalizedPattern);
+        normalizedPattern.Replace('\\', '/');
 
-        string normalizedPattern = filePattern.Trim().Replace('\\', '/');
         Regex pathRegex = new(CreateGlobRegexPattern(normalizedPattern), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(RegexTimeoutSeconds));
-        Regex? fileNameRegex = normalizedPattern.Contains('/', StringComparison.Ordinal) ? null : pathRegex;
+        Regex? fileNameRegex = normalizedPattern.Contains('/') ? null : pathRegex;
+
         return new()
         {
             PathRegex = pathRegex,
@@ -94,12 +100,7 @@ internal sealed class AgentWorkspaceFileAccessGlobTool : AgentWorkspaceFileAcces
         };
     }
 
-    private static FilePatternMatcher CreateRequiredFilePatternMatcher(string pattern)
-    {
-        return CreateFilePatternMatcher(pattern) ?? throw new ArgumentException("Glob pattern cannot be empty.", nameof(pattern));
-    }
-
-    private static string CreateGlobRegexPattern(string pattern)
+    private static string CreateGlobRegexPattern(ReadOnlySpan<char> pattern)
     {
         StringBuilder builder = new();
         builder.Append('^');
@@ -153,9 +154,9 @@ internal sealed class AgentWorkspaceFileAccessGlobTool : AgentWorkspaceFileAcces
 
         public Regex? FileNameRegex { get; init; }
 
-        public bool Matches(string relativePath, string displayPath)
+        public bool Matches(string relativePath, string fullPath)
         {
-            if (PathRegex.IsMatch(relativePath) || PathRegex.IsMatch(displayPath))
+            if (PathRegex.IsMatch(relativePath) || PathRegex.IsMatch(fullPath))
             {
                 return true;
             }

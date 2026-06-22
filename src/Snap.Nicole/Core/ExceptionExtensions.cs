@@ -42,6 +42,19 @@ internal static class ExceptionExtensions
                 throw new ArgumentException(message, paramName);
             }
         }
+
+        public static void ThrowIfNullOrWhiteSpace(string? argument, string message, string? paramName)
+        {
+            if (string.IsNullOrWhiteSpace(argument))
+            {
+                if (argument is null)
+                {
+                    throw new ArgumentNullException(message, default(Exception));
+                }
+
+                throw new ArgumentException(message, paramName);
+            }
+        }
     }
 
     extension(InvalidOperationException)

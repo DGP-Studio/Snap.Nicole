@@ -31,12 +31,12 @@ internal sealed class AgentWorkspaceFileAccessWriteTool : AgentWorkspaceFileAcce
         AgentWorkspacePath path = Context.ResolveAbsoluteFilePath(file_path);
         if (Directory.Exists(path.FullPath))
         {
-            throw new InvalidOperationException($"'{path.DisplayPath}' is a directory. Write requires a file path.");
+            throw new InvalidOperationException($"'{path.FullPath}' is a directory. Write requires a file path.");
         }
 
         if (File.Exists(path.FullPath) && !Context.WasFileRead(path.FullPath))
         {
-            throw new InvalidOperationException($"File '{path.DisplayPath}' must be read with {AgentWorkspaceFileAccessToolNames.Read} before overwriting.");
+            throw new InvalidOperationException($"File '{path.FullPath}' must be read with {AgentWorkspaceFileAccessToolNames.Read} before overwriting.");
         }
 
         string? directory = Path.GetDirectoryName(path.FullPath);
@@ -47,6 +47,6 @@ internal sealed class AgentWorkspaceFileAccessWriteTool : AgentWorkspaceFileAcce
 
         await File.WriteAllTextAsync(path.FullPath, content, Encoding.UTF8, cancellationToken);
         Context.MarkFileAsRead(path.FullPath);
-        return $"File '{path.DisplayPath}' written.";
+        return $"File '{path.FullPath}' written.";
     }
 }

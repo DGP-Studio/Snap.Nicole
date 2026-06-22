@@ -46,23 +46,24 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
         {
             builder.AppendLine("The workspace root is:");
             builder.AppendLine(roots[0].Directory);
-            builder.AppendLine("Use absolute paths with `Read`, `Write`, and `Edit`. For `Glob` and `Grep`, omit `path` to search this root, or provide an absolute or root-relative path.");
+            builder.AppendLine("Use absolute paths with `Read`, `Write`, and `Edit`. For `Glob` and `Grep`, omit `path` to search this root, or provide an absolute path.");
         }
         else
         {
             builder.AppendLine("The accessible workspace roots are:");
             foreach (AgentWorkspaceRoot root in roots)
             {
-                builder.AppendLine($"- `{root.Alias}`: {root.Directory}");
+                builder.AppendLine($"- {root.Directory}");
             }
 
-            builder.AppendLine("Use absolute paths with `Read`, `Write`, and `Edit`. For `Glob` and `Grep`, omit `path` to search the first workspace root, or prefix relative paths with a workspace alias such as `workspace1/src`.");
+            builder.AppendLine("Use absolute paths with `Read`, `Write`, and `Edit`. For `Glob` and `Grep`, omit `path` to search the first workspace root, or provide an absolute path.");
         }
 
         builder.AppendLine();
         builder.AppendLine("- Never overwrite existing files unless the user has explicitly asked you to do so. Writing and editing files require explicit user approval.");
         builder.AppendLine($"- Use `{AgentWorkspaceFileAccessToolNames.Read}` to read files. `Read.file_path` must be an absolute path under a workspace root. Text and notebook results use cat -n line numbers.");
         builder.AppendLine("- Image and PDF visual rendering is not available in this provider. Do not treat image or PDF read failures as text-file failures.");
+        builder.AppendLine("- File paths returned by these tools are full paths.");
         builder.AppendLine("- Use `Write` to create a new file or fully replace a file already read with `Read`. Overwriting an unread existing file fails. Use `Edit` for partial changes.");
         builder.AppendLine($"- Before using `Edit`, read the target file with `{AgentWorkspaceFileAccessToolNames.Read}`. `Edit.file_path` must be an absolute path under a workspace root.");
         builder.AppendLine("- For `Edit`, `old_string` must match the file exactly and must be unique unless `replace_all` is true.");

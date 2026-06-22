@@ -36,9 +36,7 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
             return new()
             {
                 Root = root,
-                RelativePath = relativePath,
                 FullPath = fullPath,
-                DisplayPath = CreateDisplayPath(root, relativePath),
             };
         }
 
@@ -58,13 +56,7 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
             return ResolveAbsoluteDirectoryPath(trimmedPath);
         }
 
-        string normalizedPath = NormalizeDirectoryPath(trimmedPath);
-        if (Roots.Count > 1 && TryGetAliasPrefixedPath(normalizedPath, out string alias, out _) && IsKnownRootAlias(alias))
-        {
-            return ResolveWorkspacePath(normalizedPath);
-        }
-
-        return CreateWorkspacePath(Roots[0], normalizedPath);
+        throw new ArgumentException($"Directory path must be absolute: {path}", nameof(path));
     }
 
     public AgentWorkspacePath ResolveGrepSearchPath(string? path)
@@ -85,28 +77,7 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
             return ResolveAbsoluteSearchPath(trimmedPath);
         }
 
-        string normalizedPath = NormalizeDirectoryPath(trimmedPath);
-        if (Roots.Count > 1 && TryGetAliasPrefixedPath(normalizedPath, out string alias, out _) && IsKnownRootAlias(alias))
-        {
-            return ResolveWorkspacePath(normalizedPath);
-        }
-
-        return CreateWorkspacePath(Roots[0], normalizedPath);
-    }
-
-    public string CreateDisplayPath(AgentWorkspaceRoot root, string relativePath)
-    {
-        if (Roots.Count is 1)
-        {
-            return relativePath;
-        }
-
-        if (relativePath.Length is 0)
-        {
-            return root.Alias;
-        }
-
-        return $"{root.Alias}/{relativePath}";
+        throw new ArgumentException($"Search path must be absolute: {path}", nameof(path));
     }
 
     public void MarkFileAsRead(string fullPath)
@@ -135,19 +106,11 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
                 continue;
             }
 
-            string relativePath = root.GetRelativePath(fullPath);
-            if (string.Equals(relativePath, ".", StringComparison.Ordinal))
-            {
-                relativePath = string.Empty;
-            }
-
             ThrowIfContainsReparsePoint(root.Directory, fullPath);
             return new()
             {
                 Root = root,
-                RelativePath = relativePath,
                 FullPath = fullPath,
-                DisplayPath = CreateDisplayPath(root, relativePath),
             };
         }
 
@@ -164,52 +127,15 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
                 continue;
             }
 
-            string relativePath = root.GetRelativePath(fullPath);
-            if (string.Equals(relativePath, ".", StringComparison.Ordinal))
-            {
-                relativePath = string.Empty;
-            }
-
             ThrowIfContainsReparsePoint(root.Directory, fullPath);
             return new()
             {
                 Root = root,
-                RelativePath = relativePath,
                 FullPath = fullPath,
-                DisplayPath = CreateDisplayPath(root, relativePath),
             };
         }
 
         throw new ArgumentException($"Search path must be under a workspace root: {path}", nameof(path));
-    }
-
-    private AgentWorkspacePath ResolveWorkspacePath(string normalizedPath)
-    {
-        if (Roots.Count is 1)
-        {
-            AgentWorkspaceRoot root = Roots[0];
-            if (TryGetAliasPrefixedPath(normalizedPath, out string alias, out string relativePath) && IsRootAlias(root, alias))
-            {
-                return CreateWorkspacePath(root, relativePath);
-            }
-
-            return CreateWorkspacePath(root, normalizedPath);
-        }
-
-        if (!TryGetAliasPrefixedPath(normalizedPath, out string requestedAlias, out string requestedRelativePath))
-        {
-            throw new ArgumentException($"Path must start with one of the workspace aliases: {CreateRootAliasList()}", nameof(normalizedPath));
-        }
-
-        foreach (AgentWorkspaceRoot root in Roots)
-        {
-            if (IsRootAlias(root, requestedAlias))
-            {
-                return CreateWorkspacePath(root, requestedRelativePath);
-            }
-        }
-
-        throw new ArgumentException($"Unknown workspace alias: {requestedAlias}", nameof(normalizedPath));
     }
 
     private AgentWorkspacePath CreateWorkspacePath(AgentWorkspaceRoot root, string relativePath)
@@ -218,9 +144,7 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
         return new()
         {
             Root = root,
-            RelativePath = relativePath,
             FullPath = fullPath,
-            DisplayPath = CreateDisplayPath(root, relativePath),
         };
     }
 
@@ -235,93 +159,6 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
 
         ThrowIfContainsReparsePoint(root.Directory, fullPath);
         return fullPath;
-    }
-
-    private string CreateRootAliasList()
-    {
-        List<string> aliases = [];
-        foreach (AgentWorkspaceRoot root in Roots)
-        {
-            aliases.Add(root.Alias);
-        }
-
-        return string.Join(", ", aliases);
-    }
-
-    private bool IsKnownRootAlias(string alias)
-    {
-        foreach (AgentWorkspaceRoot root in Roots)
-        {
-            if (IsRootAlias(root, alias))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static string NormalizeDirectoryPath(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return string.Empty;
-        }
-
-        return NormalizeRelativePath(path);
-    }
-
-    private static string NormalizeRelativePath(string path)
-    {
-        string normalizedPath = path.Trim().Replace('\\', '/');
-        if (Path.IsPathRooted(normalizedPath) || normalizedPath.StartsWith("/", StringComparison.Ordinal) || IsWindowsDriveRootedPath(normalizedPath))
-        {
-            throw new ArgumentException($"Path must be relative to the workspace root: {path}", nameof(path));
-        }
-
-        string[] segments = normalizedPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        for (int i = 0; i < segments.Length; i++)
-        {
-            string segment = segments[i];
-            if (segment is "." or "..")
-            {
-                throw new ArgumentException($"Path cannot contain traversal segments: {path}", nameof(path));
-            }
-        }
-
-        return string.Join("/", segments);
-    }
-
-    private static bool TryGetAliasPrefixedPath(string normalizedPath, out string alias, out string relativePath)
-    {
-        if (normalizedPath.Length is 0)
-        {
-            alias = string.Empty;
-            relativePath = string.Empty;
-            return false;
-        }
-
-        int separatorIndex = normalizedPath.IndexOf('/');
-        if (separatorIndex < 0)
-        {
-            alias = normalizedPath;
-            relativePath = string.Empty;
-            return true;
-        }
-
-        alias = normalizedPath[..separatorIndex];
-        relativePath = normalizedPath[(separatorIndex + 1)..];
-        return true;
-    }
-
-    private static bool IsRootAlias(AgentWorkspaceRoot root, string alias)
-    {
-        return string.Equals(root.Alias, alias, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsWindowsDriveRootedPath(string path)
-    {
-        return path.Length >= 2 && char.IsLetter(path[0]) && path[1] is ':';
     }
 
     private static void ThrowIfContainsReparsePoint(string rootPath, string fullPath)
@@ -368,7 +205,6 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
 
             createdRoots.Add(new()
             {
-                Alias = workingDirectories.Count is 1 ? string.Empty : $"workspace{i + 1}",
                 Directory = Path.TrimEndingDirectorySeparator(directory),
             });
         }

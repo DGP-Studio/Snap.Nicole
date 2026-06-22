@@ -4,8 +4,6 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
 internal sealed class AgentWorkspaceRoot
 {
-    public required string Alias { get; init; }
-
     public required string Directory { get; init; }
 
     public string GetRelativePath(string fullPath)

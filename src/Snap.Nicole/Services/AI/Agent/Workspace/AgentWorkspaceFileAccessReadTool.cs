@@ -43,16 +43,16 @@ internal sealed class AgentWorkspaceFileAccessReadTool : AgentWorkspaceFileAcces
         {
             if (Directory.Exists(path.FullPath))
             {
-                throw new InvalidOperationException($"'{path.DisplayPath}' is a directory. Use Glob to inspect directories.");
+                throw new InvalidOperationException($"'{path.FullPath}' is a directory. Use Glob to inspect directories.");
             }
 
-            throw new FileNotFoundException($"File '{path.DisplayPath}' not found.", path.FullPath);
+            throw new FileNotFoundException($"File '{path.FullPath}' not found.", path.FullPath);
         }
 
         FileInfo fileInfo = new(path.FullPath);
         if (fileInfo.Length is 0)
         {
-            throw new InvalidOperationException($"File '{path.DisplayPath}' is empty.");
+            throw new InvalidOperationException($"File '{path.FullPath}' is empty.");
         }
 
         string extension = Path.GetExtension(path.FullPath);

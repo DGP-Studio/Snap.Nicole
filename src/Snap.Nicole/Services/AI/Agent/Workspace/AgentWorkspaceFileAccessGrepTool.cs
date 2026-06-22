@@ -36,7 +36,7 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
         - `output_mode`: "content" (matching lines), "files_with_matches" (paths only, default), or "count".
         - `multiline: true` for patterns that span lines.
         """)]
-    private async Task<List<string>> GrepAsync([Description("File or directory to search. Defaults to current working directory.")][DefaultValue(null)] string? path, [Description("The regular expression pattern to search for in file contents")] string pattern, [Description("Case insensitive search")][DefaultValue(false)] bool ignore_case, [Description("Enable multiline mode where . matches newlines and patterns can span lines. Default: false.")][DefaultValue(false)] bool multiline, [Description("""Show line numbers in output. Requires output_mode: "content", ignored otherwise. Defaults to true.""")][DefaultValue(true)] bool show_line_numbers, [Description("""Print only the matched (non-empty) parts of each matching line, one match per output line. Requires output_mode: "content", ignored otherwise. Defaults to false.""")][DefaultValue(false)] bool only_matching, [Description("""Number of lines to show before each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? before_context, [Description("""Number of lines to show after each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? after_context, [Description("""Number of lines to show before and after each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? context, [Description("""Glob pattern to filter files (e.g. "*.js", "*.{ts,tsx}")""")][DefaultValue(null)] string? glob, [Description("File type to search. Common types: js, py, rust, go, java, etc. More efficient than include for standard file types.")][DefaultValue(null)] string? type, [Description("""Output mode: "content" shows matching lines (supports context and line numbers), "files_with_matches" shows file paths, "count" shows match counts. Defaults to "files_with_matches".""")][DefaultValue("files_with_matches")] string? output_mode, [Description("""Limit output to first N lines/entries. Works across all output modes. Defaults to 250 when unspecified. Pass 0 for unlimited (use sparingly — large result sets waste context).""")][DefaultValue(250)] int? head_limit, [Description("""Skip first N lines/entries before applying head_limit. Works across all output modes. Defaults to 0.""")][DefaultValue(0)] int offset, CancellationToken cancellationToken = default)
+    private async Task<List<string>> GrepAsync([Description("Absolute file or directory to search. Defaults to current working directory.")][DefaultValue(null)] string? path, [Description("The regular expression pattern to search for in file contents")] string pattern, [Description("Case insensitive search")][DefaultValue(false)] bool ignore_case, [Description("Enable multiline mode where . matches newlines and patterns can span lines. Default: false.")][DefaultValue(false)] bool multiline, [Description("""Show line numbers in output. Requires output_mode: "content", ignored otherwise. Defaults to true.""")][DefaultValue(true)] bool show_line_numbers, [Description("""Print only the matched (non-empty) parts of each matching line, one match per output line. Requires output_mode: "content", ignored otherwise. Defaults to false.""")][DefaultValue(false)] bool only_matching, [Description("""Number of lines to show before each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? before_context, [Description("""Number of lines to show after each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? after_context, [Description("""Number of lines to show before and after each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? context, [Description("""Glob pattern to filter files (e.g. "*.js", "*.{ts,tsx}")""")][DefaultValue(null)] string? glob, [Description("File type to search. Common types: js, py, rust, go, java, etc. More efficient than include for standard file types.")][DefaultValue(null)] string? type, [Description("""Output mode: "content" shows matching lines (supports context and line numbers), "files_with_matches" shows file paths, "count" shows match counts. Defaults to "files_with_matches".""")][DefaultValue("files_with_matches")] string? output_mode, [Description("""Limit output to first N lines/entries. Works across all output modes. Defaults to 250 when unspecified. Pass 0 for unlimited (use sparingly — large result sets waste context).""")][DefaultValue(250)] int? head_limit, [Description("""Skip first N lines/entries before applying head_limit. Works across all output modes. Defaults to 0.""")][DefaultValue(0)] int offset, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(pattern))
         {
@@ -136,7 +136,8 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
 
         startInfo.ArgumentList.Add("--");
         startInfo.ArgumentList.Add(pattern);
-        startInfo.ArgumentList.Add(searchPath.RelativePath.Length is 0 ? "." : searchPath.RelativePath);
+        string relativePath = searchPath.Root.GetRelativePath(searchPath.FullPath);
+        startInfo.ArgumentList.Add(string.Equals(relativePath, ".", StringComparison.Ordinal) ? "." : relativePath);
         return startInfo;
     }
 
@@ -265,12 +266,13 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
 
     private string CreateGrepDisplayLine(string line, AgentWorkspaceRoot root)
     {
-        if (Context.Roots.Count is 1 || string.Equals(line, "--", StringComparison.Ordinal))
+        if (string.Equals(line, "--", StringComparison.Ordinal))
         {
             return line;
         }
 
-        return $"{root.Alias}/{line}";
+        string relativeLine = line.StartsWith("./", StringComparison.Ordinal) ? line[2..] : line;
+        return $"{root.Directory.Replace('\\', '/')}/{relativeLine}";
     }
 
     private static List<string> WindowGrepOutput(List<string> lines, int offset, int headLimit)
