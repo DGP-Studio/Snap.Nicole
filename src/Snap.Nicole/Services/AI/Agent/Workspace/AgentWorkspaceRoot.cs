@@ -2,7 +2,7 @@ using System.IO;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-public sealed class AgentWorkspaceRoot
+internal sealed class AgentWorkspaceRoot
 {
     public required string Alias { get; init; }
 

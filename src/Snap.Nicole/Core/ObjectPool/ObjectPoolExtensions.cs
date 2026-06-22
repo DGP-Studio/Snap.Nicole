@@ -2,7 +2,7 @@ using Microsoft.Extensions.ObjectPool;
 
 namespace Snap.Nicole.Core.ObjectPool;
 
-public static class ObjectPoolExtensions
+internal static class ObjectPoolExtensions
 {
     extension<T>(ObjectPool<T> objectPool)
         where T : class

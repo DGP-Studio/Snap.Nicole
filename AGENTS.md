@@ -50,6 +50,7 @@ src
 - DO
 	- Always normalize strings to uppercase before comparison when case-insensitive matching is required and `StringComparison.OrdinalIgnoreCase` is unavailable.
 	- Always organize method arguments in single line, no matter how long they are. Wrap related arguments into context class/struct/record if necessary (Consider this when having more the 4 arguments).
+	- Always add braces to `using` statements, except for single-line `using` declarations.
 	- When comparing an object with `null`, use `==` `!=` for WinRT Projection objects and the `is` `is not` pattern for all other types.
 	- For read-only properties, do not use direct expression-bodied declarations like `Property => value;`; use an expression get accessor instead, for example `Property { get => value; }`. Keep accessors in the same line whenever possible.
 	- For non-constant `string` or `string?` values that need an empty string, use `string.Empty` instead of `""`. Empty string literals are allowed only for constants (especially inside `[Attribute]` where `string.Empty` is not applicable) or the `is pattern`.

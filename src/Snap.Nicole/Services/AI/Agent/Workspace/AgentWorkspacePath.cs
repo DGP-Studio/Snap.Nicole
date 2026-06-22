@@ -1,6 +1,6 @@
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-public sealed class AgentWorkspacePath
+internal sealed class AgentWorkspacePath
 {
     public required AgentWorkspaceRoot Root { get; init; }
 

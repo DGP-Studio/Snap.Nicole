@@ -57,67 +57,66 @@ internal sealed class AgentWorkspaceFileAccessEditTool(AgentWorkspaceFileAccessC
         int replacementCount = 0;
 
         using TemporaryFileStream temporaryStream = new(sourcePath, FileMode.CreateNew, FileAccess.Write, FileShare.Read, StreamBufferSize, FileOptions.Asynchronous);
-        using (StreamReader reader = new(new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, StreamBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan), Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
-        using (StreamWriter writer = new(temporaryStream, Encoding.UTF8, StreamBufferSize, leaveOpen: true))
+        using FileStream sourceStream = new(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, StreamBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        using (StreamReader reader = new(sourceStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
         {
-            while (true)
+            using (StreamWriter writer = new(temporaryStream, Encoding.UTF8, StreamBufferSize, leaveOpen: true))
             {
-                int readCount = await reader.ReadAsync(readBuffer, cancellationToken);
-                if (readCount is 0)
+                while (true)
                 {
-                    break;
-                }
-
-                for (int i = 0; i < readCount; i++)
-                {
-                    char current = readBuffer.Span[i];
-                    while (matchedLength > 0 && current != oldString[matchedLength])
+                    int readCount = await reader.ReadAsync(readBuffer, cancellationToken);
+                    if (readCount is 0)
                     {
-                        int fallbackLength = prefixTable[matchedLength - 1];
-                        outputBuffer.Append(oldString.AsSpan(0, matchedLength - fallbackLength));
-                        matchedLength = fallbackLength;
+                        break;
+                    }
+
+                    for (int i = 0; i < readCount; i++)
+                    {
+                        char current = readBuffer.Span[i];
+                        while (matchedLength > 0 && current != oldString[matchedLength])
+                        {
+                            int fallbackLength = prefixTable[matchedLength - 1];
+                            outputBuffer.Append(oldString.AsSpan(0, matchedLength - fallbackLength));
+                            matchedLength = fallbackLength;
+                            if (outputBuffer.Length >= OutputBufferFlushThreshold)
+                            {
+                                await FlushOutputBufferAsync(writer, outputBuffer, cancellationToken);
+                            }
+                        }
+
+                        if (current == oldString[matchedLength])
+                        {
+                            matchedLength++;
+                            if (matchedLength == oldString.Length)
+                            {
+                                replacementCount++;
+                                if (!replaceAll && replacementCount > 1)
+                                {
+                                    throw new InvalidOperationException($"oldString is not unique in '{displayPath}'. Pass replaceAll true to replace every occurrence.");
+                                }
+
+                                await AppendReplacementAsync(writer, outputBuffer, newString, cancellationToken);
+                                matchedLength = 0;
+                            }
+
+                            continue;
+                        }
+
+                        outputBuffer.Append(current);
                         if (outputBuffer.Length >= OutputBufferFlushThreshold)
                         {
                             await FlushOutputBufferAsync(writer, outputBuffer, cancellationToken);
                         }
                     }
-
-                    if (current == oldString[matchedLength])
-                    {
-                        matchedLength++;
-                        if (matchedLength == oldString.Length)
-                        {
-                            replacementCount++;
-                            if (!replaceAll && replacementCount > 1)
-                            {
-                                throw new InvalidOperationException($"oldString is not unique in '{displayPath}'. Pass replaceAll true to replace every occurrence.");
-                            }
-
-                            await AppendReplacementAsync(writer, outputBuffer, newString, cancellationToken);
-                            matchedLength = 0;
-                        }
-
-                        continue;
-                    }
-
-                    outputBuffer.Append(current);
-                    if (outputBuffer.Length >= OutputBufferFlushThreshold)
-                    {
-                        await FlushOutputBufferAsync(writer, outputBuffer, cancellationToken);
-                    }
                 }
+
+                outputBuffer.Append(oldString.AsSpan(0, matchedLength));
+                await FlushOutputBufferAsync(writer, outputBuffer, cancellationToken);
+                await writer.FlushAsync(cancellationToken);
             }
-
-            outputBuffer.Append(oldString.AsSpan(0, matchedLength));
-            await FlushOutputBufferAsync(writer, outputBuffer, cancellationToken);
-            await writer.FlushAsync(cancellationToken);
         }
 
-        if (replacementCount is 0)
-        {
-            throw new InvalidOperationException($"oldString was not found in '{displayPath}'.");
-        }
-
+        InvalidOperationException.ThrowIf(replacementCount is 0, $"oldString was not found in '{displayPath}'.");
         temporaryStream.Commit();
         return replacementCount;
     }

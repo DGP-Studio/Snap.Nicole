@@ -2,7 +2,7 @@ using Microsoft.Extensions.ObjectPool;
 
 namespace Snap.Nicole.Core.ObjectPool;
 
-public ref struct ObjectPoolLease<T>(ObjectPool<T> objectPool) : IDisposable
+internal ref struct ObjectPoolLease<T>(ObjectPool<T> objectPool) : IDisposable
     where T : class
 {
     private readonly ObjectPool<T> objectPool = objectPool;
