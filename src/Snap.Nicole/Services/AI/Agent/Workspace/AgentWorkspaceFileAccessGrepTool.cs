@@ -59,7 +59,7 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
             throw new InvalidOperationException(string.IsNullOrWhiteSpace(result.StandardError) ? $"ripgrep failed with exit code {result.ExitCode}." : result.StandardError.Trim());
         }
 
-        return WindowGrepOutput(CreateGrepOutputLines(result.StandardOutput, searchPath.Root), normalizedOffset, normalizedHeadLimit);
+        return WindowGrepOutput(CreateGrepOutputLines(result.StandardOutput, searchPath.RootDirectory), normalizedOffset, normalizedHeadLimit);
     }
 
     private static ProcessStartInfo CreateGrepStartInfo(AgentWorkspacePath searchPath, string pattern, string? glob, string? type, string outputMode, int? context, int? beforeContext, int? afterContext, bool ignoreCase, bool showLineNumbers, bool onlyMatching, bool multiline)
@@ -67,7 +67,7 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
         ProcessStartInfo startInfo = new()
         {
             FileName = "rg",
-            WorkingDirectory = searchPath.Root.Directory,
+            WorkingDirectory = searchPath.RootDirectory,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             StandardOutputEncoding = Encoding.UTF8,
@@ -136,7 +136,7 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
 
         startInfo.ArgumentList.Add("--");
         startInfo.ArgumentList.Add(pattern);
-        string relativePath = searchPath.Root.GetRelativePath(searchPath.FullPath);
+        string relativePath = searchPath.GetRootRelativePath(searchPath.FullPath);
         startInfo.ArgumentList.Add(string.Equals(relativePath, ".", StringComparison.Ordinal) ? "." : relativePath);
         return startInfo;
     }
@@ -247,7 +247,7 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
         }
     }
 
-    private List<string> CreateGrepOutputLines(string standardOutput, AgentWorkspaceRoot root)
+    private List<string> CreateGrepOutputLines(string standardOutput, string rootDirectory)
     {
         List<string> lines = [];
         foreach (string rawLine in standardOutput.Split('\n'))
@@ -258,13 +258,13 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
                 continue;
             }
 
-            lines.Add(CreateGrepDisplayLine(line, root));
+            lines.Add(CreateGrepDisplayLine(line, rootDirectory));
         }
 
         return lines;
     }
 
-    private string CreateGrepDisplayLine(string line, AgentWorkspaceRoot root)
+    private string CreateGrepDisplayLine(string line, string rootDirectory)
     {
         if (string.Equals(line, "--", StringComparison.Ordinal))
         {
@@ -272,7 +272,7 @@ internal sealed class AgentWorkspaceFileAccessGrepTool : AgentWorkspaceFileAcces
         }
 
         string relativeLine = line.StartsWith("./", StringComparison.Ordinal) ? line[2..] : line;
-        return $"{root.Directory.Replace('\\', '/')}/{relativeLine}";
+        return $"{rootDirectory.Replace('\\', '/')}/{relativeLine}";
     }
 
     private static List<string> WindowGrepOutput(List<string> lines, int offset, int headLimit)

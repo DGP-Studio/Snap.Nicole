@@ -11,7 +11,7 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
     private readonly Lock readFilePathsLock = new();
     private readonly HashSet<string> readFilePaths = new(StringComparer.OrdinalIgnoreCase);
 
-    public IReadOnlyList<AgentWorkspaceRoot> Roots { get; } = CreateRoots(workingDirectories);
+    public IReadOnlyList<string> RootDirectories { get; } = CreateRootDirectories(workingDirectories);
 
     public AgentWorkspacePath ResolveAbsoluteFilePath(string path)
     {
@@ -20,22 +20,22 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
         ArgumentException.ThrowIfNot(Path.IsPathFullyQualified(trimmedPath), $"File path must be absolute: {path}", nameof(path));
 
         string fullPath = Path.GetFullPath(trimmedPath);
-        foreach (AgentWorkspaceRoot root in Roots)
+        foreach (string rootDirectory in RootDirectories)
         {
-            if (!Path.IsEqualOrSubdirectory(root.Directory, fullPath))
+            if (!Path.IsEqualOrSubdirectory(rootDirectory, fullPath))
             {
                 continue;
             }
 
             // We use relativePath variable below, so Path.IsEqual is not used here
-            string relativePath = root.GetRelativePath(fullPath);
+            string relativePath = AgentWorkspacePath.GetRelativePath(rootDirectory, fullPath);
             ArgumentException.ThrowIf(string.Equals(relativePath, ".", StringComparison.Ordinal), "File path cannot target a workspace root.", nameof(path));
 
-            ThrowIfContainsReparsePoint(root.Directory, fullPath);
+            ThrowIfContainsReparsePoint(rootDirectory, fullPath);
 
             return new()
             {
-                Root = root,
+                RootDirectory = rootDirectory,
                 FullPath = fullPath,
             };
         }
@@ -47,7 +47,7 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return CreateWorkspacePath(Roots[0], string.Empty);
+            return CreateWorkspacePath(RootDirectories[0], string.Empty);
         }
 
         string trimmedPath = path.Trim();
@@ -63,7 +63,7 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return CreateWorkspacePath(Roots[0], string.Empty);
+            return CreateWorkspacePath(RootDirectories[0], string.Empty);
         }
 
         string trimmedPath = path.Trim();
@@ -99,17 +99,17 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
     private AgentWorkspacePath ResolveAbsoluteDirectoryPath(string path)
     {
         string fullPath = Path.GetFullPath(path);
-        foreach (AgentWorkspaceRoot root in Roots)
+        foreach (string rootDirectory in RootDirectories)
         {
-            if (!Path.IsEqualOrSubdirectory(root.Directory, fullPath))
+            if (!Path.IsEqualOrSubdirectory(rootDirectory, fullPath))
             {
                 continue;
             }
 
-            ThrowIfContainsReparsePoint(root.Directory, fullPath);
+            ThrowIfContainsReparsePoint(rootDirectory, fullPath);
             return new()
             {
-                Root = root,
+                RootDirectory = rootDirectory,
                 FullPath = fullPath,
             };
         }
@@ -120,17 +120,17 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
     private AgentWorkspacePath ResolveAbsoluteSearchPath(string path)
     {
         string fullPath = Path.GetFullPath(path);
-        foreach (AgentWorkspaceRoot root in Roots)
+        foreach (string rootDirectory in RootDirectories)
         {
-            if (!Path.IsEqualOrSubdirectory(root.Directory, fullPath))
+            if (!Path.IsEqualOrSubdirectory(rootDirectory, fullPath))
             {
                 continue;
             }
 
-            ThrowIfContainsReparsePoint(root.Directory, fullPath);
+            ThrowIfContainsReparsePoint(rootDirectory, fullPath);
             return new()
             {
-                Root = root,
+                RootDirectory = rootDirectory,
                 FullPath = fullPath,
             };
         }
@@ -138,26 +138,26 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
         throw new ArgumentException($"Search path must be under a workspace root: {path}", nameof(path));
     }
 
-    private AgentWorkspacePath CreateWorkspacePath(AgentWorkspaceRoot root, string relativePath)
+    private AgentWorkspacePath CreateWorkspacePath(string rootDirectory, string relativePath)
     {
-        string fullPath = ResolveSafeFullPath(root, relativePath);
+        string fullPath = ResolveSafeFullPath(rootDirectory, relativePath);
         return new()
         {
-            Root = root,
+            RootDirectory = rootDirectory,
             FullPath = fullPath,
         };
     }
 
-    private string ResolveSafeFullPath(AgentWorkspaceRoot root, string relativePath)
+    private string ResolveSafeFullPath(string rootDirectory, string relativePath)
     {
         string localPath = relativePath.Replace('/', Path.DirectorySeparatorChar);
-        string fullPath = Path.GetFullPath(Path.Combine(root.Directory, localPath));
-        if (!Path.IsEqualOrSubdirectory(root.Directory, fullPath))
+        string fullPath = Path.GetFullPath(Path.Combine(rootDirectory, localPath));
+        if (!Path.IsEqualOrSubdirectory(rootDirectory, fullPath))
         {
             throw new ArgumentException($"Invalid path: '{relativePath}'. The resolved path escapes the workspace root.", nameof(relativePath));
         }
 
-        ThrowIfContainsReparsePoint(root.Directory, fullPath);
+        ThrowIfContainsReparsePoint(rootDirectory, fullPath);
         return fullPath;
     }
 
@@ -192,23 +192,20 @@ internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> work
         }
     }
 
-    private static List<AgentWorkspaceRoot> CreateRoots(IReadOnlyList<string> workingDirectories)
+    private static List<string> CreateRootDirectories(IReadOnlyList<string> workingDirectories)
     {
         ArgumentNullException.ThrowIfNull(workingDirectories);
         ArgumentException.ThrowIfEmpty(workingDirectories, "At least one workspace directory is required.", nameof(workingDirectories));
 
-        List<AgentWorkspaceRoot> createdRoots = [];
+        List<string> rootDirectories = [];
         for (int i = 0; i < workingDirectories.Count; i++)
         {
             string directory = Path.GetFullPath(workingDirectories[i]);
             Directory.CreateDirectory(directory);
 
-            createdRoots.Add(new()
-            {
-                Directory = Path.TrimEndingDirectorySeparator(directory),
-            });
+            rootDirectories.Add(Path.TrimEndingDirectorySeparator(directory));
         }
 
-        return createdRoots;
+        return rootDirectories;
     }
 }

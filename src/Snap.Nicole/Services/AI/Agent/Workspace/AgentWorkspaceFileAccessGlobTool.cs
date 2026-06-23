@@ -1,168 +1,118 @@
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.FileSystemGlobbing;
 using Snap.Nicole.Core;
-using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
-using System.Text;
-using System.Text.RegularExpressions;
+using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspaceFileAccessGlobTool : AgentWorkspaceFileAccessToolComponent
+internal sealed class AgentWorkspaceFileAccessGlobTool(AgentWorkspaceFileAccessContext context)
+    : AgentWorkspaceFileAccessToolComponent(context)
 {
-    private const int RegexTimeoutSeconds = 5;
-
-    private readonly AITool tool;
-
-    public AgentWorkspaceFileAccessGlobTool(AgentWorkspaceFileAccessContext context) : base(context)
+    private static readonly EnumerationOptions DefaultEnumerationOptions = new()
     {
-        tool = AIFunctionFactory.Create(GlobAsync);
-    }
+        AttributesToSkip = FileAttributes.ReparsePoint,
+        RecurseSubdirectories = true,
+    };
 
-    public override AITool Tool { get => tool; }
+    public override AITool Tool { get => field ??= AIFunctionFactory.Create(Glob); }
 
     [DisplayName(AgentWorkspaceFileAccessToolNames.Glob)]
     [Description("""
-        Fast file pattern matching. Supports glob patterns like "**/*.js" or "src/**/*.ts". Returns matching file paths sorted by modification time.
+        Fast file pattern matching. Supports glob patterns like "**/*.js" or "src/**/*.ts". Patterns are matched relative to the search directory. Returns matching file paths sorted by modification time.
         """)]
-    private Task<List<string>> GlobAsync(
+    private List<string> Glob(
         [Description("""The absolute directory to search in. If not specified, the current working directory will be used. IMPORTANT: Omit this field to use the default directory. DO NOT enter "undefined" or "null" - simply omit it for the default behavior.""")][DefaultValue(null)] string? path,
         [Description("The glob pattern to match files against")] string pattern,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pattern, "Glob pattern cannot be empty.", nameof(pattern));
-        FilePatternMatcher patternMatcher = CreateFilePatternMatcher(pattern);
-        AgentWorkspacePath searchDirectory = Context.ResolveGlobDirectoryPath(path);
-        if (!Directory.Exists(searchDirectory.FullPath))
+
+        Matcher matcher = new(StringComparison.OrdinalIgnoreCase);
+        matcher.AddInclude(pattern.Replace('\\', '/'));
+
+        AgentWorkspacePath globDirectory = Context.ResolveGlobDirectoryPath(path);
+        if (!Directory.Exists(globDirectory.FullPath))
         {
-            return Task.FromResult(new List<string>());
+            return [];
         }
 
-        EnumerationOptions options = new()
-        {
-            AttributesToSkip = FileAttributes.ReparsePoint,
-            IgnoreInaccessible = true,
-            RecurseSubdirectories = true,
-        };
+        List<GlobCandidate> candidates = CreateCandidates(globDirectory, cancellationToken);
+        List<GlobResult> matches = CreateMatches(matcher, globDirectory.FullPath, candidates);
+        return [.. matches.Order(GlobResult.Comparer).Select(static result => result.FilePath)];
+    }
 
-        List<FileGlobResult> results = [];
-        foreach (string filePath in Directory.EnumerateFiles(searchDirectory.FullPath, "*", options))
+    private static List<GlobCandidate> CreateCandidates(AgentWorkspacePath globDirectory, CancellationToken cancellationToken)
+    {
+        List<GlobCandidate> candidates = [];
+        foreach (string filePath in Directory.EnumerateFiles(globDirectory.FullPath, "*", DefaultEnumerationOptions))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            string searchRelativePath = Path.GetRelativePath(searchDirectory.FullPath, filePath).Replace('\\', '/');
-            string rootRelativePath = searchDirectory.Root.GetRelativePath(filePath);
-            string fullPath = Path.GetFullPath(filePath);
-            string normalizedFullPath = fullPath.Replace('\\', '/');
-            if (!patternMatcher.Matches(searchRelativePath, normalizedFullPath) && !patternMatcher.Matches(rootRelativePath, normalizedFullPath))
-            {
-                continue;
-            }
 
-            results.Add(new()
+            string fullPath = Path.GetFullPath(filePath);
+            candidates.Add(new()
             {
                 FilePath = fullPath,
+                RelativePath = globDirectory.GetRelativePath(fullPath),
                 LastWriteTimeUtc = File.GetLastWriteTimeUtc(filePath),
             });
         }
 
-        results.Sort(static (left, right) =>
+        return candidates;
+    }
+
+    private static List<GlobResult> CreateMatches(Matcher matcher, string rootDirectory, List<GlobCandidate> candidates)
+    {
+        Dictionary<string, GlobCandidate> candidatesByRelativePath = candidates
+            .ToDictionary(static candidate => candidate.RelativePath, StringComparer.OrdinalIgnoreCase);
+
+        PatternMatchingResult matchResult = matcher.Match(rootDirectory, candidatesByRelativePath.Keys);
+        if (!matchResult.HasMatches)
+        {
+            return [];
+        }
+
+        List<GlobResult> results = [];
+        foreach (FilePatternMatch match in matchResult.Files)
+        {
+            GlobCandidate candidate = candidatesByRelativePath[match.Path];
+            results.Add(GlobResult.Create(candidate));
+        }
+
+        return results;
+    }
+
+    private sealed class GlobCandidate
+    {
+        public required string FilePath { get; init; }
+
+        public required string RelativePath { get; init; }
+
+        public required DateTime LastWriteTimeUtc { get; init; }
+    }
+
+    private sealed class GlobResult
+    {
+        public static Comparer<GlobResult> Comparer { get; } = Comparer<GlobResult>.Create(static (left, right) =>
         {
             int result = right.LastWriteTimeUtc.CompareTo(left.LastWriteTimeUtc);
             return result is not 0 ? result : string.Compare(left.FilePath, right.FilePath, StringComparison.Ordinal);
         });
 
-        List<string> paths = [];
-        foreach (FileGlobResult result in results)
-        {
-            paths.Add(result.FilePath);
-        }
-
-        return Task.FromResult(paths);
-    }
-
-    private static FilePatternMatcher CreateFilePatternMatcher(string filePattern)
-    {
-        int length = filePattern.Length;
-        Span<char> normalizedPattern = length <= 1024 ? stackalloc char[length] : new char[length];
-        filePattern.AsSpan().CopyTo(normalizedPattern);
-        normalizedPattern.Replace('\\', '/');
-
-        Regex pathRegex = new(CreateGlobRegexPattern(normalizedPattern), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(RegexTimeoutSeconds));
-        Regex? fileNameRegex = normalizedPattern.Contains('/') ? null : pathRegex;
-
-        return new()
-        {
-            PathRegex = pathRegex,
-            FileNameRegex = fileNameRegex,
-        };
-    }
-
-    private static string CreateGlobRegexPattern(ReadOnlySpan<char> pattern)
-    {
-        StringBuilder builder = new();
-        builder.Append('^');
-        for (int i = 0; i < pattern.Length; i++)
-        {
-            char ch = pattern[i];
-            if (ch is '*')
-            {
-                if (i + 1 < pattern.Length && pattern[i + 1] is '*')
-                {
-                    if (i + 2 < pattern.Length && pattern[i + 2] is '/')
-                    {
-                        builder.Append("(?:.*/)?");
-                        i += 2;
-                    }
-                    else
-                    {
-                        builder.Append(".*");
-                        i++;
-                    }
-                }
-                else
-                {
-                    builder.Append("[^/]*");
-                }
-            }
-            else if (ch is '?')
-            {
-                builder.Append("[^/]");
-            }
-            else
-            {
-                builder.Append(Regex.Escape(ch.ToString()));
-            }
-        }
-
-        builder.Append('$');
-        return builder.ToString();
-    }
-
-    private sealed class FileGlobResult
-    {
         public required string FilePath { get; init; }
 
         public required DateTime LastWriteTimeUtc { get; init; }
-    }
 
-    private sealed class FilePatternMatcher
-    {
-        public required Regex PathRegex { get; init; }
-
-        public Regex? FileNameRegex { get; init; }
-
-        public bool Matches(string relativePath, string fullPath)
+        public static GlobResult Create(GlobCandidate candidate)
         {
-            if (PathRegex.IsMatch(relativePath) || PathRegex.IsMatch(fullPath))
+            return new()
             {
-                return true;
-            }
-
-            string fileName = Path.GetFileName(relativePath);
-            return FileNameRegex is not null && FileNameRegex.IsMatch(fileName);
+                FilePath = candidate.FilePath,
+                LastWriteTimeUtc = candidate.LastWriteTimeUtc,
+            };
         }
     }
 }

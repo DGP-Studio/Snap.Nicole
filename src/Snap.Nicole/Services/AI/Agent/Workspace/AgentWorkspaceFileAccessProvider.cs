@@ -35,25 +35,25 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
 
     private string CreateInstructions()
     {
-        IReadOnlyList<AgentWorkspaceRoot> roots = fileAccessContext.Roots;
+        IReadOnlyList<string> rootDirectories = fileAccessContext.RootDirectories;
         StringBuilder builder = new();
         builder.AppendLine("## Workspace File Access");
         builder.AppendLine("You have access to workspace files via `Read` for reading files, `Write` for full file replacement, `Edit` for exact string replacement, `Glob` for file pattern matching, and `Grep` for content search.");
         builder.AppendLine("These files persist beyond the current session and may be shared by future sessions that use the same workspace.");
         builder.AppendLine("Use these tools to read input data provided by the user, write output artifacts, and manage files the user has asked you to work with.");
         builder.AppendLine();
-        if (roots.Count is 1)
+        if (rootDirectories.Count is 1)
         {
             builder.AppendLine("The workspace root is:");
-            builder.AppendLine(roots[0].Directory);
+            builder.AppendLine(rootDirectories[0]);
             builder.AppendLine("Use absolute paths with `Read`, `Write`, and `Edit`. For `Glob` and `Grep`, omit `path` to search this root, or provide an absolute path.");
         }
         else
         {
             builder.AppendLine("The accessible workspace roots are:");
-            foreach (AgentWorkspaceRoot root in roots)
+            foreach (string rootDirectory in rootDirectories)
             {
-                builder.AppendLine($"- {root.Directory}");
+                builder.AppendLine($"- {rootDirectory}");
             }
 
             builder.AppendLine("Use absolute paths with `Read`, `Write`, and `Edit`. For `Glob` and `Grep`, omit `path` to search the first workspace root, or provide an absolute path.");
