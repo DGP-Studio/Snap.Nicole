@@ -10,21 +10,21 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspaceFileAccessReadTool : AgentWorkspaceFileAccessToolComponent
+internal sealed class AgentWorkspaceReadTool : AgentWorkspaceToolComponent
 {
     private const int DefaultReadLineLimit = 2000;
     private const int MaxReadPdfPageCount = 20;
 
     private readonly AITool tool;
 
-    public AgentWorkspaceFileAccessReadTool(AgentWorkspaceFileAccessContext context) : base(context)
+    public AgentWorkspaceReadTool(AgentWorkspaceContext context) : base(context)
     {
         tool = AIFunctionFactory.Create(ReadAsync);
     }
 
     public override AITool Tool { get => tool; }
 
-    [DisplayName(AgentWorkspaceFileAccessToolNames.Read)]
+    [DisplayName(AgentWorkspaceToolNames.Read)]
     [Description("""
         Reads a file from the local filesystem.
 

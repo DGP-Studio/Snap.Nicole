@@ -10,15 +10,15 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspaceFileAccessEditTool(AgentWorkspaceFileAccessContext context)
-    : AgentWorkspaceFileAccessToolComponent(context)
+internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
+    : AgentWorkspaceToolComponent(context)
 {
     private const int StreamBufferSize = 8192;
     private const int OutputBufferFlushThreshold = 16384;
 
     public override AITool Tool { get => field ??= AIFunctionFactory.Create(EditAsync).AsApprovalRequired(); }
 
-    [DisplayName(AgentWorkspaceFileAccessToolNames.Edit)]
+    [DisplayName(AgentWorkspaceToolNames.Edit)]
     [Description("""
         Performs exact string replacement in a file.
 
@@ -39,7 +39,7 @@ internal sealed class AgentWorkspaceFileAccessEditTool(AgentWorkspaceFileAccessC
             return $"File '{path.FullPath}' not found.";
         }
 
-        InvalidOperationException.ThrowIfNot(Context.WasFileRead(path.FullPath), $"File '{path.FullPath}' must be read with {AgentWorkspaceFileAccessToolNames.Read} tool before editing.");
+        InvalidOperationException.ThrowIfNot(Context.WasFileRead(path.FullPath), $"File '{path.FullPath}' must be read with {AgentWorkspaceToolNames.Read} tool before editing.");
         ArgumentException.ThrowIfNullOrEmpty(oldString, "oldString cannot be empty", nameof(oldString));
         ArgumentException.ThrowIf(string.Equals(oldString, newString, StringComparison.Ordinal), "newString must be different from oldString.", nameof(newString));
 

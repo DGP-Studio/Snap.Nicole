@@ -9,18 +9,18 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspaceFileAccessWriteTool : AgentWorkspaceFileAccessToolComponent
+internal sealed class AgentWorkspaceWriteTool : AgentWorkspaceToolComponent
 {
     private readonly AITool tool;
 
-    public AgentWorkspaceFileAccessWriteTool(AgentWorkspaceFileAccessContext context) : base(context)
+    public AgentWorkspaceWriteTool(AgentWorkspaceContext context) : base(context)
     {
         tool = AIFunctionFactory.Create(WriteAsync).AsApprovalRequired();
     }
 
     public override AITool Tool { get => tool; }
 
-    [DisplayName(AgentWorkspaceFileAccessToolNames.Write)]
+    [DisplayName(AgentWorkspaceToolNames.Write)]
     [Description("""
         Writes a file to the local filesystem, overwriting if one exists.
 
@@ -36,7 +36,7 @@ internal sealed class AgentWorkspaceFileAccessWriteTool : AgentWorkspaceFileAcce
 
         if (File.Exists(path.FullPath) && !Context.WasFileRead(path.FullPath))
         {
-            throw new InvalidOperationException($"File '{path.FullPath}' must be read with {AgentWorkspaceFileAccessToolNames.Read} before overwriting.");
+            throw new InvalidOperationException($"File '{path.FullPath}' must be read with {AgentWorkspaceToolNames.Read} before overwriting.");
         }
 
         string? directory = Path.GetDirectoryName(path.FullPath);

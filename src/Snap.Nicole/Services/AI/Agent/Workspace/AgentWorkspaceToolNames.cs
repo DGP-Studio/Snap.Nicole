@@ -1,6 +1,6 @@
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal static class AgentWorkspaceFileAccessToolNames
+internal static class AgentWorkspaceToolNames
 {
     public const string Write = "Write";
     public const string Read = "Read";

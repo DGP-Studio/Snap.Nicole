@@ -9,8 +9,8 @@ using System.Threading;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspaceFileAccessGlobTool(AgentWorkspaceFileAccessContext context)
-    : AgentWorkspaceFileAccessToolComponent(context)
+internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
+    : AgentWorkspaceToolComponent(context)
 {
     private static readonly EnumerationOptions DefaultEnumerationOptions = new()
     {
@@ -20,7 +20,7 @@ internal sealed class AgentWorkspaceFileAccessGlobTool(AgentWorkspaceFileAccessC
 
     public override AITool Tool { get => field ??= AIFunctionFactory.Create(Glob); }
 
-    [DisplayName(AgentWorkspaceFileAccessToolNames.Glob)]
+    [DisplayName(AgentWorkspaceToolNames.Glob)]
     [Description("""
         Fast file pattern matching. Supports glob patterns like "**/*.js" or "src/**/*.ts". Patterns are matched relative to the search directory. Returns matching file paths sorted by modification time.
         """)]

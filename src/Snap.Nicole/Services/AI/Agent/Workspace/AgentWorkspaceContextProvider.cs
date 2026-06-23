@@ -7,16 +7,16 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
+internal sealed class AgentWorkspaceContextProvider : AIContextProvider
 {
-    private readonly AgentWorkspaceFileAccessContext fileAccessContext;
-    private readonly IReadOnlyList<AgentWorkspaceFileAccessToolComponent> toolComponents;
+    private readonly AgentWorkspaceContext workspaceContext;
+    private readonly IReadOnlyList<AgentWorkspaceToolComponent> toolComponents;
     private readonly IReadOnlyList<AITool> tools;
 
-    public AgentWorkspaceFileAccessProvider(IReadOnlyList<string> workingDirectories)
+    public AgentWorkspaceContextProvider(IReadOnlyList<string> workingDirectories)
     {
-        fileAccessContext = new(workingDirectories);
-        toolComponents = CreateToolComponents(fileAccessContext);
+        workspaceContext = new(workingDirectories);
+        toolComponents = CreateToolComponents(workspaceContext);
         tools = CreateTools(toolComponents);
     }
 
@@ -35,7 +35,7 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
 
     private string CreateInstructions()
     {
-        IReadOnlyList<string> rootDirectories = fileAccessContext.RootDirectories;
+        IReadOnlyList<string> rootDirectories = workspaceContext.RootDirectories;
         StringBuilder builder = new();
         builder.AppendLine("## Workspace File Access");
         builder.AppendLine("You have access to workspace files via `Read` for reading files, `Write` for full file replacement, `Edit` for exact string replacement, `Glob` for file pattern matching, and `Grep` for content search.");
@@ -61,11 +61,11 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
 
         builder.AppendLine();
         builder.AppendLine("- Never overwrite existing files unless the user has explicitly asked you to do so. Writing and editing files require explicit user approval.");
-        builder.AppendLine($"- Use `{AgentWorkspaceFileAccessToolNames.Read}` to read files. `Read.file_path` must be an absolute path under a workspace root. Text and notebook results use cat -n line numbers.");
+        builder.AppendLine($"- Use `{AgentWorkspaceToolNames.Read}` to read files. `Read.file_path` must be an absolute path under a workspace root. Text and notebook results use cat -n line numbers.");
         builder.AppendLine("- Image and PDF visual rendering is not available in this provider. Do not treat image or PDF read failures as text-file failures.");
         builder.AppendLine("- File paths returned by these tools are full paths.");
         builder.AppendLine("- Use `Write` to create a new file or fully replace a file already read with `Read`. Overwriting an unread existing file fails. Use `Edit` for partial changes.");
-        builder.AppendLine($"- Before using `Edit`, read the target file with `{AgentWorkspaceFileAccessToolNames.Read}`. `Edit.file_path` must be an absolute path under a workspace root.");
+        builder.AppendLine($"- Before using `Edit`, read the target file with `{AgentWorkspaceToolNames.Read}`. `Edit.file_path` must be an absolute path under a workspace root.");
         builder.AppendLine("- For `Edit`, `old_string` must match the file exactly and must be unique unless `replace_all` is true.");
         builder.AppendLine("- Do not re-read a file immediately after `Edit` just to verify the edit.");
         builder.AppendLine("- For `Glob`, omit `path` to search the current workspace directory. If `path` is provided, it must resolve to a directory under a workspace root.");
@@ -75,22 +75,22 @@ internal sealed class AgentWorkspaceFileAccessProvider : AIContextProvider
         return builder.ToString();
     }
 
-    private static IReadOnlyList<AgentWorkspaceFileAccessToolComponent> CreateToolComponents(AgentWorkspaceFileAccessContext fileAccessContext)
+    private static IReadOnlyList<AgentWorkspaceToolComponent> CreateToolComponents(AgentWorkspaceContext workspaceContext)
     {
         return
         [
-            new AgentWorkspaceFileAccessWriteTool(fileAccessContext),
-            new AgentWorkspaceFileAccessReadTool(fileAccessContext),
-            new AgentWorkspaceFileAccessEditTool(fileAccessContext),
-            new AgentWorkspaceFileAccessGlobTool(fileAccessContext),
-            new AgentWorkspaceFileAccessGrepTool(fileAccessContext),
+            new AgentWorkspaceWriteTool(workspaceContext),
+            new AgentWorkspaceReadTool(workspaceContext),
+            new AgentWorkspaceEditTool(workspaceContext),
+            new AgentWorkspaceGlobTool(workspaceContext),
+            new AgentWorkspaceGrepTool(workspaceContext),
         ];
     }
 
-    private static IReadOnlyList<AITool> CreateTools(IReadOnlyList<AgentWorkspaceFileAccessToolComponent> components)
+    private static IReadOnlyList<AITool> CreateTools(IReadOnlyList<AgentWorkspaceToolComponent> components)
     {
         List<AITool> createdTools = new(components.Count);
-        foreach (AgentWorkspaceFileAccessToolComponent component in components)
+        foreach (AgentWorkspaceToolComponent component in components)
         {
             createdTools.Add(component.Tool);
         }

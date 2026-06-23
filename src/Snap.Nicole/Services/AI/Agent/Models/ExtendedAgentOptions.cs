@@ -144,7 +144,7 @@ internal sealed class ExtendedAgentOptions
 
     private HarnessAgentOptions CreateHarnessAgentOptions(IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace, int maxContextWindowTokens, int maxOutputTokens, out IAsyncDisposable? resources)
     {
-        List<AIContextProvider> contextProviders = [new AgentWorkspaceFileAccessProvider(workspace.WorkingDirectories)];
+        List<AIContextProvider> contextProviders = [new AgentWorkspaceContextProvider(workspace.WorkingDirectories)];
         LocalShellExecutor shellExecutor = CreateShellExecutor(workspace);
         resources = shellExecutor;
 

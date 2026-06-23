@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspaceFileAccessContext(IReadOnlyList<string> workingDirectories)
+internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirectories)
 {
     private readonly Lock readFilePathsLock = new();
     private readonly HashSet<string> readFilePaths = new(StringComparer.OrdinalIgnoreCase);
