@@ -61,6 +61,7 @@ src
 	- Do not use expression-bodied syntax for methods, constructors, operators, or conversions. Lambdas or expressions inside method/property bodies are unaffected.
 	- Avoid closures that capture more than 4 variables. Closures should generally be minimized; when a method has an overload that accepts a state argument, prefer that overload.
 	- Non-static local functions should generally be avoided for the same reason as closures.
+	- Do not use `await using` when the actual type implments both `IDisposable` & `IAsyncDisposable`.
 
 ### Implementation choices
 

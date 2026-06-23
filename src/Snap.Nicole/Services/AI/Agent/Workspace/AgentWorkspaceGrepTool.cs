@@ -30,35 +30,6 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
 
     private static readonly TimeSpan RegexMatchTimeout = TimeSpan.FromSeconds(10);
 
-    private static readonly IReadOnlyDictionary<string, string[]> GrepFileTypeExtensions = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["c"] = [".c", ".h"],
-        ["cpp"] = [".cc", ".cpp", ".cxx", ".hpp", ".hxx", ".hh"],
-        ["cs"] = [".cs"],
-        ["csharp"] = [".cs"],
-        ["css"] = [".css"],
-        ["go"] = [".go"],
-        ["html"] = [".htm", ".html"],
-        ["java"] = [".java"],
-        ["js"] = [".js", ".jsx", ".mjs", ".cjs"],
-        ["json"] = [".json"],
-        ["md"] = [".md", ".markdown"],
-        ["markdown"] = [".md", ".markdown"],
-        ["php"] = [".php"],
-        ["py"] = [".py", ".pyw"],
-        ["python"] = [".py", ".pyw"],
-        ["rb"] = [".rb"],
-        ["ruby"] = [".rb"],
-        ["rs"] = [".rs"],
-        ["rust"] = [".rs"],
-        ["swift"] = [".swift"],
-        ["ts"] = [".ts", ".tsx"],
-        ["typescript"] = [".ts", ".tsx"],
-        ["xml"] = [".xml", ".xaml", ".csproj", ".props", ".targets", ".resx", ".manifest"],
-        ["yaml"] = [".yml", ".yaml"],
-        ["yml"] = [".yml", ".yaml"],
-    };
-
     public override AITool Tool { get => field ??= AIFunctionFactory.Create(GrepAsync); }
 
     [DisplayName(AgentWorkspaceToolNames.Grep)]
@@ -66,11 +37,25 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
         Content search implemented inside the workspace provider. Prefer this over shell grep commands - results integrate with the permission UI and file links.
 
         - Full .NET regular expression syntax (e.g. "log.*Error", "function\s+\w+").
-        - Filter with `glob` (e.g. "**/*.tsx") or `type` (e.g. "js", "py", "rust").
+        - Filter files with `glob` (e.g. "**/*.tsx").
         - `output_mode`: "content" (matching lines), "files_with_matches" (paths only, default), or "count".
         - `multiline: true` for patterns that span lines.
         """)]
-    private async Task<List<string>> GrepAsync([Description("Absolute file or directory to search. Defaults to current working directory.")][DefaultValue(null)] string? path, [Description("The regular expression pattern to search for in file contents")] string pattern, [Description("Case insensitive search")][DefaultValue(false)] bool ignore_case, [Description("Enable multiline mode where . matches newlines and patterns can span lines. Default: false.")][DefaultValue(false)] bool multiline, [Description("""Show line numbers in output. Requires output_mode: "content", ignored otherwise. Defaults to true.""")][DefaultValue(true)] bool show_line_numbers, [Description("""Print only the matched (non-empty) parts of each matching line, one match per output line. Requires output_mode: "content", ignored otherwise. Defaults to false.""")][DefaultValue(false)] bool only_matching, [Description("""Number of lines to show before each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? before_context, [Description("""Number of lines to show after each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? after_context, [Description("""Number of lines to show before and after each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? context, [Description("""Glob pattern to filter files (e.g. "*.js", "*.{ts,tsx}")""")][DefaultValue(null)] string? glob, [Description("File type to search. Common types: js, py, rust, go, java, etc. More efficient than include for standard file types.")][DefaultValue(null)] string? type, [Description("""Output mode: "content" shows matching lines (supports context and line numbers), "files_with_matches" shows file paths, "count" shows match counts. Defaults to "files_with_matches".""")][DefaultValue("files_with_matches")] string? output_mode, [Description("""Limit output to first N lines/entries. Works across all output modes. Defaults to 250 when unspecified. Pass 0 for unlimited (use sparingly - large result sets waste context).""")][DefaultValue(250)] int? head_limit, [Description("""Skip first N lines/entries before applying head_limit. Works across all output modes. Defaults to 0.""")][DefaultValue(0)] int offset, CancellationToken cancellationToken = default)
+    private async Task<List<string>> GrepAsync(
+        [Description("Absolute file or directory to search. Defaults to current working directory.")][DefaultValue(null)] string? path,
+        [Description("The regular expression pattern to search for in file contents")] string pattern,
+        [Description("Case insensitive search")][DefaultValue(false)] bool ignoreCase,
+        [Description("Enable multiline mode where . matches newlines and patterns can span lines. Default: false.")][DefaultValue(false)] bool multiline,
+        [Description("""Show line numbers in output. Requires output_mode: "content", ignored otherwise. Defaults to true.""")][DefaultValue(true)] bool showLineNumbers,
+        [Description("""Print only the matched (non-empty) parts of each matching line, one match per output line. Requires output_mode: "content", ignored otherwise. Defaults to false.""")][DefaultValue(false)] bool onlyMatching,
+        [Description("""Number of lines to show before each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? beforeContext,
+        [Description("""Number of lines to show after each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? afterContext,
+        [Description("""Number of lines to show before and after each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? context,
+        [Description("""Glob pattern to filter files (e.g. "*.js", "*.{ts,tsx}")""")][DefaultValue(null)] string? glob,
+        [Description("""Output mode: "content" shows matching lines (supports context and line numbers), "files_with_matches" shows file paths, "count" shows match counts. Defaults to "files_with_matches".""")][DefaultValue("files_with_matches")] string? outputMode,
+        [Description("""Limit output to first N lines/entries. Works across all output modes. Defaults to 250 when unspecified. Pass 0 for unlimited (use sparingly - large result sets waste context).""")][DefaultValue(250)] int? headLimit,
+        [Description("""Skip first N lines/entries before applying head_limit. Works across all output modes. Defaults to 0.""")][DefaultValue(0)] int offset,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(pattern))
         {
@@ -79,17 +64,16 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
 
         GrepSearchOptions options = new()
         {
-            OutputMode = NormalizeGrepOutputMode(output_mode),
+            OutputMode = NormalizeGrepOutputMode(outputMode),
             Offset = NormalizeNonNegativeOption(offset, nameof(offset), 0),
-            HeadLimit = NormalizeNonNegativeOption(head_limit, nameof(head_limit), DefaultGrepHeadLimit),
-            IgnoreCase = ignore_case,
+            HeadLimit = NormalizeNonNegativeOption(headLimit, nameof(headLimit), DefaultGrepHeadLimit),
+            IgnoreCase = ignoreCase,
             Multiline = multiline,
-            ShowLineNumbers = show_line_numbers,
-            OnlyMatching = only_matching,
-            BeforeContext = NormalizeContextOption(context, before_context, nameof(context), nameof(before_context)),
-            AfterContext = NormalizeContextOption(context, after_context, nameof(context), nameof(after_context)),
+            ShowLineNumbers = showLineNumbers,
+            OnlyMatching = onlyMatching,
+            BeforeContext = NormalizeContextOption(context, beforeContext, nameof(context), nameof(beforeContext)),
+            AfterContext = NormalizeContextOption(context, afterContext, nameof(context), nameof(afterContext)),
             GlobMatcher = CreateGlobMatcher(glob),
-            TypeExtensions = ResolveTypeExtensions(type),
         };
 
         AgentWorkspacePath searchPath = Context.ResolveGrepSearchPath(path);
@@ -133,27 +117,6 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
         return matcher;
     }
 
-    private static string[]? ResolveTypeExtensions(string? type)
-    {
-        if (string.IsNullOrWhiteSpace(type))
-        {
-            return null;
-        }
-
-        string trimmedType = type.Trim();
-        if (trimmedType.StartsWith(".", StringComparison.Ordinal))
-        {
-            return [trimmedType];
-        }
-
-        if (GrepFileTypeExtensions.TryGetValue(trimmedType, out string[]? extensions))
-        {
-            return extensions;
-        }
-
-        throw new ArgumentException($"Unsupported type: {type}.", nameof(type));
-    }
-
     private static List<GrepCandidate> CreateCandidates(AgentWorkspacePath searchPath, GrepSearchOptions options, CancellationToken cancellationToken)
     {
         if (File.Exists(searchPath.FullPath))
@@ -186,30 +149,12 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
 
     private static bool CandidateMatchesFilters(GrepCandidate candidate, GrepSearchOptions options)
     {
-        if (options.TypeExtensions is not null && !ExtensionMatchesType(candidate.Extension, options.TypeExtensions))
-        {
-            return false;
-        }
-
         if (options.GlobMatcher is null)
         {
             return true;
         }
 
         return options.GlobMatcher.Match(candidate.RootRelativePath).HasMatches || options.GlobMatcher.Match(candidate.SearchRelativePath).HasMatches;
-    }
-
-    private static bool ExtensionMatchesType(string extension, string[] typeExtensions)
-    {
-        foreach (string typeExtension in typeExtensions)
-        {
-            if (string.Equals(extension, typeExtension, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static async Task<List<string>> CreateGrepOutputLinesAsync(AgentWorkspacePath searchPath, List<GrepCandidate> candidates, Regex regex, GrepSearchOptions options, CancellationToken cancellationToken)
@@ -237,7 +182,7 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
 
     private static async Task<string?> TryReadTextFileAsync(string fullPath, CancellationToken cancellationToken)
     {
-        await using FileStream stream = new(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using FileStream stream = new(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         if (stream.Length is 0)
         {
             return string.Empty;
@@ -512,7 +457,7 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
             return GrepCountOutputMode;
         }
 
-        throw new ArgumentException($"Unsupported output_mode: {outputMode}.", nameof(outputMode));
+        throw new ArgumentException($"Unsupported outputMode: {outputMode}.", nameof(outputMode));
     }
 
     private static int NormalizeContextOption(int? contextValue, int? specificValue, string contextParameterName, string specificParameterName)
@@ -578,8 +523,6 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
         public required int AfterContext { get; init; }
 
         public required Matcher? GlobMatcher { get; init; }
-
-        public required string[]? TypeExtensions { get; init; }
     }
 
     private sealed class GrepCandidate
@@ -592,8 +535,6 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
 
         public required string SearchRelativePath { get; init; }
 
-        public required string Extension { get; init; }
-
         public static GrepCandidate Create(AgentWorkspacePath searchPath, string fullPath)
         {
             return new()
@@ -601,7 +542,6 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
                 FullPath = fullPath,
                 RootRelativePath = searchPath.GetRootRelativePath(fullPath),
                 SearchRelativePath = searchPath.GetRelativePath(fullPath),
-                Extension = Path.GetExtension(fullPath),
             };
         }
     }
