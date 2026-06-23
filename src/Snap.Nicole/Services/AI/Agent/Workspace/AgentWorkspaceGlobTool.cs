@@ -3,33 +3,28 @@ using Microsoft.Extensions.FileSystemGlobbing;
 using Snap.Nicole.Core;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
+// See https://github.com/claude-code-best/claude-code/blob/main/packages/builtin-tools/src/tools/GlobTool/GlobTool.ts
 internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
     : AgentWorkspaceToolComponent(context)
 {
-    private static readonly EnumerationOptions DefaultEnumerationOptions = new()
-    {
-        AttributesToSkip = FileAttributes.ReparsePoint,
-        RecurseSubdirectories = true,
-    };
-
     public override AITool Tool { get => field ??= AIFunctionFactory.Create(Glob); }
 
-    [DisplayName(AgentWorkspaceToolNames.Glob)]
-    [Description("""
-        Fast file pattern matching. Supports glob patterns like "**/*.js" or "src/**/*.ts". Patterns are matched relative to the search directory. Returns matching file paths sorted by modification time.
-        """)]
-    private List<string> Glob(
-        [Description("""The absolute directory to search in. If not specified, the current working directory will be used. IMPORTANT: Omit this field to use the default directory. DO NOT enter "undefined" or "null" - simply omit it for the default behavior.""")][DefaultValue(null)] string? path,
+    [DisplayName(Prompt.GlobToolName)]
+    [Description(Prompt.GlobToolDescription)]
+    private AgentWorkspaceGlobToolResult Glob(
         [Description("The glob pattern to match files against")] string pattern,
+        [Description("""The directory to search in. If not specified, the current working directory will be used. IMPORTANT: Omit this field to use the default directory. DO NOT enter "undefined" or "null" - simply omit it for the default behavior. Must be a valid directory path if provided.""")][DefaultValue(null)] string? path,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pattern, "Glob pattern cannot be empty.", nameof(pattern));
+        long startTimestamp = Stopwatch.GetTimestamp();
 
         Matcher matcher = new(StringComparison.OrdinalIgnoreCase);
         matcher.AddInclude(pattern.Replace('\\', '/'));
@@ -37,12 +32,12 @@ internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
         AgentWorkspacePath globDirectory = Context.ResolveGlobDirectoryPath(path);
         if (!Directory.Exists(globDirectory.FullPath))
         {
-            return [];
+            return AgentWorkspaceGlobToolResult.Create([], Stopwatch.GetElapsedTime(startTimestamp));
         }
 
         List<GlobCandidate> candidates = CreateCandidates(globDirectory, cancellationToken);
         List<GlobResult> matches = CreateMatches(matcher, globDirectory.FullPath, candidates);
-        return [.. matches.Order(GlobResult.Comparer).Select(static result => result.FilePath)];
+        return AgentWorkspaceGlobToolResult.Create([.. matches.Order(GlobResult.Comparer).Select(static result => result.FilePath)], Stopwatch.GetElapsedTime(startTimestamp));
     }
 
     private static List<GlobCandidate> CreateCandidates(AgentWorkspacePath globDirectory, CancellationToken cancellationToken)

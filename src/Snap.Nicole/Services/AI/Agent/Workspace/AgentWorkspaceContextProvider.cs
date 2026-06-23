@@ -61,11 +61,11 @@ internal sealed class AgentWorkspaceContextProvider : AIContextProvider
 
         builder.AppendLine();
         builder.AppendLine("- Never overwrite existing files unless the user has explicitly asked you to do so. Writing and editing files require explicit user approval.");
-        builder.AppendLine($"- Use `{AgentWorkspaceToolNames.Read}` to read files. `Read.file_path` must be an absolute path under a workspace root. Text and notebook results use cat -n line numbers.");
+        builder.AppendLine($"- Use `{Prompt.ReadToolName}` to read files. `Read.file_path` must be an absolute path under a workspace root. Text and notebook results use cat -n line numbers.");
         builder.AppendLine("- Image and PDF visual rendering is not available in this provider. Do not treat image or PDF read failures as text-file failures.");
         builder.AppendLine("- File paths returned by these tools are full paths.");
         builder.AppendLine("- Use `Write` to create a new file or fully replace a file already read with `Read`. Overwriting an unread existing file fails. Use `Edit` for partial changes.");
-        builder.AppendLine($"- Before using `Edit`, read the target file with `{AgentWorkspaceToolNames.Read}`. `Edit.file_path` must be an absolute path under a workspace root.");
+        builder.AppendLine($"- Before using `Edit`, read the target file with `{Prompt.ReadToolName}`. `Edit.file_path` must be an absolute path under a workspace root.");
         builder.AppendLine("- For `Edit`, `old_string` must match the file exactly and must be unique unless `replace_all` is true.");
         builder.AppendLine("- Do not re-read a file immediately after `Edit` just to verify the edit.");
         builder.AppendLine("- For `Glob`, omit `path` to search the current workspace directory. If `path` is provided, it must resolve to a directory under a workspace root.");

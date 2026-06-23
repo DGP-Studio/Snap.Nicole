@@ -15,8 +15,8 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
 
     public AgentWorkspacePath ResolveAbsoluteFilePath(string path)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path, "File path cannot be empty", nameof(path));
         string trimmedPath = path.Trim();
-        ArgumentException.ThrowIfNullOrEmpty(trimmedPath, "File path cannot be empty", nameof(path));
         ArgumentException.ThrowIfNot(Path.IsPathFullyQualified(trimmedPath), $"File path must be absolute: {path}", nameof(path));
 
         string fullPath = Path.GetFullPath(trimmedPath);

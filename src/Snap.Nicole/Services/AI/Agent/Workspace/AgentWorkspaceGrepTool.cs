@@ -1,5 +1,6 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.FileSystemGlobbing;
+using Snap.Nicole.Core.Text;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -22,17 +23,11 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
     private const int DefaultGrepHeadLimit = 250;
     private const int BinaryProbeByteCount = 4096;
 
-    private static readonly EnumerationOptions DefaultEnumerationOptions = new()
-    {
-        AttributesToSkip = FileAttributes.ReparsePoint,
-        RecurseSubdirectories = true,
-    };
-
     private static readonly TimeSpan RegexMatchTimeout = TimeSpan.FromSeconds(10);
 
     public override AITool Tool { get => field ??= AIFunctionFactory.Create(GrepAsync); }
 
-    [DisplayName(AgentWorkspaceToolNames.Grep)]
+    [DisplayName(Prompt.GrepToolName)]
     [Description("""
         Content search implemented inside the workspace provider. Prefer this over shell grep commands - results integrate with the permission UI and file links.
 
@@ -196,7 +191,7 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
         }
 
         stream.Position = 0;
-        using StreamReader reader = new(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        using StreamReader reader = new(stream, Encoding.UTF8WithoutBOM, detectEncodingFromByteOrderMarks: true);
         return await reader.ReadToEndAsync(cancellationToken);
     }
 

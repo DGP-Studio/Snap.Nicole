@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Core;
 using Snap.Nicole.Core.IO;
+using Snap.Nicole.Core.Text;
 using System.Buffers;
 using System.ComponentModel;
 using System.IO;
@@ -18,7 +19,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
 
     public override AITool Tool { get => field ??= AIFunctionFactory.Create(EditAsync).AsApprovalRequired(); }
 
-    [DisplayName(AgentWorkspaceToolNames.Edit)]
+    [DisplayName(Prompt.EditToolName)]
     [Description("""
         Performs exact string replacement in a file.
 
@@ -26,7 +27,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
         - `oldString` must match the file exactly, including indentation, and be unique — the edit fails otherwise. Strip the Read line prefix (line number + tab) before matching.
         - `replaceAll: true` replaces every occurrence instead.
         """)]
-    private async Task<string> EditAsync(
+    private async Task<AIContent> EditAsync(
         [Description("The absolute path to the file to modify")] string filePath,
         [Description("The text to replace it with (must be different from oldString)")] string newString,
         [Description("The text to replace")] string oldString,
@@ -36,18 +37,18 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
         AgentWorkspacePath path = Context.ResolveAbsoluteFilePath(filePath);
         if (!File.Exists(path.FullPath))
         {
-            return $"File '{path.FullPath}' not found.";
+            return new TextContent($"File '{path.FullPath}' not found.");
         }
 
-        InvalidOperationException.ThrowIfNot(Context.WasFileRead(path.FullPath), $"File '{path.FullPath}' must be read with {AgentWorkspaceToolNames.Read} tool before editing.");
+        InvalidOperationException.ThrowIfNot(Context.WasFileRead(path.FullPath), $"File '{path.FullPath}' must be read with {Prompt.ReadToolName} tool before editing.");
         ArgumentException.ThrowIfNullOrEmpty(oldString, "oldString cannot be empty", nameof(oldString));
         ArgumentException.ThrowIf(string.Equals(oldString, newString, StringComparison.Ordinal), "newString must be different from oldString.", nameof(newString));
 
-        int replacementCount = await EditCoreAsync(path.FullPath, oldString, newString, replaceAll, cancellationToken);
-        return $"File '{path.FullPath}' edited. Replaced {replacementCount} occurrence(s).";
+        int replacementCount = await ReplaceAsync(path.FullPath, oldString, newString, replaceAll, cancellationToken);
+        return new TextContent($"File '{path.FullPath}' edited. Replaced {replacementCount} occurrence(s).");
     }
 
-    private static async Task<int> EditCoreAsync(string sourcePath, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
+    private static async Task<int> ReplaceAsync(string sourcePath, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
     {
         int[] prefixTable = CreateKMPPrefixTable(oldString);
         using IMemoryOwner<char> readBufferOwner = MemoryPool<char>.Shared.Rent(StreamBufferSize);
@@ -58,9 +59,9 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
 
         using TemporaryFileStream temporaryStream = new(sourcePath, FileMode.CreateNew, FileAccess.Write, FileShare.Read, StreamBufferSize, FileOptions.Asynchronous);
         using FileStream sourceStream = new(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, StreamBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-        using (StreamReader reader = new(sourceStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
+        using (StreamReader reader = new(sourceStream, Encoding.UTF8WithoutBOM, detectEncodingFromByteOrderMarks: true))
         {
-            using (StreamWriter writer = new(temporaryStream, Encoding.UTF8, StreamBufferSize, leaveOpen: true))
+            using (StreamWriter writer = new(temporaryStream, Encoding.UTF8WithoutBOM, StreamBufferSize, leaveOpen: true))
             {
                 while (true)
                 {
@@ -73,6 +74,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
                     for (int i = 0; i < readCount; i++)
                     {
                         char current = readBuffer.Span[i];
+
                         while (matchedLength > 0 && current != oldString[matchedLength])
                         {
                             int fallbackLength = prefixTable[matchedLength - 1];
@@ -90,11 +92,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
                             if (matchedLength == oldString.Length)
                             {
                                 replacementCount++;
-                                if (!replaceAll && replacementCount > 1)
-                                {
-                                    throw new InvalidOperationException($"oldString is not unique in '{sourcePath}'. Pass replaceAll true to replace every occurrence.");
-                                }
-
+                                InvalidOperationException.ThrowIf(!replaceAll && replacementCount > 1, $"oldString is not unique in '{sourcePath}'. Pass replaceAll true to replace every occurrence.");
                                 await AppendReplacementAsync(writer, outputBuffer, newString, cancellationToken);
                                 matchedLength = 0;
                             }

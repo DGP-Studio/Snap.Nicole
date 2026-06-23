@@ -1,5 +1,6 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Snap.Nicole.Core.Text;
 using System;
 using System.ComponentModel;
 using System.IO;
@@ -20,7 +21,7 @@ internal sealed class AgentWorkspaceWriteTool : AgentWorkspaceToolComponent
 
     public override AITool Tool { get => tool; }
 
-    [DisplayName(AgentWorkspaceToolNames.Write)]
+    [DisplayName(Prompt.WriteToolName)]
     [Description("""
         Writes a file to the local filesystem, overwriting if one exists.
 
@@ -36,7 +37,7 @@ internal sealed class AgentWorkspaceWriteTool : AgentWorkspaceToolComponent
 
         if (File.Exists(path.FullPath) && !Context.WasFileRead(path.FullPath))
         {
-            throw new InvalidOperationException($"File '{path.FullPath}' must be read with {AgentWorkspaceToolNames.Read} before overwriting.");
+            throw new InvalidOperationException($"File '{path.FullPath}' must be read with {Prompt.ReadToolName} before overwriting.");
         }
 
         string? directory = Path.GetDirectoryName(path.FullPath);
@@ -45,7 +46,7 @@ internal sealed class AgentWorkspaceWriteTool : AgentWorkspaceToolComponent
             Directory.CreateDirectory(directory);
         }
 
-        await File.WriteAllTextAsync(path.FullPath, content, Encoding.UTF8, cancellationToken);
+        await File.WriteAllTextAsync(path.FullPath, content, Encoding.UTF8WithoutBOM, cancellationToken);
         Context.MarkFileAsRead(path.FullPath);
         return $"File '{path.FullPath}' written.";
     }

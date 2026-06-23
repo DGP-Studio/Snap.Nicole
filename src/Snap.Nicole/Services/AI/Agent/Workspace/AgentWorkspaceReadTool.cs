@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Snap.Nicole.Core.Text;
 using System;
 using System.ComponentModel;
 using System.Globalization;
@@ -24,7 +25,7 @@ internal sealed class AgentWorkspaceReadTool : AgentWorkspaceToolComponent
 
     public override AITool Tool { get => tool; }
 
-    [DisplayName(AgentWorkspaceToolNames.Read)]
+    [DisplayName(Prompt.ReadToolName)]
     [Description("""
         Reads a file from the local filesystem.
 
@@ -84,7 +85,7 @@ internal sealed class AgentWorkspaceReadTool : AgentWorkspaceToolComponent
         StringBuilder builder = new();
         int currentLineNumber = 0;
         int writtenLineCount = 0;
-        using StreamReader reader = new(fullPath, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        using StreamReader reader = new(fullPath, Encoding.UTF8WithoutBOM, detectEncodingFromByteOrderMarks: true);
         while (await reader.ReadLineAsync(cancellationToken) is { } line)
         {
             currentLineNumber++;
