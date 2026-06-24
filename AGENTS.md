@@ -28,6 +28,7 @@ src
 ### Architecture and patterns
 
 - A SDK style project
+- `global using` declarations are configured in `Program.cs`
 - Extensively adopt Microsoft.Extensions.Hosting and Microsoft.Extensions.DependencyInjection to manage the lifetime of applications, services, and objects. Services are registered at `Program.cs`.
 - Extensively adopt the Model-View-ViewModel (MVVM) pattern to handle data presentation and user interactions.
 - Extensively adopt Sentry to utilize it's error tracking and performance monitoring features.

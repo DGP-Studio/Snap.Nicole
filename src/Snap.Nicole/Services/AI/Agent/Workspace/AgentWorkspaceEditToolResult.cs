@@ -18,16 +18,12 @@ internal sealed class AgentWorkspaceEditToolResult
     [JsonPropertyName("newString")]
     public required string NewString { get; init; }
 
-    [Description("The original file contents before editing")]
-    [JsonPropertyName("originalFile")]
-    public required string OriginalFile { get; init; }
-
     [Description("Diff patch showing the changes")]
     [JsonPropertyName("structuredPatch")]
     public required List<AgentWorkspaceEditToolHunk> StructuredPatch { get; init; }
 
     [Description("Whether the user modified the proposed changes")]
-    [JsonPropertyName("userNodified")]
+    [JsonPropertyName("userModified")]
     public required bool UserModified { get; init; }
 
     [Description("Whether all occurrences were replaced")]

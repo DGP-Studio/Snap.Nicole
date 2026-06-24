@@ -3,6 +3,7 @@ using Snap.Nicole.Core;
 using Snap.Nicole.Core.IO;
 using Snap.Nicole.Core.Text;
 using System.Buffers;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Text;
@@ -32,7 +33,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
         return EditWorkspacePathAsync(path, oldString, newString, replaceAll, cancellationToken);
     }
 
-    private async Task<string> EditWorkspacePathAsync(AgentWorkspacePath path, string oldString, string newString, bool replaceAll = false, CancellationToken cancellationToken)
+    private async Task<string> EditWorkspacePathAsync(AgentWorkspacePath path, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
     {
         ValidationResult validationResult = await ValidateInputAsync(path.FullPath, oldString, newString, cancellationToken);
         if (!validationResult.Result)
@@ -47,8 +48,14 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
             return "No changes to make: oldString and newString are exactly the same.";
         }
 
-        await ReplaceAsync(path.FullPath, oldString, newString, replaceAll, cancellationToken);
+        string? callId = FunctionInvokingChatClient.CurrentContext?.CallContent.CallId;
+        AgentWorkspaceEditToolResult? editToolResult = await ReplaceAsync(path, oldString, newString, replaceAll, !string.IsNullOrEmpty(callId), cancellationToken);
         Context.InvalidateFileRead(path.FullPath);
+        if (!string.IsNullOrEmpty(callId) && editToolResult is not null)
+        {
+            AgentWorkspaceEditToolResultStore.Store(callId, editToolResult);
+        }
+
         return replaceAll
             ? $"The file {path.FullPath} has been updated. All occurrences were successfully replaced."
             : $"The file {path.FullPath} has been updated successfully.";
@@ -107,7 +114,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
         return ValidationResult.Ok;
     }
 
-    private static async Task<int> ReplaceAsync(string sourcePath, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
+    private static async Task<AgentWorkspaceEditToolResult?> ReplaceAsync(AgentWorkspacePath path, string oldString, string newString, bool replaceAll, bool captureResult, CancellationToken cancellationToken)
     {
         int[] prefixTable = CreateKMPPrefixTable(oldString);
         using IMemoryOwner<char> readBufferOwner = MemoryPool<char>.Shared.Rent(StreamBufferSize);
@@ -115,9 +122,11 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
         StringBuilder outputBuffer = new(OutputBufferFlushThreshold);
         int matchedLength = 0;
         int replacementCount = 0;
+        long sourceCharacterIndex = 0;
+        List<long>? matchStartIndexes = captureResult ? [] : null;
 
-        using TemporaryFileStream temporaryStream = new(sourcePath, FileMode.CreateNew, FileAccess.Write, FileShare.Read, StreamBufferSize, FileOptions.Asynchronous);
-        using FileStream sourceStream = new(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, StreamBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        using TemporaryFileStream temporaryStream = new(path.FullPath, FileMode.CreateNew, FileAccess.Write, FileShare.Read, StreamBufferSize, FileOptions.Asynchronous);
+        using FileStream sourceStream = new(path.FullPath, FileMode.Open, FileAccess.Read, FileShare.Read, StreamBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
         using (StreamReader reader = new(sourceStream, Encoding.UTF8WithoutBOM, detectEncodingFromByteOrderMarks: true))
         {
             using (StreamWriter writer = new(temporaryStream, Encoding.UTF8WithoutBOM, StreamBufferSize, leaveOpen: true))
@@ -151,6 +160,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
                             if (matchedLength == oldString.Length)
                             {
                                 replacementCount++;
+                                matchStartIndexes?.Add(sourceCharacterIndex - oldString.Length + 1);
                                 if (replacementCount > 1 && !replaceAll)
                                 {
                                     string message = $"""
@@ -166,6 +176,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
                                 matchedLength = 0;
                             }
 
+                            sourceCharacterIndex++;
                             continue;
                         }
 
@@ -174,6 +185,8 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
                         {
                             await FlushOutputBufferAsync(writer, outputBuffer, cancellationToken);
                         }
+
+                        sourceCharacterIndex++;
                     }
                 }
 
@@ -192,8 +205,12 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
             throw new InvalidOperationException(message);
         }
 
+        AgentWorkspaceEditToolResult? result = matchStartIndexes is not null
+            ? await AgentWorkspaceEditToolResultFactory.CreateAsync(path, oldString, newString, matchStartIndexes, replaceAll, cancellationToken)
+            : null;
+
         temporaryStream.Commit();
-        return replacementCount;
+        return result;
     }
 
     private static int[] CreateKMPPrefixTable(ReadOnlySpan<char> value)
