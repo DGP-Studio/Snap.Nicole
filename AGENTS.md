@@ -10,6 +10,43 @@ The user might execute `git add`/`git restore` actively to observable/review you
 
 `normalize-line-endings` skill requires be use/load and you may follow the instructions in that skill before completing the givin task.
 
+# C# Type Members Layout Order
+
+When writing new code or editing existing code, arrange type members in the following order:
+
+- Fields
+- Constructors
+- Destructor
+- Nested Delegates
+- Events
+- Nested Enums
+- Nested Interfaces
+- Properties
+- Indexeres
+- Conversion operators
+- Other Operators
+- Method
+- Record Struct/Struct
+- Record (Class)/Class
+
+Then, within each member type, arrange members by accessibility modifier:
+
+- public
+- internal
+- protected internal
+- protected
+- private protected
+- private
+
+Then, within the same accessibility and member type, arrange members in the following order:
+
+- const
+- static readonly
+- readonly
+- normal
+
+Keep related members as close together as possible without violating the rules above.
+
 # Project Structure
 
 ```

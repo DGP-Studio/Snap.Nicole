@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json.Serialization;
 
-namespace Snap.Nicole.Services.AI.Agent.Workspace;
+namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
 internal sealed class AgentWorkspaceEditToolGitDiff
 {

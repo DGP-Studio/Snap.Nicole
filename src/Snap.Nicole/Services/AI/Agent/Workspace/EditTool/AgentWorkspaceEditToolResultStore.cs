@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
-namespace Snap.Nicole.Services.AI.Agent.Workspace;
+namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
 internal static class AgentWorkspaceEditToolResultStore
 {

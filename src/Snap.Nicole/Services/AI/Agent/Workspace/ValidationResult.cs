@@ -22,7 +22,7 @@ internal sealed class ValidationResult
     {
         return new()
         {
-            Result = true,
+            Result = false,
             Behavior = "ask",
             Message = message,
             ErrorCode = errorCode,

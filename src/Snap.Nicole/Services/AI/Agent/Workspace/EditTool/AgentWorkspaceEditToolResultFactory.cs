@@ -1,4 +1,5 @@
 using Snap.Nicole.Core.Text;
+using Snap.Nicole.Services.AI.Agent.Workspace;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -6,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Snap.Nicole.Services.AI.Agent.Workspace;
+namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
 internal static class AgentWorkspaceEditToolResultFactory
 {
@@ -17,7 +18,7 @@ internal static class AgentWorkspaceEditToolResultFactory
     {
         List<ReplacementLineRange> replacementRanges = await CreateReplacementLineRangesAsync(path.FullPath, oldString, newString, matchStartIndexes, cancellationToken);
         List<HunkLineRange> hunkLineRanges = CreateHunkLineRanges(replacementRanges);
-        List<AgentWorkspaceEditToolHunk> structuredPatch = await CreateStructuredPatchAsync(path.FullPath, hunkLineRanges, oldString, newString, replaceAll, cancellationToken);
+        List<AgentWorkspaceEditToolHunk> structuredPatch = await CreateStructuredPatchAsync(path.FullPath, hunkLineRanges, newString, cancellationToken);
         string fileName = path.GetRootRelativePath(path.FullPath);
         CountPatchLines(structuredPatch, out int additions, out int deletions);
 
@@ -49,13 +50,14 @@ internal static class AgentWorkspaceEditToolResultFactory
             return ranges;
         }
 
+        string normalizedOldString = oldString.ReplaceLineEndings("\n");
         int replacementLineDelta = CountLineBreaks(newString) - CountLineBreaks(oldString);
         char[] buffer = new char[StreamBufferSize];
         int matchIndex = 0;
         int currentLineIndex = 0;
+        int currentColumnIndex = 0;
         long currentCharacterIndex = 0;
         bool pendingCarriageReturn = false;
-        int currentMatchStartLine = 0;
 
         using FileStream stream = new(sourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, StreamBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
         using StreamReader reader = new(stream, Encoding.UTF8WithoutBOM, detectEncodingFromByteOrderMarks: true);
@@ -73,23 +75,21 @@ internal static class AgentWorkspaceEditToolResultFactory
                 if (pendingCarriageReturn && current is not '\n')
                 {
                     currentLineIndex++;
+                    currentColumnIndex = 0;
                     pendingCarriageReturn = false;
                 }
 
                 long matchStartIndex = matchStartIndexes[matchIndex];
-                long matchEndIndex = matchStartIndex + oldString.Length - 1;
-
                 if (currentCharacterIndex == matchStartIndex)
                 {
-                    currentMatchStartLine = currentLineIndex;
-                }
-
-                if (currentCharacterIndex == matchEndIndex)
-                {
+                    GetReplacementEndPosition(normalizedOldString, currentLineIndex, currentColumnIndex, out int endLine, out int endColumn);
                     ranges.Add(new()
                     {
-                        OldStartLine = currentMatchStartLine,
-                        OldEndLine = currentLineIndex,
+                        OldStartLine = currentLineIndex,
+                        OldStartColumn = currentColumnIndex,
+                        OldEndLine = GetInclusiveEndLine(currentLineIndex, endLine, endColumn),
+                        OldEndExclusiveLine = endLine,
+                        OldEndExclusiveColumn = endColumn,
                         LineDelta = replacementLineDelta,
                     });
                     matchIndex++;
@@ -102,7 +102,12 @@ internal static class AgentWorkspaceEditToolResultFactory
                 else if (current is '\n')
                 {
                     currentLineIndex++;
+                    currentColumnIndex = 0;
                     pendingCarriageReturn = false;
+                }
+                else
+                {
+                    currentColumnIndex++;
                 }
 
                 currentCharacterIndex++;
@@ -110,6 +115,33 @@ internal static class AgentWorkspaceEditToolResultFactory
         }
 
         return ranges;
+    }
+
+    private static void GetReplacementEndPosition(string normalizedOldString, int startLine, int startColumn, out int endLine, out int endColumn)
+    {
+        endLine = startLine;
+        endColumn = startColumn;
+        foreach (char current in normalizedOldString)
+        {
+            if (current is '\n')
+            {
+                endLine++;
+                endColumn = 0;
+                continue;
+            }
+
+            endColumn++;
+        }
+    }
+
+    private static int GetInclusiveEndLine(int startLine, int endLine, int endColumn)
+    {
+        if (endColumn is 0)
+        {
+            return Math.Max(startLine, endLine - 1);
+        }
+
+        return endLine;
     }
 
     private static List<HunkLineRange> CreateHunkLineRanges(List<ReplacementLineRange> replacementRanges)
@@ -126,6 +158,7 @@ internal static class AgentWorkspaceEditToolResultFactory
                 HunkLineRange currentRange = hunkRanges[^1];
                 currentRange.OldEndLine = Math.Max(currentRange.OldEndLine, oldEndLine);
                 currentRange.LineDelta += replacementRange.LineDelta;
+                currentRange.ReplacementRanges.Add(replacementRange);
             }
             else
             {
@@ -135,6 +168,7 @@ internal static class AgentWorkspaceEditToolResultFactory
                     OldEndLine = oldEndLine,
                     LineDeltaBefore = cumulativeLineDelta,
                     LineDelta = replacementRange.LineDelta,
+                    ReplacementRanges = [replacementRange],
                 });
             }
 
@@ -144,7 +178,7 @@ internal static class AgentWorkspaceEditToolResultFactory
         return hunkRanges;
     }
 
-    private static async Task<List<AgentWorkspaceEditToolHunk>> CreateStructuredPatchAsync(string sourcePath, List<HunkLineRange> hunkLineRanges, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
+    private static async Task<List<AgentWorkspaceEditToolHunk>> CreateStructuredPatchAsync(string sourcePath, List<HunkLineRange> hunkLineRanges, string newString, CancellationToken cancellationToken)
     {
         List<AgentWorkspaceEditToolHunk> hunks = new(hunkLineRanges.Count);
         if (hunkLineRanges.Count is 0)
@@ -170,18 +204,16 @@ internal static class AgentWorkspaceEditToolResultFactory
                 currentLineIndex++;
             }
 
-            hunks.Add(CreateHunk(oldLines, hunkLineRange, oldString, newString, replaceAll));
+            hunks.Add(CreateHunk(oldLines, hunkLineRange, newString));
         }
 
         return hunks;
     }
 
-    private static AgentWorkspaceEditToolHunk CreateHunk(List<string> oldLines, HunkLineRange hunkLineRange, string oldString, string newString, bool replaceAll)
+    private static AgentWorkspaceEditToolHunk CreateHunk(List<string> oldLines, HunkLineRange hunkLineRange, string newString)
     {
         string oldSegment = string.Join('\n', oldLines);
-        string newSegment = replaceAll
-            ? oldSegment.Replace(oldString.ReplaceLineEndings("\n"), newString.ReplaceLineEndings("\n"), StringComparison.Ordinal)
-            : ReplaceFirst(oldSegment, oldString.ReplaceLineEndings("\n"), newString.ReplaceLineEndings("\n"));
+        string newSegment = CreateNewSegment(oldSegment, oldLines, hunkLineRange, newString.ReplaceLineEndings("\n"));
 
         string[] oldLineArray = SplitLines(oldSegment);
         string[] newLineArray = SplitLines(newSegment);
@@ -197,19 +229,38 @@ internal static class AgentWorkspaceEditToolResultFactory
         };
     }
 
-    private static string ReplaceFirst(string value, string oldString, string newString)
+    private static string CreateNewSegment(string oldSegment, List<string> oldLines, HunkLineRange hunkLineRange, string newString)
     {
-        int matchIndex = value.IndexOf(oldString, StringComparison.Ordinal);
-        if (matchIndex < 0)
+        StringBuilder builder = new(oldSegment.Length + (newString.Length * hunkLineRange.ReplacementRanges.Count));
+        int copyStartOffset = 0;
+        foreach (ReplacementLineRange replacementRange in hunkLineRange.ReplacementRanges)
         {
-            throw new InvalidOperationException("String to replace not found in hunk.");
+            int replacementStartOffset = GetSegmentOffset(oldLines, hunkLineRange.OldStartLine, replacementRange.OldStartLine, replacementRange.OldStartColumn);
+            int replacementEndOffset = GetSegmentOffset(oldLines, hunkLineRange.OldStartLine, replacementRange.OldEndExclusiveLine, replacementRange.OldEndExclusiveColumn);
+            builder.Append(oldSegment.AsSpan(copyStartOffset, replacementStartOffset - copyStartOffset));
+            builder.Append(newString);
+            copyStartOffset = replacementEndOffset;
         }
 
-        StringBuilder builder = new(value.Length - oldString.Length + newString.Length);
-        builder.Append(value.AsSpan(0, matchIndex));
-        builder.Append(newString);
-        builder.Append(value.AsSpan(matchIndex + oldString.Length));
+        builder.Append(oldSegment.AsSpan(copyStartOffset));
         return builder.ToString();
+    }
+
+    private static int GetSegmentOffset(List<string> oldLines, int hunkStartLine, int targetLine, int targetColumn)
+    {
+        int relativeLine = targetLine - hunkStartLine;
+        if (relativeLine >= oldLines.Count)
+        {
+            return string.Join('\n', oldLines).Length;
+        }
+
+        int offset = targetColumn;
+        for (int i = 0; i < relativeLine; i++)
+        {
+            offset += oldLines[i].Length + 1;
+        }
+
+        return offset;
     }
 
     private static List<string> CreateHunkLines(string[] oldLines, string[] newLines)
@@ -354,7 +405,13 @@ internal static class AgentWorkspaceEditToolResultFactory
     {
         public required int OldStartLine { get; init; }
 
+        public required int OldStartColumn { get; init; }
+
         public required int OldEndLine { get; init; }
+
+        public required int OldEndExclusiveLine { get; init; }
+
+        public required int OldEndExclusiveColumn { get; init; }
 
         public required int LineDelta { get; init; }
     }
@@ -368,5 +425,7 @@ internal static class AgentWorkspaceEditToolResultFactory
         public required int LineDeltaBefore { get; init; }
 
         public int LineDelta { get; set; }
+
+        public required List<ReplacementLineRange> ReplacementRanges { get; init; }
     }
 }

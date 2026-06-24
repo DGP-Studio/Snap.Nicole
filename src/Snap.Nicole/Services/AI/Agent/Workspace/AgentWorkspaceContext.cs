@@ -114,6 +114,7 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
         return await ComputeFileHashAsync(fullPath, cancellationToken) != readFileHash;
     }
 
+    [Obsolete]
     public async Task ValidateFileReadForModificationAsync(string fullPath, CancellationToken cancellationToken)
     {
         ulong readFileHash;
