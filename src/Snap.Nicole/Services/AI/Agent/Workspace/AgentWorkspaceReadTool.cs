@@ -73,8 +73,15 @@ internal sealed class AgentWorkspaceReadTool : AgentWorkspaceToolComponent
             throw new NotSupportedException("Image visual rendering is not available in the current workspace file access provider.");
         }
 
+        ulong readStartedHash = await AgentWorkspaceContext.ComputeFileHashAsync(path.FullPath, cancellationToken);
         string content = IsNotebookFile(extension) ? await ReadNotebookAsync(path.FullPath, offset, limit, cancellationToken) : await ReadTextFileAsync(path.FullPath, offset, limit, cancellationToken);
-        Context.MarkFileAsRead(path.FullPath);
+        ulong readCompletedHash = await AgentWorkspaceContext.ComputeFileHashAsync(path.FullPath, cancellationToken);
+        if (readCompletedHash != readStartedHash)
+        {
+            throw new InvalidOperationException($"File '{path.FullPath}' was modified while it was being read. Read it again before modifying.");
+        }
+
+        Context.MarkFileAsRead(path.FullPath, readCompletedHash);
         return content;
     }
 

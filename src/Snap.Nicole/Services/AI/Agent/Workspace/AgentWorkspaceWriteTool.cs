@@ -25,7 +25,7 @@ internal sealed class AgentWorkspaceWriteTool : AgentWorkspaceToolComponent
     [Description("""
         Writes a file to the local filesystem, overwriting if one exists.
 
-        When to use: creating a new file, or fully replacing one you've already Read. Overwriting an existing file you haven't Read will fail. For partial changes, use Edit instead.
+        When to use: creating a new file, or fully replacing one you've already Read. Overwriting an existing file you haven't Read, or one whose content changed after Read, will fail. For partial changes, use Edit instead.
         """)]
     private async Task<string> WriteAsync([Description("The absolute path to the file to write (must be absolute, not relative)")] string file_path, [Description("The content to write to the file")] string content, CancellationToken cancellationToken = default)
     {
@@ -35,9 +35,9 @@ internal sealed class AgentWorkspaceWriteTool : AgentWorkspaceToolComponent
             throw new InvalidOperationException($"'{path.FullPath}' is a directory. Write requires a file path.");
         }
 
-        if (File.Exists(path.FullPath) && !Context.WasFileRead(path.FullPath))
+        if (File.Exists(path.FullPath))
         {
-            throw new InvalidOperationException($"File '{path.FullPath}' must be read with {Prompt.ReadToolName} before overwriting.");
+            await Context.ValidateFileReadForModificationAsync(path.FullPath, cancellationToken);
         }
 
         string? directory = Path.GetDirectoryName(path.FullPath);
@@ -47,7 +47,7 @@ internal sealed class AgentWorkspaceWriteTool : AgentWorkspaceToolComponent
         }
 
         await File.WriteAllTextAsync(path.FullPath, content, Encoding.UTF8WithoutBOM, cancellationToken);
-        Context.MarkFileAsRead(path.FullPath);
+        Context.InvalidateFileRead(path.FullPath);
         return $"File '{path.FullPath}' written.";
     }
 }

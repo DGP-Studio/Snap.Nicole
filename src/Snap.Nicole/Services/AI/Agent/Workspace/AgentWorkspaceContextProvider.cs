@@ -64,8 +64,9 @@ internal sealed class AgentWorkspaceContextProvider : AIContextProvider
         builder.AppendLine($"- Use `{Prompt.ReadToolName}` to read files. `Read.file_path` must be an absolute path under a workspace root. Text and notebook results use cat -n line numbers.");
         builder.AppendLine("- Image and PDF visual rendering is not available in this provider. Do not treat image or PDF read failures as text-file failures.");
         builder.AppendLine("- File paths returned by these tools are full paths.");
-        builder.AppendLine("- Use `Write` to create a new file or fully replace a file already read with `Read`. Overwriting an unread existing file fails. Use `Edit` for partial changes.");
+        builder.AppendLine("- Use `Write` to create a new file or fully replace a file already read with `Read`. Overwriting an unread existing file fails. Overwriting a file whose content changed after `Read` fails until it is read again. Use `Edit` for partial changes.");
         builder.AppendLine($"- Before using `Edit`, read the target file with `{Prompt.ReadToolName}`. `Edit.file_path` must be an absolute path under a workspace root.");
+        builder.AppendLine("- `Edit` fails if the target file content changed after it was read; read the file again before retrying.");
         builder.AppendLine("- For `Edit`, `old_string` must match the file exactly and must be unique unless `replace_all` is true.");
         builder.AppendLine("- Do not re-read a file immediately after `Edit` just to verify the edit.");
         builder.AppendLine("- For `Glob`, omit `path` to search the current workspace directory. If `path` is provided, it must resolve to a directory under a workspace root.");

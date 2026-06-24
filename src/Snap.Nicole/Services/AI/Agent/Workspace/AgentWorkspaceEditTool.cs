@@ -20,32 +20,91 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
     public override AITool Tool { get => field ??= AIFunctionFactory.Create(EditAsync).AsApprovalRequired(); }
 
     [DisplayName(Prompt.EditToolName)]
-    [Description("""
-        Performs exact string replacement in a file.
-
-        - You must Read the file in this conversation before editing, or the call will fail.
-        - `oldString` must match the file exactly, including indentation, and be unique — the edit fails otherwise. Strip the Read line prefix (line number + tab) before matching.
-        - `replaceAll: true` replaces every occurrence instead.
-        """)]
-    private async Task<AIContent> EditAsync(
+    [Description(Prompt.EditToolDescription)]
+    private Task<string> EditAsync(
         [Description("The absolute path to the file to modify")] string filePath,
-        [Description("The text to replace it with (must be different from oldString)")] string newString,
         [Description("The text to replace")] string oldString,
+        [Description("The text to replace it with (must be different from oldString)")] string newString,
         [Description("Replace all occurrences of oldString (default false)")] bool replaceAll = false,
         CancellationToken cancellationToken = default)
     {
         AgentWorkspacePath path = Context.ResolveAbsoluteFilePath(filePath);
-        if (!File.Exists(path.FullPath))
+        return EditWorkspacePathAsync(path, oldString, newString, replaceAll, cancellationToken);
+    }
+
+    private async Task<string> EditWorkspacePathAsync(AgentWorkspacePath path, string oldString, string newString, bool replaceAll = false, CancellationToken cancellationToken)
+    {
+        ValidationResult validationResult = await ValidateInputAsync(path.FullPath, oldString, newString, cancellationToken);
+        if (!validationResult.Result)
         {
-            return new TextContent($"File '{path.FullPath}' not found.");
+            return validationResult.Message;
         }
 
-        InvalidOperationException.ThrowIfNot(Context.WasFileRead(path.FullPath), $"File '{path.FullPath}' must be read with {Prompt.ReadToolName} tool before editing.");
+        await Context.ValidateFileReadForModificationAsync(path.FullPath, cancellationToken);
         ArgumentException.ThrowIfNullOrEmpty(oldString, "oldString cannot be empty", nameof(oldString));
-        ArgumentException.ThrowIf(string.Equals(oldString, newString, StringComparison.Ordinal), "newString must be different from oldString.", nameof(newString));
+        if (string.Equals(oldString, newString, StringComparison.Ordinal))
+        {
+            return "No changes to make: oldString and newString are exactly the same.";
+        }
 
-        int replacementCount = await ReplaceAsync(path.FullPath, oldString, newString, replaceAll, cancellationToken);
-        return new TextContent($"File '{path.FullPath}' edited. Replaced {replacementCount} occurrence(s).");
+        await ReplaceAsync(path.FullPath, oldString, newString, replaceAll, cancellationToken);
+        Context.InvalidateFileRead(path.FullPath);
+        return replaceAll
+            ? $"The file {path.FullPath} has been updated. All occurrences were successfully replaced."
+            : $"The file {path.FullPath} has been updated successfully.";
+    }
+
+    private async Task<ValidationResult> ValidateInputAsync(string fileFullPath, string oldString, string newString, CancellationToken cancellationToken)
+    {
+        if (string.Equals(oldString, newString, StringComparison.Ordinal))
+        {
+            return ValidationResult.Ask("No changes to make: oldString and newString are exactly the same.", 1);
+        }
+
+        if (!File.Exists(fileFullPath))
+        {
+            // Empty oldString on nonexistent file means new file creation — valid
+            if (string.IsNullOrEmpty(oldString))
+            {
+                return ValidationResult.Ok;
+            }
+
+            StringBuilder message = new();
+            message.AppendLine("File does not exist. Available workspace roots:");
+            foreach (string rootDirectory in Context.RootDirectories)
+            {
+                message.AppendLine($"- {rootDirectory}");
+            }
+
+            if (Context.SuggestPathUnderWorkspaceRoots(fileFullPath) is { } cwdSuggestion)
+            {
+                message.Append($"Did you mean {cwdSuggestion}?");
+            }
+            else if (AgentWorkspaceContext.FindSimilarFile(fileFullPath) is { } similarFileName)
+            {
+                message.Append($"Did you mean {similarFileName}?");
+            }
+
+            return ValidationResult.Ask(message.ToString(), 4);
+        }
+
+        if (string.IsNullOrEmpty(oldString))
+        {
+            // Only reject if the file has content (for file creation attempt)
+            if (!await File.IsEmptyOrWhitespaceAsync(fileFullPath, Encoding.UTF8WithoutBOM, cancellationToken))
+            {
+                return ValidationResult.Ask("Cannot create new file - file already exists.", 3);
+            }
+
+            return ValidationResult.Ok;
+        }
+
+        if (await Context.FileModifiedSinceLastReadAsync(fileFullPath, cancellationToken))
+        {
+            return ValidationResult.Ask($"File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.", 7);
+        }
+
+        return ValidationResult.Ok;
     }
 
     private static async Task<int> ReplaceAsync(string sourcePath, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
@@ -92,7 +151,17 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
                             if (matchedLength == oldString.Length)
                             {
                                 replacementCount++;
-                                InvalidOperationException.ThrowIf(!replaceAll && replacementCount > 1, $"oldString is not unique in '{sourcePath}'. Pass replaceAll true to replace every occurrence.");
+                                if (replacementCount > 1 && !replaceAll)
+                                {
+                                    string message = $"""
+                                        Found multiple matches of the string to replace, but replaceAll is false.
+                                        To replace all occurrences, set replaceAll to true.
+                                        To replace only one occurrence, please provide more context to uniquely identify the instance.
+                                        String: {oldString}
+                                        """;
+                                    throw new InvalidOperationException(message);
+                                }
+
                                 await AppendReplacementAsync(writer, outputBuffer, newString, cancellationToken);
                                 matchedLength = 0;
                             }
@@ -114,7 +183,15 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
             }
         }
 
-        InvalidOperationException.ThrowIf(replacementCount is 0, $"oldString was not found in '{sourcePath}'.");
+        if (replacementCount is 0)
+        {
+            string message = $"""
+                String to replace not found in file.
+                String: '{oldString}'
+                """;
+            throw new InvalidOperationException(message);
+        }
+
         temporaryStream.Commit();
         return replacementCount;
     }

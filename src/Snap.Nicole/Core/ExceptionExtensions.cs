@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Snap.Nicole.Core;
 
@@ -6,7 +7,7 @@ internal static class ExceptionExtensions
 {
     extension(ArgumentException)
     {
-        public static void ThrowIf(bool condition, string message, string? paramName)
+        public static void ThrowIf(bool condition, [ConstantExpected] string message, string? paramName)
         {
             if (condition)
             {
@@ -14,7 +15,7 @@ internal static class ExceptionExtensions
             }
         }
 
-        public static void ThrowIfNot(bool condition, string message, string? paramName)
+        public static void ThrowIfNot(bool condition, [ConstantExpected] string message, string? paramName)
         {
             if (!condition)
             {
@@ -22,7 +23,7 @@ internal static class ExceptionExtensions
             }
         }
 
-        public static void ThrowIfEmpty<T>(IReadOnlyCollection<T> argument, string message, string? paramName)
+        public static void ThrowIfEmpty<T>(IReadOnlyCollection<T> argument, [ConstantExpected] string message, string? paramName)
         {
             if (argument.Count is 0)
             {
@@ -30,7 +31,7 @@ internal static class ExceptionExtensions
             }
         }
 
-        public static void ThrowIfNullOrEmpty(string? argument, string message, string? paramName)
+        public static void ThrowIfNullOrEmpty(string? argument, [ConstantExpected] string message, string? paramName)
         {
             if (string.IsNullOrEmpty(argument))
             {
@@ -43,7 +44,7 @@ internal static class ExceptionExtensions
             }
         }
 
-        public static void ThrowIfNullOrWhiteSpace(string? argument, string message, string? paramName)
+        public static void ThrowIfNullOrWhiteSpace(string? argument, [ConstantExpected] string message, string? paramName)
         {
             if (string.IsNullOrWhiteSpace(argument))
             {
@@ -59,7 +60,7 @@ internal static class ExceptionExtensions
 
     extension(InvalidOperationException)
     {
-        public static void ThrowIf(bool condition, string message)
+        public static void ThrowIf(bool condition, [ConstantExpected] string message)
         {
             if (condition)
             {
@@ -67,7 +68,7 @@ internal static class ExceptionExtensions
             }
         }
 
-        public static void ThrowIfNot(bool condition, string message)
+        public static void ThrowIfNot(bool condition, [ConstantExpected] string message)
         {
             if (!condition)
             {

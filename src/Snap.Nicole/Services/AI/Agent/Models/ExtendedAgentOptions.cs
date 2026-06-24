@@ -157,7 +157,7 @@ internal sealed class ExtendedAgentOptions
             MaxContextWindowTokens = maxContextWindowTokens,
             MaxOutputTokens = maxOutputTokens,
             MaximumIterationsPerRequest = MaximumIterationsPerRequest,
-            DisableToolApproval = false,
+            DisableToolAutoApproval = false,
             DisableFileMemory = false,
             FileMemoryStore = new FileSystemAgentFileStore(workspace.MemoryDirectory),
             DisableFileAccess = true,
