@@ -1,7 +1,6 @@
 using Snap.Nicole.Core.Text;
 using Snap.Nicole.Services.AI.Agent.Workspace;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -12,14 +11,13 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 internal static class AgentWorkspaceEditToolResultFactory
 {
     private const int HunkContextLineCount = 3;
-    private const int StreamBufferSize = 8192;
+    private const int StreamBufferSize = 4096;
 
-    public static async Task<AgentWorkspaceEditToolResult> CreateAsync(AgentWorkspacePath path, string oldString, string newString, IReadOnlyList<long> matchStartIndexes, bool replaceAll, CancellationToken cancellationToken)
+    public static async Task<AgentWorkspaceEditToolResult> CreateAsync(AgentWorkspaceFile path, string oldString, string newString, IReadOnlyList<long> matchStartIndexes, CancellationToken cancellationToken)
     {
         List<ReplacementLineRange> replacementRanges = await CreateReplacementLineRangesAsync(path.FullPath, oldString, newString, matchStartIndexes, cancellationToken);
         List<HunkLineRange> hunkLineRanges = CreateHunkLineRanges(replacementRanges);
         List<AgentWorkspaceEditToolHunk> structuredPatch = await CreateStructuredPatchAsync(path.FullPath, hunkLineRanges, newString, cancellationToken);
-        string fileName = path.GetRootRelativePath(path.FullPath);
         CountPatchLines(structuredPatch, out int additions, out int deletions);
 
         return new()
@@ -27,18 +25,9 @@ internal static class AgentWorkspaceEditToolResultFactory
             FilePath = path.FullPath,
             OldString = oldString,
             NewString = newString,
+            Additions = additions,
+            Deletions = deletions,
             StructuredPatch = structuredPatch,
-            UserModified = false,
-            ReplaceAll = replaceAll,
-            GitDiff = new()
-            {
-                FileName = fileName,
-                Status = AgentWorkspaceEditToolGitDiffStatus.Modified,
-                Additions = additions,
-                Deletions = deletions,
-                Changes = additions + deletions,
-                Patch = CreateUnifiedPatch(fileName, structuredPatch),
-            },
         };
     }
 
@@ -371,34 +360,6 @@ internal static class AgentWorkspaceEditToolResultFactory
                 }
             }
         }
-    }
-
-    private static string CreateUnifiedPatch(string fileName, List<AgentWorkspaceEditToolHunk> structuredPatch)
-    {
-        StringBuilder builder = new();
-        builder.AppendLine(CultureInfo.InvariantCulture, $"diff --git a/{fileName} b/{fileName}");
-        builder.AppendLine(CultureInfo.InvariantCulture, $"--- a/{fileName}");
-        builder.AppendLine(CultureInfo.InvariantCulture, $"+++ b/{fileName}");
-        foreach (AgentWorkspaceEditToolHunk hunk in structuredPatch)
-        {
-            builder.AppendLine(CultureInfo.InvariantCulture, $"@@ -{FormatRange(hunk.OldStart, hunk.OldLines)} +{FormatRange(hunk.NewStart, hunk.NewLines)} @@");
-            foreach (string line in hunk.Lines)
-            {
-                builder.AppendLine(line);
-            }
-        }
-
-        return builder.ToString();
-    }
-
-    private static string FormatRange(int start, int lineCount)
-    {
-        if (lineCount is 1)
-        {
-            return start.ToString(CultureInfo.InvariantCulture);
-        }
-
-        return string.Create(CultureInfo.InvariantCulture, $"{start},{lineCount}");
     }
 
     private sealed class ReplacementLineRange

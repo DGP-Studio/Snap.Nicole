@@ -29,7 +29,7 @@ internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
         Matcher matcher = new(StringComparison.OrdinalIgnoreCase);
         matcher.AddInclude(pattern.Replace('\\', '/'));
 
-        AgentWorkspacePath globDirectory = Context.ResolveGlobDirectoryPath(path);
+        AgentWorkspaceDirectory globDirectory = Context.ResolveGlobDirectoryPath(path);
         if (!Directory.Exists(globDirectory.FullPath))
         {
             return AgentWorkspaceGlobToolResult.Create([], Stopwatch.GetElapsedTime(startTimestamp));
@@ -40,7 +40,7 @@ internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
         return AgentWorkspaceGlobToolResult.Create([.. matches.Order(GlobResult.Comparer).Select(static result => result.FilePath)], Stopwatch.GetElapsedTime(startTimestamp));
     }
 
-    private static List<GlobCandidate> CreateCandidates(AgentWorkspacePath globDirectory, CancellationToken cancellationToken)
+    private static List<GlobCandidate> CreateCandidates(AgentWorkspaceDirectory globDirectory, CancellationToken cancellationToken)
     {
         List<GlobCandidate> candidates = [];
         foreach (string filePath in Directory.EnumerateFiles(globDirectory.FullPath, "*", DefaultEnumerationOptions))

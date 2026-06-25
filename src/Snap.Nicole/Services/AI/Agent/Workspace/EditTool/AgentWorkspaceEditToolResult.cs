@@ -1,34 +1,39 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
 internal sealed class AgentWorkspaceEditToolResult
 {
-    [Description("The file path that was edited")]
+    private static readonly ConcurrentDictionary<string, AgentWorkspaceEditToolResult> cache = [];
+
     [JsonPropertyName("filePath")]
     public required string FilePath { get; init; }
 
-    [Description("The original string that was replaced")]
     [JsonPropertyName("oldString")]
     public required string OldString { get; init; }
 
-    [Description("The new string that replaced it")]
     [JsonPropertyName("newString")]
     public required string NewString { get; init; }
 
-    [Description("Diff patch showing the changes")]
+    [JsonPropertyName("additions")]
+    public required int Additions { get; init; }
+
+    [JsonPropertyName("deletions")]
+    public required int Deletions { get; init; }
+
     [JsonPropertyName("structuredPatch")]
     public required List<AgentWorkspaceEditToolHunk> StructuredPatch { get; init; }
 
-    [Description("Whether the user modified the proposed changes")]
-    [JsonPropertyName("userModified")]
-    public required bool UserModified { get; init; }
+    public static bool TryAdd(string callId, AgentWorkspaceEditToolResult result)
+    {
+        return cache.TryAdd(callId, result);
+    }
 
-    [Description("Whether all occurrences were replaced")]
-    [JsonPropertyName("replaceAll")]
-    public required bool ReplaceAll { get; init; }
-
-    public AgentWorkspaceEditToolGitDiff? GitDiff { get; init; }
+    public static bool TryRemove(string callId, [MaybeNullWhen(false)] out AgentWorkspaceEditToolResult result)
+    {
+        return cache.TryRemove(callId, out result);
+    }
 }

@@ -114,24 +114,39 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
 
     private static List<GrepCandidate> CreateCandidates(AgentWorkspacePath searchPath, GrepSearchOptions options, CancellationToken cancellationToken)
     {
-        if (File.Exists(searchPath.FullPath))
+        return searchPath switch
         {
-            GrepCandidate candidate = GrepCandidate.Create(searchPath, searchPath.FullPath);
-            return CandidateMatchesFilters(candidate, options) ? [candidate] : [];
+            AgentWorkspaceFile searchFile => CreateCandidates(searchFile, options),
+            AgentWorkspaceDirectory searchDirectory => CreateCandidates(searchDirectory, options, cancellationToken),
+            _ => throw new InvalidOperationException($"Unsupported workspace search path type: {searchPath.GetType().FullName}."),
+        };
+    }
+
+    private static List<GrepCandidate> CreateCandidates(AgentWorkspaceFile searchFile, GrepSearchOptions options)
+    {
+        if (!File.Exists(searchFile.FullPath))
+        {
+            return [];
         }
 
-        if (!Directory.Exists(searchPath.FullPath))
+        GrepCandidate candidate = GrepCandidate.Create(searchFile, searchFile.FullPath);
+        return CandidateMatchesFilters(candidate, options) ? [candidate] : [];
+    }
+
+    private static List<GrepCandidate> CreateCandidates(AgentWorkspaceDirectory searchDirectory, GrepSearchOptions options, CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(searchDirectory.FullPath))
         {
             return [];
         }
 
         List<GrepCandidate> candidates = [];
-        foreach (string filePath in Directory.EnumerateFiles(searchPath.FullPath, "*", DefaultEnumerationOptions))
+        foreach (string filePath in Directory.EnumerateFiles(searchDirectory.FullPath, "*", DefaultEnumerationOptions))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             string fullPath = Path.GetFullPath(filePath);
-            GrepCandidate candidate = GrepCandidate.Create(searchPath, fullPath);
+            GrepCandidate candidate = GrepCandidate.Create(searchDirectory, fullPath);
             if (CandidateMatchesFilters(candidate, options))
             {
                 candidates.Add(candidate);

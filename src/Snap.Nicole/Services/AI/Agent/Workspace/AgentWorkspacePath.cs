@@ -2,7 +2,7 @@ using System.IO;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspacePath
+internal abstract class AgentWorkspacePath
 {
     public required string RootDirectory { get; init; }
 
