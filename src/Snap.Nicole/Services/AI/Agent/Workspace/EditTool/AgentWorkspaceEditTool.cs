@@ -2,11 +2,9 @@ using Microsoft.Extensions.AI;
 using Snap.Nicole.Core;
 using Snap.Nicole.Core.IO;
 using Snap.Nicole.Core.Text;
-using Snap.Nicole.Services.AI.Agent.Workspace;
 using System.Buffers;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -46,16 +44,18 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
     private static async Task<AgentWorkspaceEditToolResult> ReplaceAsync(AgentWorkspaceFile file, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
     {
         AgentWorkspaceEditToolResult result;
+        string normalizedOldString = oldString.ReplaceLineEndings("\n");
+        string normalizedNewString = newString.ReplaceLineEndings("\n");
         using (TemporaryFileStream temporaryStream = file.CreateTemporary())
         {
             IReadOnlyList<AgentWorkspaceEditToolMatch> matches;
             using (FileStream sourceStream = file.OpenRead())
             {
-                using (StreamReader reader = new(sourceStream, Encoding.UTF8WithoutBOM, true))
+                using (TextReader reader = new LineEndingNormalizingTextReader(new StreamReader(sourceStream, Encoding.UTF8WithoutBOM, true)))
                 {
                     using (StreamWriter writer = new(temporaryStream, Encoding.UTF8WithoutBOM, StreamBufferSize, true))
                     {
-                        matches = await ReplaceAsync(reader, writer, oldString, newString, replaceAll, cancellationToken);
+                        matches = await ReplaceAsync(reader, writer, normalizedOldString, normalizedNewString, replaceAll, cancellationToken);
                     }
                 }
             }
@@ -69,14 +69,14 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
                 throw new InvalidOperationException(message);
             }
 
-            result = await AgentWorkspaceEditToolResultFactory.CreateAsync(file, oldString, newString, matches, cancellationToken);
+            result = await AgentWorkspaceEditToolResultFactory.CreateAsync(file, normalizedOldString, normalizedNewString, matches, cancellationToken);
             temporaryStream.Commit();
         }
 
         return result;
     }
 
-    private static async Task<IReadOnlyList<AgentWorkspaceEditToolMatch>> ReplaceAsync(StreamReader reader, StreamWriter writer, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<AgentWorkspaceEditToolMatch>> ReplaceAsync(TextReader reader, StreamWriter writer, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
     {
         List<AgentWorkspaceEditToolMatch> matches = [];
 

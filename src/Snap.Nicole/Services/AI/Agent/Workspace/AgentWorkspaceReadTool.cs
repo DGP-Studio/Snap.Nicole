@@ -145,7 +145,7 @@ internal sealed class AgentWorkspaceReadTool : AgentWorkspaceTool
             cellNumber++;
             string cellType = TryGetJsonString(cellElement, "cell_type") ?? "unknown";
             notebook.AppendLine($"# Cell {cellNumber} ({cellType})");
-            if (cellElement.TryGetProperty("source", out JsonElement sourceElement))
+            if (cellElement.TryGetProperty("sourceReader", out JsonElement sourceElement))
             {
                 AppendNotebookText(notebook, sourceElement);
             }

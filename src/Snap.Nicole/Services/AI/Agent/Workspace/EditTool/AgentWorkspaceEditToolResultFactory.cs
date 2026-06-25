@@ -2,7 +2,6 @@ using Snap.Nicole.Core;
 using Snap.Nicole.Core.Text;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -12,7 +11,6 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
 internal static class AgentWorkspaceEditToolResultFactory
 {
-    private const char CR = '\r';
     private const char LF = '\n';
     private const char HunkContext = ' ';
     private const char HunkAddition = '+';
@@ -45,14 +43,12 @@ internal static class AgentWorkspaceEditToolResultFactory
 
         List<ReplacementLineRange> ranges = new(matches.Count);
 
-        // Assert that the old string does not contain any of the following special line endings
-        Debug.Assert(!oldString.ContainsAny(SearchValues.Create("\f\u0085\u2028\u2029")));
-
         using FileStream stream = file.OpenRead(share: FileShare.ReadWrite | FileShare.Delete);
-        using StreamReader reader = new(stream, Encoding.UTF8WithoutBOM, detectEncodingFromByteOrderMarks: true);
+        using TextReader reader = new LineEndingNormalizingTextReader(new StreamReader(stream, Encoding.UTF8WithoutBOM, detectEncodingFromByteOrderMarks: true));
 
         string normalizedOldString = oldString.ReplaceLineEndings("\n");
-        int replacementLineDelta = newString.CountLineEndings() - oldString.CountLineEndings();
+        string normalizedNewString = newString.ReplaceLineEndings("\n");
+        int replacementLineDelta = normalizedNewString.CountLineEndings() - normalizedOldString.CountLineEndings();
 
         using IMemoryOwner<char> bufferOwner = MemoryPool<char>.Shared.Rent(StreamBufferSize);
         Memory<char> buffer = bufferOwner.Memory[..StreamBufferSize];
@@ -61,7 +57,6 @@ internal static class AgentWorkspaceEditToolResultFactory
         int currentLineIndex = 0;
         int currentColumnIndex = 0;
         long currentCharIndex = 0;
-        bool pendingCR = false;
 
         while (matchIndex < matches.Count)
         {
@@ -74,14 +69,6 @@ internal static class AgentWorkspaceEditToolResultFactory
             for (int i = 0; i < readCount && matchIndex < matches.Count; i++)
             {
                 char current = buffer.Span[i];
-
-                // Handle the case where a '\r' was read in the end of previous iteration
-                if (pendingCR && current is not LF)
-                {
-                    currentLineIndex++;
-                    currentColumnIndex = 0;
-                    pendingCR = false;
-                }
 
                 if (currentCharIndex == matches[matchIndex].StartIndex)
                 {
@@ -99,15 +86,10 @@ internal static class AgentWorkspaceEditToolResultFactory
                     matchIndex++;
                 }
 
-                if (current is CR)
-                {
-                    pendingCR = true;
-                }
-                else if (current is LF)
+                if (current is LF)
                 {
                     currentLineIndex++;
                     currentColumnIndex = 0;
-                    pendingCR = false;
                 }
                 else
                 {
@@ -192,7 +174,7 @@ internal static class AgentWorkspaceEditToolResultFactory
         }
 
         using FileStream stream = new(sourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, StreamBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-        using StreamReader reader = new(stream, Encoding.UTF8WithoutBOM, detectEncodingFromByteOrderMarks: true);
+        using TextReader reader = new LineEndingNormalizingTextReader(new StreamReader(stream, Encoding.UTF8WithoutBOM, detectEncodingFromByteOrderMarks: true));
 
         int currentLineIndex = 0;
         foreach (HunkLineRange hunkLineRange in hunkLineRanges)
