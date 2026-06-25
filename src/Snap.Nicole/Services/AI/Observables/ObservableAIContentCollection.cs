@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Snap.Nicole.Services.AI.Observables.BuiltInTools;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text.Json;
@@ -74,6 +75,9 @@ internal sealed class ObservableAIContentCollection : ObservableCollection<Obser
                 return;
             case ObservableFunctionCallContent lastFunctionCall when newContent is ObservableFunctionCallContent newFunctionCall && lastFunctionCall.CallId == newFunctionCall.CallId:
                 lastFunctionCall.Update(newFunctionCall);
+                return;
+            case ObservableFunctionResultContent lastFunctionResult when lastFunctionResult is not ObservableEditToolResultContent && newContent is ObservableEditToolResultContent newEditFunctionResult && lastFunctionResult.CallId == newEditFunctionResult.CallId:
+                Items[^1] = newEditFunctionResult;
                 return;
             case ObservableFunctionResultContent lastFunctionResult when newContent is ObservableFunctionResultContent newFunctionResult && lastFunctionResult.CallId == newFunctionResult.CallId:
                 lastFunctionResult.Update(newFunctionResult);

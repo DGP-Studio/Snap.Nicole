@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.AI;
+using Snap.Nicole.Services.AI.Observables.BuiltInTools;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -9,6 +10,7 @@ namespace Snap.Nicole.Services.AI.Observables;
 [JsonDerivedType(typeof(ObservableCodeInterpreterToolCallContent), "code_interpreter_tool_call")]
 [JsonDerivedType(typeof(ObservableCodeInterpreterToolResultContent), "code_interpreter_tool_result")]
 [JsonDerivedType(typeof(ObservableDataContent), "data")]
+[JsonDerivedType(typeof(ObservableEditToolResultContent), "edit_tool_result")]
 [JsonDerivedType(typeof(ObservableErrorContent), "error")]
 [JsonDerivedType(typeof(ObservableFunctionCallContent), "function_call")]
 [JsonDerivedType(typeof(ObservableFunctionResultContent), "function_result")]
