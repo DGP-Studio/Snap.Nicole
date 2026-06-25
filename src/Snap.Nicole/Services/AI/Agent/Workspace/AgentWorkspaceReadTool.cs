@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspaceReadTool : AgentWorkspaceToolComponent
+internal sealed class AgentWorkspaceReadTool : AgentWorkspaceTool
 {
     private const int DefaultReadLineLimit = 2000;
     private const int MaxReadPdfPageCount = 20;

@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
 internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
-    : AgentWorkspaceToolComponent(context)
+    : AgentWorkspaceTool(context)
 {
     private const int StreamBufferSize = 4096;
     private const int OutputBufferFlushThreshold = 4096;
@@ -43,24 +43,24 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
         return prefixTable;
     }
 
-    private static async Task<AgentWorkspaceEditToolResult> ReplaceAsync(AgentWorkspaceFile path, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
+    private static async Task<AgentWorkspaceEditToolResult> ReplaceAsync(AgentWorkspaceFile file, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
     {
         AgentWorkspaceEditToolResult result;
-        using (TemporaryFileStream temporaryStream = new(path.FullPath, FileMode.CreateNew, FileAccess.Write, FileShare.Read, StreamBufferSize, FileOptions.Asynchronous))
+        using (TemporaryFileStream temporaryStream = file.CreateTemporary())
         {
-            IReadOnlyList<long> matchStartIndexes;
-            using (FileStream sourceStream = new(path.FullPath, FileMode.Open, FileAccess.Read, FileShare.Read, StreamBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan))
+            IReadOnlyList<AgentWorkspaceEditToolMatch> matches;
+            using (FileStream sourceStream = file.OpenRead())
             {
                 using (StreamReader reader = new(sourceStream, Encoding.UTF8WithoutBOM, true))
                 {
                     using (StreamWriter writer = new(temporaryStream, Encoding.UTF8WithoutBOM, StreamBufferSize, true))
                     {
-                        matchStartIndexes = await ReplaceAsync(reader, writer, oldString, newString, replaceAll, cancellationToken);
+                        matches = await ReplaceAsync(reader, writer, oldString, newString, replaceAll, cancellationToken);
                     }
                 }
             }
 
-            if (matchStartIndexes.Count is 0)
+            if (matches.Count is 0)
             {
                 string message = $"""
                     String to replace not found in file.
@@ -69,16 +69,16 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
                 throw new InvalidOperationException(message);
             }
 
-            result = await AgentWorkspaceEditToolResultFactory.CreateAsync(path, oldString, newString, matchStartIndexes, cancellationToken);
+            result = await AgentWorkspaceEditToolResultFactory.CreateAsync(file, oldString, newString, matches, cancellationToken);
             temporaryStream.Commit();
         }
 
         return result;
     }
 
-    private static async Task<IReadOnlyList<long>> ReplaceAsync(StreamReader reader, StreamWriter writer, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<AgentWorkspaceEditToolMatch>> ReplaceAsync(StreamReader reader, StreamWriter writer, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
     {
-        List<long> matchStartIndexes = [];
+        List<AgentWorkspaceEditToolMatch> matches = [];
 
         using IMemoryOwner<char> readBufferOwner = MemoryPool<char>.Shared.Rent(StreamBufferSize);
         Memory<char> readBuffer = readBufferOwner.Memory[..StreamBufferSize];
@@ -117,8 +117,8 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
                     matchedLength++;
                     if (matchedLength == oldString.Length)
                     {
-                        matchStartIndexes.Add(sourceCharacterIndex - oldString.Length + 1);
-                        if (matchStartIndexes.Count > 1 && !replaceAll)
+                        matches.Add(new(sourceCharacterIndex - oldString.Length + 1));
+                        if (matches.Count > 1 && !replaceAll)
                         {
                             string message = $"""
                                 Found multiple matches of the string to replace, but replaceAll is false.
@@ -151,7 +151,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
         await FlushOutputBufferAsync(writer, outputBuffer, cancellationToken);
         await writer.FlushAsync(cancellationToken);
 
-        return matchStartIndexes;
+        return matches;
     }
 
     private static async Task AppendReplacementAsync(StreamWriter writer, StringBuilder outputBuffer, string replacement, CancellationToken cancellationToken)
@@ -193,14 +193,15 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
         outputBuffer.Clear();
     }
 
-    private async Task<ValidationResult> ValidateInputAsync(string fileFullPath, string oldString, string newString, CancellationToken cancellationToken)
+    private async Task<ValidationResult> ValidateInputAsync(AgentWorkspaceFile file, string oldString, string newString, CancellationToken cancellationToken)
     {
         if (string.Equals(oldString, newString, StringComparison.Ordinal))
         {
             return ValidationResult.Ask("No changes to make: oldString and newString are exactly the same.", 1);
         }
 
-        if (!File.Exists(fileFullPath))
+        // File doesn't exist
+        if (!file.Exists)
         {
             // Empty oldString on nonexistent file means new file creation — valid
             if (string.IsNullOrEmpty(oldString))
@@ -215,30 +216,33 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
                 message.AppendLine($"- {rootDirectory}");
             }
 
-            if (Context.SuggestPathUnderWorkspaceRoots(fileFullPath) is { } cwdSuggestion)
+            if (Context.SuggestPathUnderWorkspaceRoots(file.FullPath) is { } cwdSuggestion)
             {
                 message.Append($"Did you mean {cwdSuggestion}?");
             }
-            else if (AgentWorkspaceContext.FindSimilarFile(fileFullPath) is { } similarFileName)
+            else if (AgentWorkspaceContext.FindSimilarFile(file.FullPath) is { } similarFileName)
             {
+                // Try to find a similar file with a different extension
                 message.Append($"Did you mean {similarFileName}?");
             }
 
             return ValidationResult.Ask(message.ToString(), 4);
         }
 
+        // File exists with empty oldString — only valid if file is empty
         if (string.IsNullOrEmpty(oldString))
         {
             // Only reject if the file has content (for file creation attempt)
-            if (!await File.IsEmptyOrWhitespaceAsync(fileFullPath, Encoding.UTF8WithoutBOM, cancellationToken))
+            if (!await file.IsEmptyOrWhitespaceAsync(Encoding.UTF8WithoutBOM, cancellationToken))
             {
                 return ValidationResult.Ask("Cannot create new file - file already exists.", 3);
             }
 
+            // Empty file with empty oldString is valid - we're replacing empty with content
             return ValidationResult.Ok;
         }
 
-        if (await Context.FileModifiedSinceLastReadAsync(fileFullPath, cancellationToken))
+        if (await Context.FileModifiedSinceLastReadAsync(file.FullPath, cancellationToken))
         {
             return ValidationResult.Ask("File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.", 7);
         }
@@ -249,18 +253,18 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
     [DisplayName(Prompt.EditToolName)]
     [Description(Prompt.EditToolDescription)]
     private async Task<string> EditAsync(
-        [Description("The absolute path to the file to modify")] string filePath,
+        [Description("The absolute file to the file to modify")] string filePath,
         [Description("The text to replace")] string oldString,
         [Description("The text to replace it with (must be different from oldString)")] string newString,
         [Description("Replace all occurrences of oldString (default false)")] bool replaceAll = false,
         CancellationToken cancellationToken = default)
     {
-        if (!Context.TryResolveWorkspaceFile(filePath, out AgentWorkspaceFile? path, out string? message))
+        if (!Context.TryResolveWorkspaceFile(filePath, out AgentWorkspaceFile? file, out string? message))
         {
             return message;
         }
 
-        ValidationResult validationResult = await ValidateInputAsync(path.FullPath, oldString, newString, cancellationToken);
+        ValidationResult validationResult = await ValidateInputAsync(file, oldString, newString, cancellationToken);
         if (!validationResult.Result)
         {
             return validationResult.Message;
@@ -269,14 +273,11 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
         // TODO: for empty oldString, we should check if the file exists and is empty, and if so, allow the replacement to create a new file with newString.
         ArgumentException.ThrowIfNullOrEmpty(oldString, "oldString cannot be empty", nameof(oldString));
 
-        AgentWorkspaceEditToolResult? editToolResult = await ReplaceAsync(path, oldString, newString, replaceAll, cancellationToken);
-        Context.InvalidateFileRead(path.FullPath);
-
-        Debug.Assert(FunctionInvokingChatClient.CurrentContext is not null);
-        AgentWorkspaceEditToolResult.TryAdd(FunctionInvokingChatClient.CurrentContext.CallContent.CallId, editToolResult);
+        AgentWorkspaceEditToolResult.TryAdd(CallId, await ReplaceAsync(file, oldString, newString, replaceAll, cancellationToken));
+        Context.InvalidateFileRead(file);
 
         return replaceAll
-            ? $"The file {path.FullPath} has been updated. All occurrences were successfully replaced."
-            : $"The file {path.FullPath} has been updated successfully.";
+            ? $"The file {file.FullPath} has been updated. All occurrences were successfully replaced."
+            : $"The file {file.FullPath} has been updated successfully.";
     }
 }

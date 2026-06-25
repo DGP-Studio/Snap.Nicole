@@ -11,7 +11,7 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace;
 internal sealed class AgentWorkspaceContextProvider : AIContextProvider
 {
     private readonly AgentWorkspaceContext workspaceContext;
-    private readonly IReadOnlyList<AgentWorkspaceToolComponent> toolComponents;
+    private readonly IReadOnlyList<AgentWorkspaceTool> toolComponents;
     private readonly IReadOnlyList<AITool> tools;
 
     public AgentWorkspaceContextProvider(IReadOnlyList<string> workingDirectories)
@@ -77,7 +77,7 @@ internal sealed class AgentWorkspaceContextProvider : AIContextProvider
         return builder.ToString();
     }
 
-    private static IReadOnlyList<AgentWorkspaceToolComponent> CreateToolComponents(AgentWorkspaceContext workspaceContext)
+    private static IReadOnlyList<AgentWorkspaceTool> CreateToolComponents(AgentWorkspaceContext workspaceContext)
     {
         return
         [
@@ -89,10 +89,10 @@ internal sealed class AgentWorkspaceContextProvider : AIContextProvider
         ];
     }
 
-    private static IReadOnlyList<AITool> CreateTools(IReadOnlyList<AgentWorkspaceToolComponent> components)
+    private static IReadOnlyList<AITool> CreateTools(IReadOnlyList<AgentWorkspaceTool> components)
     {
         List<AITool> createdTools = new(components.Count);
-        foreach (AgentWorkspaceToolComponent component in components)
+        foreach (AgentWorkspaceTool component in components)
         {
             createdTools.Add(component.Tool);
         }

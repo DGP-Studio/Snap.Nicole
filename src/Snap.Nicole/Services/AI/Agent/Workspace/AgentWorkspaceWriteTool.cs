@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspaceWriteTool : AgentWorkspaceToolComponent
+internal sealed class AgentWorkspaceWriteTool : AgentWorkspaceTool
 {
     private readonly AITool tool;
 

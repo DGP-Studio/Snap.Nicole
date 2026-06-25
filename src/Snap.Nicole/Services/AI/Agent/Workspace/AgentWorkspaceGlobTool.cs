@@ -12,7 +12,7 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
 // See https://github.com/claude-code-best/claude-code/blob/main/packages/builtin-tools/src/tools/GlobTool/GlobTool.ts
 internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
-    : AgentWorkspaceToolComponent(context)
+    : AgentWorkspaceTool(context)
 {
     public override AITool Tool { get => field ??= AIFunctionFactory.Create(Glob); }
 

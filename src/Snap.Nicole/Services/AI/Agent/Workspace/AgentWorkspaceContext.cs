@@ -117,6 +117,14 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
         }
     }
 
+    public void InvalidateFileRead(AgentWorkspaceFile file)
+    {
+        lock (readFileHashesLock)
+        {
+            readFileHashes.Remove(file.FullPath);
+        }
+    }
+
     public void InvalidateFileRead(string fullPath)
     {
         lock (readFileHashesLock)

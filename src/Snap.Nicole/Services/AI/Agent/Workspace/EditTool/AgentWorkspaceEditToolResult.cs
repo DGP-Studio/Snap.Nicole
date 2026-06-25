@@ -12,12 +12,6 @@ internal sealed class AgentWorkspaceEditToolResult
     [JsonPropertyName("filePath")]
     public required string FilePath { get; init; }
 
-    [JsonPropertyName("oldString")]
-    public required string OldString { get; init; }
-
-    [JsonPropertyName("newString")]
-    public required string NewString { get; init; }
-
     [JsonPropertyName("additions")]
     public required int Additions { get; init; }
 
@@ -25,7 +19,7 @@ internal sealed class AgentWorkspaceEditToolResult
     public required int Deletions { get; init; }
 
     [JsonPropertyName("structuredPatch")]
-    public required List<AgentWorkspaceEditToolHunk> StructuredPatch { get; init; }
+    public required IReadOnlyList<AgentWorkspaceEditToolHunk> StructuredPatch { get; init; }
 
     public static bool TryAdd(string callId, AgentWorkspaceEditToolResult result)
     {

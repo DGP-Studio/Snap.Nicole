@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
 internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
-    : AgentWorkspaceToolComponent(context)
+    : AgentWorkspaceTool(context)
 {
     private const string GrepContentOutputMode = "content";
     private const string GrepFilesWithMatchesOutputMode = "files_with_matches";
