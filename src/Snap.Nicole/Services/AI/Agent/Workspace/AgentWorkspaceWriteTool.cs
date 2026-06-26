@@ -29,29 +29,32 @@ internal sealed class AgentWorkspaceWriteTool : AgentWorkspaceTool
         """)]
     private async Task<string> WriteAsync([Description("The absolute path to the file to write (must be absolute, not relative)")] string file_path, [Description("The content to write to the file")] string content, CancellationToken cancellationToken = default)
     {
-        if (!Context.TryResolveWorkspaceFile(file_path, out AgentWorkspaceFile? path, out string? message))
+        switch (Context.ResolveWorkspaceFile(file_path))
         {
-            return message;
-        }
+            case string message:
+                return message;
+            case AgentWorkspaceFile path:
+                if (Directory.Exists(path.FullPath))
+                {
+                    throw new InvalidOperationException($"'{path.FullPath}' is a directory. Write requires a file path.");
+                }
 
-        if (Directory.Exists(path.FullPath))
-        {
-            throw new InvalidOperationException($"'{path.FullPath}' is a directory. Write requires a file path.");
-        }
+                if (File.Exists(path.FullPath))
+                {
+                    await Context.ValidateFileReadForModificationAsync(path.FullPath, cancellationToken);
+                }
 
-        if (File.Exists(path.FullPath))
-        {
-            await Context.ValidateFileReadForModificationAsync(path.FullPath, cancellationToken);
-        }
+                string? directory = Path.GetDirectoryName(path.FullPath);
+                if (directory is not null)
+                {
+                    Directory.CreateDirectory(directory);
+                }
 
-        string? directory = Path.GetDirectoryName(path.FullPath);
-        if (directory is not null)
-        {
-            Directory.CreateDirectory(directory);
+                await File.WriteAllTextAsync(path.FullPath, content, Encoding.UTF8WithoutBOM, cancellationToken);
+                Context.InvalidateFileRead(path.FullPath);
+                return $"File '{path.FullPath}' written.";
+            default:
+                throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile.");
         }
-
-        await File.WriteAllTextAsync(path.FullPath, content, Encoding.UTF8WithoutBOM, cancellationToken);
-        Context.InvalidateFileRead(path.FullPath);
-        return $"File '{path.FullPath}' written.";
     }
 }

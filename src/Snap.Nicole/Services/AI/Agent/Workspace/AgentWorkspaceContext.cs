@@ -18,24 +18,17 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
 
     public IReadOnlyList<string> RootDirectories { get; } = CreateRootDirectories(workingDirectories);
 
-#if NET11_0
-#error Try union for multiple out parameters
-#endif
-    public bool TryResolveWorkspaceFile(string path, [NotNullWhen(true)] out AgentWorkspaceFile? file, [NotNullWhen(false)] out string? message)
+    public MessageResult<AgentWorkspaceFile> ResolveWorkspaceFile(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            file = null;
-            message = "File path cannot be empty.";
-            return false;
+            return "File path cannot be empty.";
         }
 
         string trimmedPath = path.Trim();
         if (!Path.IsPathFullyQualified(trimmedPath))
         {
-            file = null;
-            message = $"File path must be absolute: {path}";
-            return false;
+            return $"File path must be absolute: {path}";
         }
 
         string fullPath = Path.GetFullPath(trimmedPath);
@@ -50,26 +43,18 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
             string relativePath = AgentWorkspacePath.GetRelativePath(rootDirectory, fullPath);
             if (string.Equals(relativePath, ".", StringComparison.Ordinal))
             {
-                file = null;
-                message = "File path cannot target a workspace root.";
-                return false;
+                return "File path cannot target a workspace root.";
             }
 
             if (ContainsReparsePoint(rootDirectory, fullPath))
             {
-                file = null;
-                message = "Invalid path: the resolved path contains a symbolic link or reparse point.";
-                return false;
+                return "Invalid path: the resolved path contains a symbolic link or reparse point.";
             }
 
-            file = AgentWorkspaceFile.Create(rootDirectory, fullPath);
-            message = null;
-            return true;
+            return AgentWorkspaceFile.Create(rootDirectory, fullPath);
         }
 
-        file = null;
-        message = $"File path must be under a workspace root: {path}";
-        return false;
+        return $"File path must be under a workspace root: {path}";
     }
 
     public AgentWorkspaceDirectory ResolveGlobDirectoryPath(string? path)

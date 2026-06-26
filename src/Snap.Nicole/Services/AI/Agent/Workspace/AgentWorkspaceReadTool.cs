@@ -39,54 +39,57 @@ internal sealed class AgentWorkspaceReadTool : AgentWorkspaceTool
         """)]
     private async Task<string> ReadAsync([Description("The absolute path to the file to read")] string file_path, [Description("The number of lines to read. Only provide if the file is too large to read at once.")][DefaultValue(null)] int? limit, [Description("The line number to start reading from. Only provide if the file is too large to read at once")][DefaultValue(0)] int offset, [Description("""Page range for PDF files (e.g., "1-5", "3", "10-20"). Only applicable to PDF files. Maximum 20 pages per request.""")][DefaultValue(null)] string? pages, CancellationToken cancellationToken = default)
     {
-        if (!Context.TryResolveWorkspaceFile(file_path, out AgentWorkspaceFile? path, out string? message))
+        switch (Context.ResolveWorkspaceFile(file_path))
         {
-            return message;
+            case string message:
+                return message;
+            case AgentWorkspaceFile path:
+                if (!File.Exists(path.FullPath))
+                {
+                    if (Directory.Exists(path.FullPath))
+                    {
+                        throw new InvalidOperationException($"'{path.FullPath}' is a directory. Use Glob to inspect directories.");
+                    }
+
+                    throw new FileNotFoundException($"File '{path.FullPath}' not found.", path.FullPath);
+                }
+
+                FileInfo fileInfo = new(path.FullPath);
+                if (fileInfo.Length is 0)
+                {
+                    throw new InvalidOperationException($"File '{path.FullPath}' is empty.");
+                }
+
+                string extension = Path.GetExtension(path.FullPath);
+                if (!string.IsNullOrWhiteSpace(pages) && !IsPdfFile(extension))
+                {
+                    throw new ArgumentException("pages is only applicable to PDF files.", nameof(pages));
+                }
+
+                if (IsPdfFile(extension))
+                {
+                    ValidatePdfPages(pages);
+                    throw new NotSupportedException("PDF page rendering is not available in the current workspace file access provider.");
+                }
+
+                if (IsImageFile(extension))
+                {
+                    throw new NotSupportedException("Image visual rendering is not available in the current workspace file access provider.");
+                }
+
+                ulong readStartedHash = await AgentWorkspaceContext.ComputeFileHashAsync(path.FullPath, cancellationToken);
+                string content = IsNotebookFile(extension) ? await ReadNotebookAsync(path.FullPath, offset, limit, cancellationToken) : await ReadTextFileAsync(path.FullPath, offset, limit, cancellationToken);
+                ulong readCompletedHash = await AgentWorkspaceContext.ComputeFileHashAsync(path.FullPath, cancellationToken);
+                if (readCompletedHash != readStartedHash)
+                {
+                    throw new InvalidOperationException($"File '{path.FullPath}' was modified while it was being read. Read it again before modifying.");
+                }
+
+                Context.MarkFileAsRead(path.FullPath, readCompletedHash);
+                return content;
+            default:
+                throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile.");
         }
-
-        if (!File.Exists(path.FullPath))
-        {
-            if (Directory.Exists(path.FullPath))
-            {
-                throw new InvalidOperationException($"'{path.FullPath}' is a directory. Use Glob to inspect directories.");
-            }
-
-            throw new FileNotFoundException($"File '{path.FullPath}' not found.", path.FullPath);
-        }
-
-        FileInfo fileInfo = new(path.FullPath);
-        if (fileInfo.Length is 0)
-        {
-            throw new InvalidOperationException($"File '{path.FullPath}' is empty.");
-        }
-
-        string extension = Path.GetExtension(path.FullPath);
-        if (!string.IsNullOrWhiteSpace(pages) && !IsPdfFile(extension))
-        {
-            throw new ArgumentException("pages is only applicable to PDF files.", nameof(pages));
-        }
-
-        if (IsPdfFile(extension))
-        {
-            ValidatePdfPages(pages);
-            throw new NotSupportedException("PDF page rendering is not available in the current workspace file access provider.");
-        }
-
-        if (IsImageFile(extension))
-        {
-            throw new NotSupportedException("Image visual rendering is not available in the current workspace file access provider.");
-        }
-
-        ulong readStartedHash = await AgentWorkspaceContext.ComputeFileHashAsync(path.FullPath, cancellationToken);
-        string content = IsNotebookFile(extension) ? await ReadNotebookAsync(path.FullPath, offset, limit, cancellationToken) : await ReadTextFileAsync(path.FullPath, offset, limit, cancellationToken);
-        ulong readCompletedHash = await AgentWorkspaceContext.ComputeFileHashAsync(path.FullPath, cancellationToken);
-        if (readCompletedHash != readStartedHash)
-        {
-            throw new InvalidOperationException($"File '{path.FullPath}' was modified while it was being read. Read it again before modifying.");
-        }
-
-        Context.MarkFileAsRead(path.FullPath, readCompletedHash);
-        return content;
     }
 
     private static async Task<string> ReadTextFileAsync(string fullPath, int offset, int? limit, CancellationToken cancellationToken)
