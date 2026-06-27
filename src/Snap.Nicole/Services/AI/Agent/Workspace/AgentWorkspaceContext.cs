@@ -151,6 +151,7 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
         }
     }
 
+    [Obsolete]
     public static async Task<ulong> ComputeFileHashAsync(string fullPath, CancellationToken cancellationToken)
     {
         XxHash64 hash = new();

@@ -1,6 +1,7 @@
 using Snap.Nicole.Core.IO;
 using System.Buffers;
 using System.IO;
+using System.IO.Hashing;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,13 +35,11 @@ internal sealed class AgentWorkspaceFile : AgentWorkspacePath
     {
         const int StreamBufferSize = 1024;
 
-        bool isFileEmptyOrWhitespace = true;
-
         using IMemoryOwner<char> bufferOwner = MemoryPool<char>.Shared.Rent(StreamBufferSize);
         Memory<char> buffer = bufferOwner.Memory[..StreamBufferSize];
 
         using FileStream sourceStream = OpenRead(bufferSize: StreamBufferSize);
-        using StreamReader reader = new(sourceStream, encoding, detectEncodingFromByteOrderMarks: true);
+        using StreamReader reader = new(sourceStream, encoding, true);
 
         while (true)
         {
@@ -52,11 +51,22 @@ internal sealed class AgentWorkspaceFile : AgentWorkspacePath
 
             if (!buffer.Span[..readCount].IsWhiteSpace())
             {
-                isFileEmptyOrWhitespace = false;
-                break;
+                return false;
             }
         }
 
-        return isFileEmptyOrWhitespace;
+        return true;
+    }
+
+    public async Task<ulong> ComputeHashAsync(CancellationToken cancellationToken = default)
+    {
+        const int StreamBufferSize = 81920;
+
+        XxHash64 hash = new();
+        using (FileStream stream = OpenRead(bufferSize: StreamBufferSize))
+        {
+            await hash.AppendAsync(stream, cancellationToken);
+            return hash.GetCurrentHashAsUInt64();
+        }
     }
 }

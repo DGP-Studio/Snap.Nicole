@@ -4,6 +4,17 @@ internal static class Prompt
 {
     public const string WriteToolName = "Write";
     public const string ReadToolName = "Read";
+    public const string ReadToolDescription = $"""
+        Reads a file from the local filesystem.
+
+        - `filePath` must be an absolute path.
+        - Reads up to 2000 lines by default.
+        - You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters
+        - Results are returned using cat -n format, with line numbers starting at 1
+        - Reads images (PNG, JPG, ...) and presents them visually.
+        - Reading a directory, a missing file, or an empty file returns an error or system reminder rather than content.
+        - Do NOT re-read a file you just edited to verify - Edit/Write would have errored if the change failed, and the harness tracks file state for you.
+        """;
     public const string EditToolName = "Edit";
     public const string EditToolDescription = $"""
         Performs exact string replacements in files.

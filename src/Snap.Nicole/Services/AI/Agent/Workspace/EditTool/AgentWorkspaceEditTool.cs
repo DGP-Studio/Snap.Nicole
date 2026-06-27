@@ -17,13 +17,26 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
 {
     private const int WriterBufferSize = 4096;
 
-    public override AITool Tool { get => field ??= AIFunctionFactory.Create(EditAsync).AsApprovalRequired(); }
+    public override AITool Tool { get => field ??= AIFunctionFactory.Create(InvokeAsync).AsApprovalRequired(); }
 
-    private static async Task<AgentWorkspaceEditToolResult> ReplaceAsync(AgentWorkspaceFile file, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
+    [DisplayName(Prompt.EditToolName)]
+    [Description(Prompt.EditToolDescription)]
+    public async Task<AIContent> InvokeAsync(
+        [Description("The absolute file to the file to modify")] string filePath,
+        [Description("The text to replace")] string oldString,
+        [Description("The text to replace it with (must be different from oldString)")] string newString,
+        [Description("Replace all occurrences of oldString (default false)")] bool replaceAll = false,
+        CancellationToken cancellationToken = default)
+    {
+        return new TextContent(await EditAsync(filePath, oldString, newString, replaceAll, cancellationToken));
+    }
+
+    private static async Task<AgentWorkspaceEditToolResult> EditFileAsync(AgentWorkspaceFile file, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
     {
         AgentWorkspaceEditToolResult result;
         NormalizedString normalizedOldString = new(oldString);
         NormalizedString normalizedNewString = new(newString);
+
         using (TemporaryFileStream temporaryStream = file.CreateTemporary())
         {
             IReadOnlyList<StreamingTextMatch> matches;
@@ -65,6 +78,43 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
         }
 
         return result;
+    }
+
+    private async Task<string> EditAsync(string filePath, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
+    {
+        MessageResult<AgentWorkspaceFile> result = Context.ResolveWorkspaceFile(filePath);
+        if (result is string message)
+        {
+            return message;
+        }
+
+        if (result is AgentWorkspaceFile file)
+        {
+            ValidationResult validationResult = await ValidateInputAsync(file, oldString, newString, cancellationToken);
+            if (!validationResult.Result)
+            {
+                return validationResult.Message;
+            }
+
+            // TODO: for empty oldString, we should check if the file exists and is empty, and if so, allow the replacement to create a new file with newString.
+            ArgumentException.ThrowIfNullOrEmpty(oldString, "oldString cannot be empty", nameof(oldString));
+
+            try
+            {
+                AgentWorkspaceEditToolResult.TryAdd(CallId, await EditFileAsync(file, oldString, newString, replaceAll, cancellationToken));
+                Context.MarkFileAsRead(file.FullPath, await file.ComputeHashAsync(cancellationToken));
+            }
+            catch (AgentWorkspaceException ex)
+            {
+                return ex.Message;
+            }
+
+            return replaceAll
+                ? $"The file {file.FullPath} has been updated. All occurrences were successfully replaced."
+                : $"The file {file.FullPath} has been updated successfully.";
+        }
+
+        throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile");
     }
 
     private async Task<ValidationResult> ValidateInputAsync(AgentWorkspaceFile file, string oldString, string newString, CancellationToken cancellationToken)
@@ -122,49 +172,5 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
         }
 
         return ValidationResult.Ok;
-    }
-
-    [DisplayName(Prompt.EditToolName)]
-    [Description(Prompt.EditToolDescription)]
-    private async Task<string> EditAsync(
-        [Description("The absolute file to the file to modify")] string filePath,
-        [Description("The text to replace")] string oldString,
-        [Description("The text to replace it with (must be different from oldString)")] string newString,
-        [Description("Replace all occurrences of oldString (default false)")] bool replaceAll = false,
-        CancellationToken cancellationToken = default)
-    {
-        MessageResult<AgentWorkspaceFile> result = Context.ResolveWorkspaceFile(filePath);
-        if (result is string message)
-        {
-            return message;
-        }
-
-        if (result is AgentWorkspaceFile file)
-        {
-            ValidationResult validationResult = await ValidateInputAsync(file, oldString, newString, cancellationToken);
-            if (!validationResult.Result)
-            {
-                return validationResult.Message;
-            }
-
-            // TODO: for empty oldString, we should check if the file exists and is empty, and if so, allow the replacement to create a new file with newString.
-            ArgumentException.ThrowIfNullOrEmpty(oldString, "oldString cannot be empty", nameof(oldString));
-
-            try
-            {
-                AgentWorkspaceEditToolResult.TryAdd(CallId, await ReplaceAsync(file, oldString, newString, replaceAll, cancellationToken));
-                Context.InvalidateFileRead(file);
-            }
-            catch (AgentWorkspaceException ex)
-            {
-                return ex.Message;
-            }
-
-            return replaceAll
-                ? $"The file {file.FullPath} has been updated. All occurrences were successfully replaced."
-                : $"The file {file.FullPath} has been updated successfully.";
-        }
-
-        throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile");
     }
 }

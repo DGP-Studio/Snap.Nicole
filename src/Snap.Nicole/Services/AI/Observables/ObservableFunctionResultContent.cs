@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 using Snap.Nicole.Services.AI.Observables.BuiltInTools;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -40,6 +41,11 @@ internal partial class ObservableFunctionResultContent : ObservableToolResultCon
             return stringElement.GetString();
         }
 
+        if (value is DataContent dataContent)
+        {
+            return FormatDataContent(dataContent);
+        }
+
         try
         {
             return JsonSerializer.Serialize(value, jsonOptions);
@@ -48,5 +54,11 @@ internal partial class ObservableFunctionResultContent : ObservableToolResultCon
         {
             return value?.ToString();
         }
+    }
+
+    private static string FormatDataContent(DataContent dataContent)
+    {
+        string name = string.IsNullOrWhiteSpace(dataContent.Name) ? "content" : dataContent.Name;
+        return $"{name} ({dataContent.MediaType}, {dataContent.Data.Length.ToString(CultureInfo.InvariantCulture)} bytes)";
     }
 }
