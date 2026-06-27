@@ -79,6 +79,7 @@ src
 ### Syntax and style
 
 **IMPORTANT**: Balance **high performance** with **clean code** when writing.
+**IMPORTANT**: Avoid useless micro-abstraction.
 **IMPORTANT**: This project is in early development/close beta; forward/backward compatibility is not a concern.
 
 - Always try your best to avoid memory leak. Especially when:

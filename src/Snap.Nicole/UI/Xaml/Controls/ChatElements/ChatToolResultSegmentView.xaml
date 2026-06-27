@@ -3,12 +3,17 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:snsao="using:Snap.Nicole.Services.AI.Observables"
+    xmlns:snsaowet="using:Snap.Nicole.Services.AI.Agent.Workspace.EditTool"
     xmlns:snsaobt="using:Snap.Nicole.Services.AI.Observables.BuiltInTools"
     xmlns:snuxcc="using:Snap.Nicole.UI.Xaml.Controls.ChatElements"
     xmlns:snuxd="using:Snap.Nicole.UI.Xaml.Data">
 
     <UserControl.Resources>
         <snuxd:EmptyObjectToVisibilityConverter x:Key="ContentVisibilityConverter" />
+        <snuxcc:ChatEditToolHunkLineKindToObjectConverter
+            x:Key="EditLineBackgroundBrushConverter"
+            AdditionValue="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
+            DeletionValue="{ThemeResource SystemFillColorCriticalBackgroundBrush}" />
 
         <DataTemplate x:Key="FunctionToolResultTemplate" x:DataType="snsao:ObservableFunctionResultContent">
             <Border
@@ -96,13 +101,52 @@
                         MaxHeight="400"
                         HorizontalScrollBarVisibility="Auto"
                         HorizontalScrollMode="Auto">
-                        <TextBlock
+                        <ItemsControl
                             Margin="4"
-                            FontFamily="Cascadia Code, Consolas, Courier New"
-                            FontSize="13"
-                            IsTextSelectionEnabled="True"
-                            Text="{Binding Patch}"
-                            TextWrapping="NoWrap" />
+                            ItemsSource="{Binding EditResult.StructuredPatch}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="6" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="snsaowet:AgentWorkspaceEditToolHunk">
+                                    <ItemsControl ItemsSource="{Binding Lines}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="snsaowet:AgentWorkspaceEditToolHunkLine">
+                                                <Border
+                                                    Padding="4,1"
+                                                    Background="{Binding Kind, Converter={StaticResource EditLineBackgroundBrushConverter}}">
+                                                    <Grid ColumnSpacing="8">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <TextBlock
+                                                            MinWidth="42"
+                                                            HorizontalAlignment="Right"
+                                                            FontFamily="Cascadia Code, Consolas, Courier New"
+                                                            FontSize="13"
+                                                            IsTextSelectionEnabled="True"
+                                                            Opacity="0.55"
+                                                            Text="{Binding Line}"
+                                                            TextWrapping="NoWrap" />
+                                                        <TextBlock
+                                                            Grid.Column="1"
+                                                            FontFamily="Cascadia Code, Consolas, Courier New"
+                                                            FontSize="13"
+                                                            IsTextSelectionEnabled="True"
+                                                            Text="{Binding Text}"
+                                                            TextWrapping="NoWrap" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </ScrollViewer>
                 </StackPanel>
             </Border>

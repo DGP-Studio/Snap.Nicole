@@ -5,18 +5,14 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
 internal sealed class AgentWorkspaceEditToolHunk
 {
-    [JsonPropertyName("oldStart")]
-    public required int OldStart { get; init; }
-
-    [JsonPropertyName("oldLines")]
-    public required int OldLines { get; init; }
-
-    [JsonPropertyName("newStart")]
-    public required int NewStart { get; init; }
-
-    [JsonPropertyName("newLines")]
-    public required int NewLines { get; init; }
-
     [JsonPropertyName("lines")]
-    public required List<string> Lines { get; init; }
+    public required IReadOnlyList<AgentWorkspaceEditToolHunkLine> Lines { get; init; }
+
+    public static AgentWorkspaceEditToolHunk Create(IReadOnlyList<AgentWorkspaceEditToolHunkLine> lines)
+    {
+        return new AgentWorkspaceEditToolHunk
+        {
+            Lines = lines
+        };
+    }
 }

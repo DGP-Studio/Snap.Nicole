@@ -133,33 +133,36 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
         [Description("Replace all occurrences of oldString (default false)")] bool replaceAll = false,
         CancellationToken cancellationToken = default)
     {
-        switch (Context.ResolveWorkspaceFile(filePath))
+        MessageResult<AgentWorkspaceFile> result = Context.ResolveWorkspaceFile(filePath);
+        if (result is string message)
         {
-            case string message:
-                return message;
-            case AgentWorkspaceFile file:
-                ValidationResult validationResult = await ValidateInputAsync(file, oldString, newString, cancellationToken);
-                if (!validationResult.Result)
-                {
-                    return validationResult.Message;
-                }
+            return message;
+        }
 
-                // TODO: for empty oldString, we should check if the file exists and is empty, and if so, allow the replacement to create a new file with newString.
-                ArgumentException.ThrowIfNullOrEmpty(oldString, "oldString cannot be empty", nameof(oldString));
+        if (result is AgentWorkspaceFile file)
+        {
+            ValidationResult validationResult = await ValidateInputAsync(file, oldString, newString, cancellationToken);
+            if (!validationResult.Result)
+            {
+                return validationResult.Message;
+            }
 
-                try
-                {
-                    AgentWorkspaceEditToolResult.TryAdd(CallId, await ReplaceAsync(file, oldString, newString, replaceAll, cancellationToken));
-                    Context.InvalidateFileRead(file);
-                }
-                catch (AgentWorkspaceException ex)
-                {
-                    return ex.Message;
-                }
+            // TODO: for empty oldString, we should check if the file exists and is empty, and if so, allow the replacement to create a new file with newString.
+            ArgumentException.ThrowIfNullOrEmpty(oldString, "oldString cannot be empty", nameof(oldString));
 
-                return replaceAll
-                    ? $"The file {file.FullPath} has been updated. All occurrences were successfully replaced."
-                    : $"The file {file.FullPath} has been updated successfully.";
+            try
+            {
+                AgentWorkspaceEditToolResult.TryAdd(CallId, await ReplaceAsync(file, oldString, newString, replaceAll, cancellationToken));
+                Context.InvalidateFileRead(file);
+            }
+            catch (AgentWorkspaceException ex)
+            {
+                return ex.Message;
+            }
+
+            return replaceAll
+                ? $"The file {file.FullPath} has been updated. All occurrences were successfully replaced."
+                : $"The file {file.FullPath} has been updated successfully.";
         }
 
         throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile");
