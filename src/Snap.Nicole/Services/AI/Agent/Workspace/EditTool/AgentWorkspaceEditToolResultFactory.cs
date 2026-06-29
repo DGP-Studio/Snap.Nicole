@@ -38,7 +38,7 @@ internal static class AgentWorkspaceEditToolResultFactory
             return [];
         }
 
-        List<ReplacementTextSpan> spans = new(matches.Count);
+        List<ReplacementTextSpan> spans = [with(matches.Count)];
         using LineEndingNormalizingTextReader reader = OpenNormalizedReader(file);
         using IMemoryOwner<char> bufferOwner = MemoryPool<char>.Shared.Rent(StreamBufferSize);
         Memory<char> buffer = bufferOwner.Memory[..StreamBufferSize];
@@ -121,7 +121,7 @@ internal static class AgentWorkspaceEditToolResultFactory
 
         using (LineEndingNormalizingTextReader reader = OpenNormalizedReader(file))
         {
-            List<AgentWorkspaceEditToolHunk> hunks = new(hunkDescriptions.Count);
+            List<AgentWorkspaceEditToolHunk> hunks = [with(hunkDescriptions.Count)];
 
             int currentLine = 0;
             foreach (HunkDescription hunkDescription in hunkDescriptions)
@@ -131,7 +131,7 @@ internal static class AgentWorkspaceEditToolResultFactory
                     currentLine++;
                 }
 
-                TextLineCollection oldLines = new();
+                TextLineCollection oldLines = [];
                 while (currentLine <= hunkDescription.EndLine && await reader.ReadLineAsync(cancellationToken) is { } line)
                 {
                     oldLines.Add(line);
@@ -184,7 +184,7 @@ internal static class AgentWorkspaceEditToolResultFactory
             commonSuffixLineCount++;
         }
 
-        List<AgentWorkspaceEditToolHunkLine> lines = new(oldLines.Count + newLines.Count);
+        List<AgentWorkspaceEditToolHunkLine> lines = [with(oldLines.Count + newLines.Count)];
         int oldLineNumber = oldStartLine;
         int newLineNumber = newStartLine;
 

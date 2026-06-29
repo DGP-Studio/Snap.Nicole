@@ -12,8 +12,7 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
-internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context)
-    : AgentWorkspaceTool(context)
+internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : AgentWorkspaceTool(context)
 {
     private const int WriterBufferSize = 4096;
 

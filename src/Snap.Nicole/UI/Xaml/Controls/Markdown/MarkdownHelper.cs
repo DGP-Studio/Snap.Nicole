@@ -380,7 +380,7 @@ internal static partial class MarkdownHelper
     {
         ReadOnlySpan<char> trimmed = cell.AsSpan().Trim();
         bool hasLeftMarker = trimmed.Length > 0 && trimmed[0] == ':';
-        bool hasRightMarker = trimmed.Length > 0 && trimmed[trimmed.Length - 1] == ':';
+        bool hasRightMarker = trimmed.Length > 0 && trimmed[^1] == ':';
 
         if (hasLeftMarker && hasRightMarker)
         {

@@ -14,7 +14,7 @@ internal sealed partial class ObservableWebSearchToolCallContent : ObservableToo
         return new()
         {
             CallId = toolCallContent.CallId,
-            Queries = toolCallContent.Queries is null ? null : new ObservableCollection<string>(toolCallContent.Queries),
+            Queries = toolCallContent.Queries is null ? null : [with(toolCallContent.Queries)],
         };
     }
 }

@@ -72,13 +72,13 @@ internal sealed partial class SettingsModelConfigurationViewModel(IServiceProvid
         }
 
         // There can potentially be models with the same ModelId, so we didn't use ToDictionary.
-        Dictionary<string, ModelProfile> existingMap = new(StringComparer.Ordinal);
+        Dictionary<string, ModelProfile> existingMap = [with(StringComparer.Ordinal)];
         foreach (ModelProfile destModelProfile in destination)
         {
             existingMap.TryAdd(destModelProfile.ModelId, destModelProfile);
         }
 
-        HashSet<string> visitedModelIds = new(StringComparer.Ordinal);
+        HashSet<string> visitedModelIds = [with(StringComparer.Ordinal)];
         ModelProfile? firstFetched = null;
         int targetIndex = 0;
 

@@ -12,6 +12,9 @@ The user might execute `git add`/`git restore` actively to observable/review you
 
 # C# Type Members Layout Order
 
+**IMPORTANT**:
+
+<type-member-layout>
 When writing new code or editing existing code, arrange type members in the following order:
 
 - Fields
@@ -44,8 +47,10 @@ Then, within the same accessibility and member type, arrange members in the foll
 - static readonly
 - readonly
 - normal
+</type-member-layout>
 
 Keep related members as close together as possible without violating the rules above.
+**Note**: this is only guidance for member placement order and does not necessarily mean every member type must be present in a type
 
 # Project Structure
 
@@ -96,6 +101,7 @@ src
 	- For non-constant `string` or `string?` values that need an empty string, use `string.Empty` instead of `""`. Empty string literals are allowed only for constants (especially inside `[Attribute]` where `string.Empty` is not applicable) or the `is pattern`.
 	- Use `Interlocked.Exchange` for atomic read-modify-write operations: `if (Interlocked.Exchange(ref value, true)) { return; }` instead of separate read and write operations:`if (value) { return; } value = true;`
 	- When resolving multiple services from DI, single `IServiceProvider serviceProvider` argument is recommended, and resolve services from that serviceProvider, unless some parameters must be directly injected.
+	- Prefer FrozenSet/FrozenDictionary when creating immutable set/map for faster lookup operations.
 - DO NOT
 	- Do not use expression-bodied syntax for methods, constructors, operators, or conversions. Lambdas or expressions inside method/property bodies are unaffected.
 	- Avoid closures that capture more than 4 variables. Closures should generally be minimized; when a method has an overload that accepts a state argument, prefer that overload.

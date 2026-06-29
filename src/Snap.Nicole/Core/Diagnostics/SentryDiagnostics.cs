@@ -40,7 +40,7 @@ internal static class SentryDiagnostics
 
     public static void CaptureException(Exception exception, SentryDiagnosticSpan span, string operation, Action<Scope>? configureScope)
     {
-        Dictionary<string, string> tags = new(span.Tags);
+        Dictionary<string, string> tags = [with(span.Tags)];
         span.Finish(exception);
         CaptureException(exception, operation, scope =>
         {

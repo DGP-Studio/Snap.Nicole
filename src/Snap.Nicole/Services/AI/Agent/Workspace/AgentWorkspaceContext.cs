@@ -14,7 +14,7 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
     private const int FileHashBufferSize = 81920;
 
     private readonly Lock readFileHashesLock = new();
-    private readonly Dictionary<string, ulong> readFileHashes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ulong> readFileHashes = [with(StringComparer.OrdinalIgnoreCase)];
 
     public IReadOnlyList<string> RootDirectories { get; } = CreateRootDirectories(workingDirectories);
 

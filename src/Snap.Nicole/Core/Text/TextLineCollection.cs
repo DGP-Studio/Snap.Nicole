@@ -52,7 +52,7 @@ internal sealed class TextLineCollection : IList<string>, IReadOnlyList<string>
         string[] splitLines = normalizedValue.Value.Split(LF);
         int lineCount = splitLines.Length > 0 && splitLines[^1].Length is 0 ? splitLines.Length - 1 : splitLines.Length;
 
-        TextLineCollection lines = new();
+        TextLineCollection lines = [];
         for (int i = 0; i < lineCount; i++)
         {
             lines.Add(splitLines[i]);

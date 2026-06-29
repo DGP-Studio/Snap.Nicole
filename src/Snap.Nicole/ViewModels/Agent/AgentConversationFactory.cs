@@ -17,7 +17,7 @@ internal static class AgentConversationFactory
             SerializedSessionState = conversation.Runtime.SerializedSessionState?.Clone(),
             ExternalDirectories = [.. conversation.ExternalDirectories],
             ToolApprovalRequest = conversation.ToolApprovalRequest,
-            Messages = new(conversation.Messages),
+            Messages = [with(conversation.Messages)],
         };
     }
 }

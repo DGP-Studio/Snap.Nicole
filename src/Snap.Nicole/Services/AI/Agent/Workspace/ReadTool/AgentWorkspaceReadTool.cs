@@ -1,182 +1,135 @@
 using Microsoft.Extensions.AI;
-using Snap.Nicole.Core.Text;
-using System;
+using Snap.Nicole.Core;
+using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.ComponentModel;
-using System.Globalization;
 using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.ReadTool;
 
-internal sealed class AgentWorkspaceReadTool : AgentWorkspaceTool
+internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : AgentWorkspaceTool(context)
 {
-    private const int DefaultReadLineLimit = 2000;
+    private const int ReadValidationErrorCode = 4;
 
-    private readonly AITool tool;
+    // Binary file extensions to skip for text-based operations.
+    // These files can't be meaningfully compared as text and are often large.
+    private static readonly FrozenSet<string> BinaryExtensions =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
 
-    public AgentWorkspaceReadTool(AgentWorkspaceContext context) : base(context)
-    {
-        tool = AIFunctionFactory.Create(InvokeAsync);
-    }
+        // Images
+        ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".tiff", ".tif",
 
-    public override AITool Tool { get => tool; }
+        // Videos
+        ".mp4", ".mov", ".avi", ".mkv", ".webm", ".wmv", ".flv", ".m4v", ".mpeg", ".mpg",
+
+        // Audio
+        ".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a", ".wma", ".aiff", ".opus",
+
+        // Archives
+        ".zip", ".tar", ".gz", ".bz2", ".7z", ".rar", ".xz", ".z", ".tgz", ".iso",
+
+        // Executables/binaries
+        ".exe", ".dll", ".so", ".dylib", ".bin", ".o", ".a", ".obj", ".lib", ".app", ".msi", ".deb", ".rpm",
+
+        // Documents
+        ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt", ".ods", ".odp",
+
+        // Fonts
+        ".ttf", ".otf", ".woff", ".woff2", ".eot",
+
+        // Bytecode / VM artifacts
+        ".pyc", ".pyo", ".class", ".jar", ".war", ".ear", ".node", ".wasm", ".rlib",
+
+        // Database files
+        ".sqlite", ".sqlite3", ".db", ".mdb", ".idx",
+
+        // Design / 3D
+        ".psd", ".ai", ".eps", ".sketch", ".fig", ".xd", ".blend", ".3ds", ".max",
+
+        // Flash
+        ".swf", ".fla",
+
+        // Lock/profiling data
+        ".lockb", ".dat", ".data",
+    ];
+
+    public override AITool Tool { get => field ??= AIFunctionFactory.Create(InvokeAsync); }
 
     [DisplayName(Prompt.ReadToolName)]
     [Description(Prompt.ReadToolDescription)]
-    private async Task<AIContent> InvokeAsync(
+    public Task<AIContent> InvokeAsync(
         [Description("The absolute path to the file to read")] string filePath,
         [Description("The line number to start reading from. Only provide if the file is too large to read at once")][DefaultValue(0)] int offset,
         [Description("The number of lines to read. Only provide if the file is too large to read at once.")][DefaultValue(null)] int? limit,
         CancellationToken cancellationToken = default)
     {
-        switch (Context.ResolveWorkspaceFile(filePath))
-        {
-            case string message:
-                return new TextContent(message);
-            case AgentWorkspaceFile path:
-                if (!File.Exists(path.FullPath))
-                {
-                    if (Directory.Exists(path.FullPath))
-                    {
-                        throw new InvalidOperationException($"'{path.FullPath}' is a directory. Use Glob to inspect directories.");
-                    }
-
-                    throw new FileNotFoundException($"File '{path.FullPath}' not found.", path.FullPath);
-                }
-
-                FileInfo fileInfo = new(path.FullPath);
-                if (fileInfo.Length is 0)
-                {
-                    throw new InvalidOperationException($"File '{path.FullPath}' is empty.");
-                }
-
-                string extension = Path.GetExtension(path.FullPath);
-                ulong readStartedHash = await path.ComputeHashAsync(cancellationToken);
-                AIContent content = GetImageMediaType(extension) is { } imageMediaType
-                    ? await ReadImageFileAsync(path, imageMediaType, cancellationToken)
-                    : new TextContent(await ReadTextFileAsync(path.FullPath, offset, limit, cancellationToken));
-                ulong readCompletedHash = await path.ComputeHashAsync(cancellationToken);
-                if (readCompletedHash != readStartedHash)
-                {
-                    throw new InvalidOperationException($"File '{path.FullPath}' was modified while it was being read. Read it again before modifying.");
-                }
-
-                Context.MarkFileAsRead(path.FullPath, readCompletedHash);
-                return content;
-            default:
-                throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile.");
-        }
+        return ReadAsync(filePath, offset, limit, cancellationToken);
     }
 
-    private static async Task<DataContent> ReadImageFileAsync(AgentWorkspaceFile file, string mediaType, CancellationToken cancellationToken)
+    private static ValidationResult Validate(AgentWorkspaceFile file)
     {
-        using FileStream stream = file.OpenRead(share: FileShare.ReadWrite | FileShare.Delete);
-        DataContent content = await DataContent.LoadFromAsync(stream, mediaType, cancellationToken);
-        content.Name = Path.GetFileName(file.FullPath);
-        return content;
-    }
-
-    private static async Task<string> ReadTextFileAsync(string fullPath, int offset, int? limit, CancellationToken cancellationToken)
-    {
-        int startLineNumber = NormalizeReadOffset(offset);
-        int lineLimit = NormalizeReadLimit(limit);
-        StringBuilder builder = new();
-        int currentLineNumber = 0;
-        int writtenLineCount = 0;
-        using StreamReader reader = new(fullPath, Encoding.UTF8WithoutBOM, detectEncodingFromByteOrderMarks: true);
-        while (await reader.ReadLineAsync(cancellationToken) is { } line)
+        if (!file.Exists)
         {
-            currentLineNumber++;
-            if (currentLineNumber < startLineNumber)
+            if (Directory.Exists(file.FullPath))
             {
-                continue;
+                return ValidationResult.Ask($"'{file.FullPath}' is a directory. Use Glob to inspect directories.", ReadValidationErrorCode);
             }
 
-            if (writtenLineCount >= lineLimit)
+            return ValidationResult.Ask($"File '{file.FullPath}' not found.", ReadValidationErrorCode);
+        }
+
+        FileInfo fileInfo = new(file.FullPath);
+        if (fileInfo.Length is 0)
+        {
+            return ValidationResult.Ask($"File '{file.FullPath}' is empty.", ReadValidationErrorCode);
+        }
+
+        string extension = Path.GetExtension(file.FullPath);
+        if (HasBinaryExtension(extension) && !AgentWorkspaceReadToolResultFactory.IsSupportedImageExtension(extension))
+        {
+            string normalizedExtension = extension.ToLowerInvariant();
+            return ValidationResult.Ask($"This tool cannot read binary files. The file appears to be a binary {normalizedExtension} file. Please use appropriate tools for binary file analysis.", ReadValidationErrorCode);
+        }
+
+        return ValidationResult.Ok;
+    }
+
+    private static bool HasBinaryExtension(string extension)
+    {
+        return BinaryExtensions.Contains(extension);
+    }
+
+    private async Task<AIContent> ReadAsync(string filePath, int offset, int? limit, CancellationToken cancellationToken = default)
+    {
+        MessageResult<AgentWorkspaceFile> result = Context.ResolveWorkspaceFile(filePath);
+        if (result is string message)
+        {
+            return new TextContent(message);
+        }
+
+        if (result is AgentWorkspaceFile file)
+        {
+            ValidationResult validationResult = Validate(file);
+            if (!validationResult.Result)
             {
-                AppendReadTruncationReminder(builder, currentLineNumber);
-                break;
+                return new TextContent(validationResult.Message);
             }
 
-            AppendCatLine(builder, currentLineNumber, line);
-            writtenLineCount++;
+            ulong readStartedHash = await file.ComputeHashAsync(cancellationToken);
+            AIContent content = await AgentWorkspaceReadToolResultFactory.CreateAsync(file, offset, limit, cancellationToken);
+            ulong readCompletedHash = await file.ComputeHashAsync(cancellationToken);
+            if (readCompletedHash != readStartedHash)
+            {
+                throw new InvalidOperationException($"File '{file.FullPath}' was modified while it was being read. Read it again before modifying.");
+            }
+
+            Context.MarkFileAsRead(file.FullPath, readCompletedHash);
+            return content;
         }
 
-        if (currentLineNumber is 0)
-        {
-            throw new InvalidOperationException("File is empty.");
-        }
-
-        if (writtenLineCount is 0)
-        {
-            throw new InvalidOperationException($"Line offset {offset} is beyond the end of the file. The file has {currentLineNumber} line(s).");
-        }
-
-        return builder.ToString();
-    }
-
-    private static void AppendCatLine(StringBuilder builder, int lineNumber, string line)
-    {
-        builder.Append(lineNumber.ToString(CultureInfo.InvariantCulture).PadLeft(6));
-        builder.Append('\t');
-        builder.AppendLine(line);
-    }
-
-    private static void AppendReadTruncationReminder(StringBuilder builder, int nextLineNumber)
-    {
-        builder.AppendLine($"[Output truncated. Use offset={nextLineNumber} to continue reading.]");
-    }
-
-    private static int NormalizeReadOffset(int offset)
-    {
-        if (offset < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(offset), "offset cannot be negative.");
-        }
-
-        return Math.Max(1, offset);
-    }
-
-    private static int NormalizeReadLimit(int? limit)
-    {
-        int normalizedLimit = limit ?? DefaultReadLineLimit;
-        if (normalizedLimit <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(limit), "limit must be greater than 0.");
-        }
-
-        return normalizedLimit;
-    }
-
-    private static string? GetImageMediaType(string extension)
-    {
-        if (string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase))
-        {
-            return "image/png";
-        }
-
-        if (string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase) || string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase))
-        {
-            return "image/jpeg";
-        }
-
-        if (string.Equals(extension, ".gif", StringComparison.OrdinalIgnoreCase))
-        {
-            return "image/gif";
-        }
-
-        if (string.Equals(extension, ".bmp", StringComparison.OrdinalIgnoreCase))
-        {
-            return "image/bmp";
-        }
-
-        if (string.Equals(extension, ".webp", StringComparison.OrdinalIgnoreCase))
-        {
-            return "image/webp";
-        }
-
-        return null;
+        throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile.");
     }
 }

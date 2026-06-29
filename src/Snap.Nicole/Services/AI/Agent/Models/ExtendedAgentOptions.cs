@@ -144,6 +144,8 @@ internal sealed class ExtendedAgentOptions
 
     private HarnessAgentOptions CreateHarnessAgentOptions(IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace, int maxContextWindowTokens, int maxOutputTokens, out IAsyncDisposable? resources)
     {
+        // TODO: The compaction strategy should be controlled by ourselves.
+        // The history provider would then take in compaction strategy as chat reducer.
         List<AIContextProvider> contextProviders = [new AgentWorkspaceContextProvider(workspace.WorkingDirectories)];
         LocalShellExecutor shellExecutor = CreateShellExecutor(workspace);
         resources = shellExecutor;
