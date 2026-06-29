@@ -1,9 +1,12 @@
+using System.Buffers;
 using System.Text;
 
 namespace Snap.Nicole.Core.Text;
 
 internal readonly struct NormalizedString
 {
+    private static readonly SearchValues<char> NewLineChars = SearchValues.Create("\r\n\f\u0085\u2028\u2029");
+
     public NormalizedString(string value)
     {
         Value = NormalizeLineEndings(value, out int lineEndingCount);
@@ -23,7 +26,7 @@ internal readonly struct NormalizedString
         for (int i = 0; i < value.Length; i++)
         {
             char current = value[i];
-            if (!IsLineEnding(current))
+            if (!NewLineChars.Contains(current))
             {
                 continue;
             }
@@ -53,10 +56,5 @@ internal readonly struct NormalizedString
 
         builder.Append(value.AsSpan(segmentStart));
         return builder.ToString();
-    }
-
-    private static bool IsLineEnding(char value)
-    {
-        return value is ('\r' or '\n' or '\f' or '\u0085' or '\u2028' or '\u2029');
     }
 }

@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
-
+#if !NET11_0
 namespace System.Runtime.CompilerServices;
 
 /// <summary>
@@ -42,3 +39,4 @@ public interface IUnion
 public sealed class UnionAttribute : Attribute
 {
 }
+#endif
