@@ -101,7 +101,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
             try
             {
                 AgentWorkspaceEditToolResult.TryAdd(CallId, await EditFileAsync(file, oldString, newString, replaceAll, cancellationToken));
-                Context.MarkFileAsRead(file.FullPath, await file.ComputeHashAsync(cancellationToken));
+                await Context.MarkFileAsReadAsync(file, cancellationToken);
             }
             catch (AgentWorkspaceException ex)
             {

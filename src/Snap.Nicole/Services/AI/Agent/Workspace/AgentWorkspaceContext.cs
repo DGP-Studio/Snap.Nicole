@@ -94,11 +94,13 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
         throw new ArgumentException($"Search path must be absolute: {path}", nameof(path));
     }
 
-    public void MarkFileAsRead(string fullPath, ulong fileHash)
+    public async Task MarkFileAsReadAsync(AgentWorkspaceFile file, CancellationToken cancellationToken = default)
     {
+        ulong fileHash = await file.ComputeHashAsync(cancellationToken);
+
         lock (readFileHashesLock)
         {
-            readFileHashes[fullPath] = fileHash;
+            readFileHashes[file.FullPath] = fileHash;
         }
     }
 
@@ -110,6 +112,7 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
         }
     }
 
+    [Obsolete]
     public void InvalidateFileRead(string fullPath)
     {
         lock (readFileHashesLock)

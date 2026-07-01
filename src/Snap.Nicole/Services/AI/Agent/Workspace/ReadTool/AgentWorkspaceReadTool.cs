@@ -4,6 +4,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,8 +12,6 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace.ReadTool;
 
 internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : AgentWorkspaceTool(context)
 {
-    private const int ReadValidationErrorCode = 4;
-
     // Binary file extensions to skip for text-based operations.
     // These files can't be meaningfully compared as text and are often large.
     private static readonly FrozenSet<string> BinaryExtensions =
@@ -69,37 +68,43 @@ internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : Ag
         return ReadAsync(filePath, offset, limit, cancellationToken);
     }
 
-    private static ValidationResult Validate(AgentWorkspaceFile file)
+    private ValidationResult ValidateInput(AgentWorkspaceFile file)
     {
         if (!file.Exists)
         {
-            if (Directory.Exists(file.FullPath))
+            StringBuilder message = new();
+            message.AppendLine($"File '{file.FullPath}' not found.");
+            message.AppendLine("Available workspace roots:");
+            foreach (string rootDirectory in Context.RootDirectories)
             {
-                return ValidationResult.Ask($"'{file.FullPath}' is a directory. Use Glob to inspect directories.", ReadValidationErrorCode);
+                message.AppendLine($"- {rootDirectory}");
             }
 
-            return ValidationResult.Ask($"File '{file.FullPath}' not found.", ReadValidationErrorCode);
+            if (Context.SuggestPathUnderWorkspaceRoots(file.FullPath) is { } cwdSuggestion)
+            {
+                message.Append($"Did you mean {cwdSuggestion}?");
+            }
+            else if (AgentWorkspaceContext.FindSimilarFile(file.FullPath) is { } similarFileName)
+            {
+                message.Append($"Did you mean {similarFileName}?");
+            }
+
+            return ValidationResult.Ask(message.ToString(), 4);
         }
 
         FileInfo fileInfo = new(file.FullPath);
         if (fileInfo.Length is 0)
         {
-            return ValidationResult.Ask($"File '{file.FullPath}' is empty.", ReadValidationErrorCode);
+            return ValidationResult.Ask($"File '{file.FullPath}' is empty.", 4);
         }
 
         string extension = Path.GetExtension(file.FullPath);
-        if (HasBinaryExtension(extension) && !AgentWorkspaceReadToolResultFactory.IsSupportedImageExtension(extension))
+        if (BinaryExtensions.Contains(extension) && !AgentWorkspaceReadToolResultFactory.IsSupportedImageExtension(extension))
         {
-            string normalizedExtension = extension.ToLowerInvariant();
-            return ValidationResult.Ask($"This tool cannot read binary files. The file appears to be a binary {normalizedExtension} file. Please use appropriate tools for binary file analysis.", ReadValidationErrorCode);
+            return ValidationResult.Ask($"This tool cannot read binary files. The file appears to be a binary {extension.ToLowerInvariant()} file. Please use appropriate tools for binary file analysis.", 4);
         }
 
         return ValidationResult.Ok;
-    }
-
-    private static bool HasBinaryExtension(string extension)
-    {
-        return BinaryExtensions.Contains(extension);
     }
 
     private async Task<AIContent> ReadAsync(string filePath, int offset, int? limit, CancellationToken cancellationToken = default)
@@ -112,21 +117,14 @@ internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : Ag
 
         if (result is AgentWorkspaceFile file)
         {
-            ValidationResult validationResult = Validate(file);
+            ValidationResult validationResult = ValidateInput(file);
             if (!validationResult.Result)
             {
                 return new TextContent(validationResult.Message);
             }
 
-            ulong readStartedHash = await file.ComputeHashAsync(cancellationToken);
             AIContent content = await AgentWorkspaceReadToolResultFactory.CreateAsync(file, offset, limit, cancellationToken);
-            ulong readCompletedHash = await file.ComputeHashAsync(cancellationToken);
-            if (readCompletedHash != readStartedHash)
-            {
-                throw new InvalidOperationException($"File '{file.FullPath}' was modified while it was being read. Read it again before modifying.");
-            }
-
-            Context.MarkFileAsRead(file.FullPath, readCompletedHash);
+            await Context.MarkFileAsReadAsync(file, cancellationToken);
             return content;
         }
 
