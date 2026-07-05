@@ -1,25 +1,18 @@
-using Snap.Nicole.Core.IO;
-using Snap.Nicole.Core.IO.StreamingText;
 using Snap.Nicole.Core.Text;
-using System.Buffers;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
 internal static class AgentWorkspaceEditToolResultFactory
 {
     private const int HunkContextLineCount = 3;
-    private const int StreamBufferSize = 4096;
 
-    public static async Task<AgentWorkspaceEditToolResult> CreateAsync(AgentWorkspaceFile file, NormalizedString oldString, NormalizedString newString, IReadOnlyList<StreamingTextMatch> matches, CancellationToken cancellationToken)
+    public static AgentWorkspaceEditToolResult Create(AgentWorkspaceFile file, NormalizedString sourceText, NormalizedString oldString, NormalizedString newString, IReadOnlyList<int> matchStartIndexes)
     {
-        IReadOnlyList<ReplacementTextSpan> replacementTextSpans = await CreateReplacementTextSpansAsync(file, oldString, matches, cancellationToken);
+        IReadOnlyList<ReplacementTextSpan> replacementTextSpans = CreateReplacementTextSpans(sourceText, oldString, matchStartIndexes);
         IReadOnlyList<HunkDescription> hunkDescriptions = CreateHunkDescriptions(replacementTextSpans, newString.LineEndingCount - oldString.LineEndingCount);
-        IReadOnlyList<AgentWorkspaceEditToolHunk> structuredPatch = await CreateStructuredPatchAsync(file, hunkDescriptions, newString, cancellationToken);
+        IReadOnlyList<AgentWorkspaceEditToolHunk> structuredPatch = CreateStructuredPatch(sourceText, hunkDescriptions, newString);
         CountPatchLines(structuredPatch, out int additions, out int deletions);
 
         return new()
@@ -31,48 +24,27 @@ internal static class AgentWorkspaceEditToolResultFactory
         };
     }
 
-    private static async Task<IReadOnlyList<ReplacementTextSpan>> CreateReplacementTextSpansAsync(AgentWorkspaceFile file, NormalizedString oldString, IReadOnlyList<StreamingTextMatch> matches, CancellationToken cancellationToken)
+    private static IReadOnlyList<ReplacementTextSpan> CreateReplacementTextSpans(NormalizedString sourceText, NormalizedString oldString, IReadOnlyList<int> matchStartIndexes)
     {
-        if (matches.Count is 0)
+        if (matchStartIndexes.Count is 0)
         {
             return [];
         }
 
-        List<ReplacementTextSpan> spans = [with(matches.Count)];
-        using LineEndingNormalizingTextReader reader = OpenNormalizedReader(file);
-        using IMemoryOwner<char> bufferOwner = MemoryPool<char>.Shared.Rent(StreamBufferSize);
-        Memory<char> buffer = bufferOwner.Memory[..StreamBufferSize];
-
-        int currentMatchIndex = 0;
-        long currentCharIndex = 0;
+        List<ReplacementTextSpan> spans = [with(matchStartIndexes.Count)];
+        int currentOffset = 0;
         TextPosition currentPosition = new(0, 0);
-
-        while (currentMatchIndex < matches.Count)
+        foreach (int matchStartIndex in matchStartIndexes)
         {
-            int readCount = await reader.ReadAsync(buffer, cancellationToken);
-            if (readCount is 0)
+            currentPosition = Advance(currentPosition, sourceText.Value.AsSpan(currentOffset, matchStartIndex - currentOffset));
+            spans.Add(new()
             {
-                break;
-            }
+                Start = currentPosition,
+                End = currentPosition.Advance(oldString),
+            });
 
-            for (int i = 0; i < readCount && currentMatchIndex < matches.Count; i++)
-            {
-                char current = buffer.Span[i];
-
-                if (currentCharIndex == matches[currentMatchIndex].StartIndex)
-                {
-                    spans.Add(new()
-                    {
-                        Start = currentPosition,
-                        End = currentPosition.Advance(oldString),
-                    });
-
-                    currentMatchIndex++;
-                }
-
-                currentPosition = currentPosition.Advance(current);
-                currentCharIndex++;
-            }
+            currentPosition = currentPosition.Advance(oldString);
+            currentOffset = matchStartIndex + oldString.Value.Length;
         }
 
         return spans;
@@ -112,37 +84,30 @@ internal static class AgentWorkspaceEditToolResultFactory
         return descriptions;
     }
 
-    private static async Task<IReadOnlyList<AgentWorkspaceEditToolHunk>> CreateStructuredPatchAsync(AgentWorkspaceFile file, IReadOnlyList<HunkDescription> hunkDescriptions, NormalizedString newString, CancellationToken cancellationToken)
+    private static IReadOnlyList<AgentWorkspaceEditToolHunk> CreateStructuredPatch(NormalizedString sourceText, IReadOnlyList<HunkDescription> hunkDescriptions, NormalizedString newString)
     {
         if (hunkDescriptions.Count is 0)
         {
             return [];
         }
 
-        using (LineEndingNormalizingTextReader reader = OpenNormalizedReader(file))
+        TextLineCollection sourceLines = TextLineCollection.FromText(sourceText.Value);
+        List<AgentWorkspaceEditToolHunk> hunks = [with(hunkDescriptions.Count)];
+
+        foreach (HunkDescription hunkDescription in hunkDescriptions)
         {
-            List<AgentWorkspaceEditToolHunk> hunks = [with(hunkDescriptions.Count)];
+            TextLineCollection oldLines = [];
+            int endLine = Math.Min(hunkDescription.EndLine, sourceLines.Count - 1);
 
-            int currentLine = 0;
-            foreach (HunkDescription hunkDescription in hunkDescriptions)
+            for (int i = hunkDescription.StartLine; i <= endLine; i++)
             {
-                while (currentLine < hunkDescription.StartLine && await reader.ReadLineAsync(cancellationToken) is not null)
-                {
-                    currentLine++;
-                }
-
-                TextLineCollection oldLines = [];
-                while (currentLine <= hunkDescription.EndLine && await reader.ReadLineAsync(cancellationToken) is { } line)
-                {
-                    oldLines.Add(line);
-                    currentLine++;
-                }
-
-                hunks.Add(CreateHunk(hunkDescription, oldLines, newString));
+                oldLines.Add(sourceLines[i]);
             }
 
-            return hunks;
+            hunks.Add(CreateHunk(hunkDescription, oldLines, newString));
         }
+
+        return hunks;
     }
 
     private static AgentWorkspaceEditToolHunk CreateHunk(HunkDescription hunkDescription, TextLineCollection oldLines, NormalizedString newString)
@@ -220,9 +185,15 @@ internal static class AgentWorkspaceEditToolResultFactory
         return lines;
     }
 
-    private static LineEndingNormalizingTextReader OpenNormalizedReader(AgentWorkspaceFile file)
+    private static TextPosition Advance(TextPosition position, ReadOnlySpan<char> value)
     {
-        return new(new StreamReader(file.OpenRead(share: FileShare.ReadWrite | FileShare.Delete), Encoding.UTF8WithoutBOM, true));
+        TextPosition result = position;
+        for (int i = 0; i < value.Length; i++)
+        {
+            result = result.Advance(value[i]);
+        }
+
+        return result;
     }
 
     private static void CountPatchLines(IReadOnlyList<AgentWorkspaceEditToolHunk> structuredPatch, out int additions, out int deletions)

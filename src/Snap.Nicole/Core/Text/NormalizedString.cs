@@ -15,7 +15,14 @@ internal readonly struct NormalizedString
 
     public string Value { get; }
 
+    public int Length { get => Value.Length; }
+
     public int LineEndingCount { get; }
+
+    public int IndexOf(NormalizedString value, int startIndex, StringComparison comparisonType)
+    {
+        return Value.IndexOf(value.Value, startIndex, comparisonType);
+    }
 
     private static string NormalizeLineEndings(string value, out int lineEndingCount)
     {

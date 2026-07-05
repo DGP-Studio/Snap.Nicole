@@ -1,7 +1,5 @@
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Core;
-using Snap.Nicole.Core.IO;
-using Snap.Nicole.Core.IO.StreamingText;
 using Snap.Nicole.Core.Text;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -14,7 +12,7 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
 internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : AgentWorkspaceTool(context)
 {
-    private const int WriterBufferSize = 4096;
+    private const int LineEndingKindCount = 7;
 
     public override AITool Tool { get => field ??= AIFunctionFactory.Create(InvokeAsync).AsApprovalRequired(); }
 
@@ -32,50 +30,43 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
 
     private static async Task<AgentWorkspaceEditToolResult> EditFileAsync(AgentWorkspaceFile file, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
     {
-        AgentWorkspaceEditToolResult result;
+        string fileText = await File.ReadAllTextAsync(file.FullPath, Encoding.UTF8WithoutBOM, cancellationToken);
+
+        NormalizedString normalizedFileText = new(fileText);
         NormalizedString normalizedOldString = new(oldString);
         NormalizedString normalizedNewString = new(newString);
 
-        using (TemporaryFileStream temporaryStream = file.CreateTemporary())
+        IReadOnlyList<int> matchStartIndexes = FindMatchStartIndexes(normalizedFileText.Value, normalizedOldString.Value);
+
+        if (matchStartIndexes.Count is 0)
         {
-            IReadOnlyList<StreamingTextMatch> matches;
-            using (FileStream sourceStream = file.OpenRead())
-            {
-                using (TextReader reader = new LineEndingNormalizingTextReader(new StreamReader(sourceStream, Encoding.UTF8WithoutBOM, true)))
-                {
-                    using (StreamWriter writer = new(temporaryStream, Encoding.UTF8WithoutBOM, WriterBufferSize, true))
-                    {
-                        try
-                        {
-                            matches = await StreamingText.ReplaceAsync(reader, writer, normalizedOldString.Value, normalizedNewString.Value, replaceAll, cancellationToken);
-                        }
-                        catch (StreamingTextMultipleMatchesException ex)
-                        {
-                            string message = $"""
-                                Found multiple matches of the string to replace, but replaceAll is false.
-                                To replace all occurrences, set replaceAll to true.
-                                To replace only one occurrence, please provide more context to uniquely identify the instance.
-                                String: {oldString}
-                                """;
-                            throw AgentWorkspaceException.Throw(message, ex);
-                        }
-                    }
-                }
-            }
-
-            if (matches.Count is 0)
-            {
-                string message = $"""
-                    String to replace not found in file.
-                    String: '{oldString}'
-                    """;
-                AgentWorkspaceException.Throw(message);
-            }
-
-            result = await AgentWorkspaceEditToolResultFactory.CreateAsync(file, normalizedOldString, normalizedNewString, matches, cancellationToken);
-            temporaryStream.Commit();
+            string message = $"""
+                String to replace not found in file.
+                String: '{oldString}'
+                """;
+            AgentWorkspaceException.Throw(message);
         }
 
+        if (matchStartIndexes.Count > 1 && !replaceAll)
+        {
+            string message = $"""
+                Found multiple matches of the string to replace, but replaceAll is false.
+                To replace all occurrences, set replaceAll to true.
+                To replace only one occurrence, please provide more context to uniquely identify the instance.
+                String: {oldString}
+                """;
+            AgentWorkspaceException.Throw(message);
+        }
+
+        string normalizedUpdatedFileText = replaceAll
+            ? normalizedFileText.Value.Replace(normalizedOldString.Value, normalizedNewString.Value, StringComparison.Ordinal)
+            : normalizedFileText.Value.Remove(matchStartIndexes[0], normalizedOldString.Value.Length).Insert(matchStartIndexes[0], normalizedNewString.Value);
+        string updatedFileText = (GetDominantLineEnding(fileText) ?? GetDominantLineEnding(newString)) is { } lineEnding
+            ? normalizedUpdatedFileText.ReplaceLineEndings(lineEnding)
+            : normalizedUpdatedFileText;
+        AgentWorkspaceEditToolResult result = AgentWorkspaceEditToolResultFactory.Create(file, normalizedFileText, normalizedOldString, normalizedNewString, matchStartIndexes);
+
+        await File.WriteAllTextAsync(file.FullPath, updatedFileText, Encoding.UTF8WithoutBOM, cancellationToken);
         return result;
     }
 
@@ -171,5 +162,107 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
         }
 
         return ValidationResult.Ok;
+    }
+
+    private static IReadOnlyList<int> FindMatchStartIndexes(NormalizedString fileText, NormalizedString oldString)
+    {
+        List<int> matchStartIndexes = [];
+
+        int searchStartIndex = 0;
+        while (searchStartIndex < fileText.Length)
+        {
+            int matchStartIndex = fileText.IndexOf(oldString, searchStartIndex, StringComparison.Ordinal);
+            if (matchStartIndex < 0)
+            {
+                break;
+            }
+
+            matchStartIndexes.Add(matchStartIndex);
+            searchStartIndex = matchStartIndex + oldString.Length;
+        }
+
+        return matchStartIndexes;
+    }
+
+    private static string? GetDominantLineEnding(string value)
+    {
+        int[] counts = new int[LineEndingKindCount];
+        int[] firstIndexes = new int[LineEndingKindCount];
+        Array.Fill(firstIndexes, int.MaxValue);
+
+        int currentLineEndingIndex = 0;
+        for (int i = 0; i < value.Length; i++)
+        {
+            int kind = GetLineEndingKind(value, ref i);
+            if (kind < 0)
+            {
+                continue;
+            }
+
+            if (counts[kind] is 0)
+            {
+                firstIndexes[kind] = currentLineEndingIndex;
+            }
+
+            counts[kind]++;
+            currentLineEndingIndex++;
+        }
+
+        int dominantKind = -1;
+        int dominantCount = 0;
+        int dominantFirstIndex = int.MaxValue;
+        for (int i = 0; i < LineEndingKindCount; i++)
+        {
+            if (counts[i] > dominantCount || counts[i] == dominantCount && firstIndexes[i] < dominantFirstIndex)
+            {
+                dominantKind = i;
+                dominantCount = counts[i];
+                dominantFirstIndex = firstIndexes[i];
+            }
+        }
+
+        return dominantKind < 0 ? null : GetLineEndingText(dominantKind);
+    }
+
+    private static int GetLineEndingKind(string value, ref int index)
+    {
+        switch (value[index])
+        {
+            case '\r':
+                if (index + 1 < value.Length && value[index + 1] is '\n')
+                {
+                    index++;
+                    return 0;
+                }
+
+                return 1;
+            case '\n':
+                return 2;
+            case '\f':
+                return 3;
+            case '\u0085':
+                return 4;
+            case '\u2028':
+                return 5;
+            case '\u2029':
+                return 6;
+            default:
+                return -1;
+        }
+    }
+
+    private static string GetLineEndingText(int lineEndingKind)
+    {
+        return lineEndingKind switch
+        {
+            0 => "\r\n",
+            1 => "\r",
+            2 => "\n",
+            3 => "\f",
+            4 => "\u0085",
+            5 => "\u2028",
+            6 => "\u2029",
+            _ => throw new ArgumentOutOfRangeException(nameof(lineEndingKind)),
+        };
     }
 }
