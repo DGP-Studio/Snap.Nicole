@@ -18,7 +18,7 @@ internal static class AgentWorkspaceReadToolResultFactory
         string extension = Path.GetExtension(file.FullPath);
         return GetImageMediaType(extension) is { } imageMediaType
             ? await ReadImageFileAsync(file, imageMediaType, cancellationToken)
-            : new TextContent(await ReadTextFileAsync(file, offset, limit, cancellationToken));
+            : await ReadTextFileAsync(file, offset, limit, cancellationToken);
     }
 
     internal static bool IsSupportedImageExtension(string extension)
@@ -34,7 +34,7 @@ internal static class AgentWorkspaceReadToolResultFactory
         return content;
     }
 
-    private static async Task<string> ReadTextFileAsync(AgentWorkspaceFile file, int offset, int? limit, CancellationToken cancellationToken)
+    private static async Task<TextContent> ReadTextFileAsync(AgentWorkspaceFile file, int offset, int? limit, CancellationToken cancellationToken)
     {
         int startLineNumber = NormalizeReadOffset(offset);
         int lineLimit = NormalizeReadLimit(limit);
@@ -71,12 +71,12 @@ internal static class AgentWorkspaceReadToolResultFactory
             throw new InvalidOperationException($"Line offset {offset} is beyond the end of the file. The file has {currentLineNumber} line(s).");
         }
 
-        return builder.ToString();
+        return new TextContent(builder.ToString());
     }
 
     private static void AppendCatLine(StringBuilder builder, int lineNumber, string line)
     {
-        builder.Append(lineNumber.ToString(CultureInfo.InvariantCulture).PadLeft(6));
+        builder.Append(lineNumber);
         builder.Append('\t');
         builder.AppendLine(line);
     }
@@ -109,26 +109,13 @@ internal static class AgentWorkspaceReadToolResultFactory
 
     private static string? GetImageMediaType(string extension)
     {
-        if (string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase))
+        return extension.ToUpperInvariant() switch
         {
-            return "image/png";
-        }
-
-        if (string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase) || string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase))
-        {
-            return "image/jpeg";
-        }
-
-        if (string.Equals(extension, ".gif", StringComparison.OrdinalIgnoreCase))
-        {
-            return "image/gif";
-        }
-
-        if (string.Equals(extension, ".webp", StringComparison.OrdinalIgnoreCase))
-        {
-            return "image/webp";
-        }
-
-        return null;
+            ".PNG" => "image/png",
+            ".JPG" or ".JPEG" => "image/jpeg",
+            ".GIF" => "image/gif",
+            ".WEBP" => "image/webp",
+            _ => null,
+        };
     }
 }
