@@ -1,7 +1,5 @@
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Core;
-using System.Collections.Frozen;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Text;
@@ -12,49 +10,6 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace.ReadTool;
 
 internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : AgentWorkspaceTool(context)
 {
-    // Binary file extensions to skip for text-based operations.
-    // These files can't be meaningfully compared as text and are often large.
-    private static readonly FrozenSet<string> BinaryExtensions =
-    [
-        with(StringComparer.OrdinalIgnoreCase),
-
-        // Images
-        ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".tiff", ".tif",
-
-        // Videos
-        ".mp4", ".mov", ".avi", ".mkv", ".webm", ".wmv", ".flv", ".m4v", ".mpeg", ".mpg",
-
-        // Audio
-        ".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a", ".wma", ".aiff", ".opus",
-
-        // Archives
-        ".zip", ".tar", ".gz", ".bz2", ".7z", ".rar", ".xz", ".z", ".tgz", ".iso",
-
-        // Executables/binaries
-        ".exe", ".dll", ".so", ".dylib", ".bin", ".o", ".a", ".obj", ".lib", ".app", ".msi", ".deb", ".rpm",
-
-        // Documents
-        ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt", ".ods", ".odp",
-
-        // Fonts
-        ".ttf", ".otf", ".woff", ".woff2", ".eot",
-
-        // Bytecode / VM artifacts
-        ".pyc", ".pyo", ".class", ".jar", ".war", ".ear", ".node", ".wasm", ".rlib",
-
-        // Database files
-        ".sqlite", ".sqlite3", ".db", ".mdb", ".idx",
-
-        // Design / 3D
-        ".psd", ".ai", ".eps", ".sketch", ".fig", ".xd", ".blend", ".3ds", ".max",
-
-        // Flash
-        ".swf", ".fla",
-
-        // Lock/profiling data
-        ".lockb", ".dat", ".data",
-    ];
-
     public override AITool Tool { get => field ??= AIFunctionFactory.Create(InvokeAsync); }
 
     [DisplayName(Prompt.ReadToolName)]
@@ -99,7 +54,7 @@ internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : Ag
         }
 
         string extension = Path.GetExtension(file.FullPath);
-        if (BinaryExtensions.Contains(extension) && !AgentWorkspaceReadToolResultFactory.IsSupportedImageExtension(extension))
+        if (AgentWorkspaceReadToolResultFactory.IsBinaryExtension(extension) && !AgentWorkspaceReadToolResultFactory.IsSupportedImageExtension(extension))
         {
             return ValidationResult.Ask($"This tool cannot read binary files. The file appears to be a binary {extension.ToLowerInvariant()} file. Please use appropriate tools for binary file analysis.", 4);
         }
