@@ -12,8 +12,6 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
 internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : AgentWorkspaceTool(context)
 {
-    private const int LineEndingKindCount = 7;
-
     public override AITool Tool { get => field ??= AIFunctionFactory.Create(InvokeAsync).AsApprovalRequired(); }
 
     [DisplayName(Prompt.EditToolName)]
@@ -36,7 +34,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
         NormalizedString normalizedOldString = new(oldString);
         NormalizedString normalizedNewString = new(newString);
 
-        IReadOnlyList<int> matchStartIndexes = FindMatchStartIndexes(normalizedFileText.Value, normalizedOldString.Value);
+        IReadOnlyList<int> matchStartIndexes = FindMatchStartIndexes(normalizedFileText, normalizedOldString);
 
         if (matchStartIndexes.Count is 0)
         {
@@ -58,12 +56,14 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
             AgentWorkspaceException.Throw(message);
         }
 
-        string normalizedUpdatedFileText = replaceAll
-            ? normalizedFileText.Value.Replace(normalizedOldString.Value, normalizedNewString.Value, StringComparison.Ordinal)
-            : normalizedFileText.Value.Remove(matchStartIndexes[0], normalizedOldString.Value.Length).Insert(matchStartIndexes[0], normalizedNewString.Value);
-        string updatedFileText = (GetDominantLineEnding(fileText) ?? GetDominantLineEnding(newString)) is { } lineEnding
+        StringBuilder builder = new(normalizedFileText.Value);
+        builder.Replace(normalizedOldString.Value, normalizedNewString.Value);
+        string normalizedUpdatedFileText = builder.ToString();
+
+        string updatedFileText = (LineEnding.GetDominantLineEnding(fileText) ?? LineEnding.GetDominantLineEnding(newString)) is { } lineEnding
             ? normalizedUpdatedFileText.ReplaceLineEndings(lineEnding)
             : normalizedUpdatedFileText;
+
         AgentWorkspaceEditToolResult result = AgentWorkspaceEditToolResultFactory.Create(file, normalizedFileText, normalizedOldString, normalizedNewString, matchStartIndexes);
 
         await File.WriteAllTextAsync(file.FullPath, updatedFileText, Encoding.UTF8WithoutBOM, cancellationToken);
@@ -182,87 +182,5 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
         }
 
         return matchStartIndexes;
-    }
-
-    private static string? GetDominantLineEnding(string value)
-    {
-        int[] counts = new int[LineEndingKindCount];
-        int[] firstIndexes = new int[LineEndingKindCount];
-        Array.Fill(firstIndexes, int.MaxValue);
-
-        int currentLineEndingIndex = 0;
-        for (int i = 0; i < value.Length; i++)
-        {
-            int kind = GetLineEndingKind(value, ref i);
-            if (kind < 0)
-            {
-                continue;
-            }
-
-            if (counts[kind] is 0)
-            {
-                firstIndexes[kind] = currentLineEndingIndex;
-            }
-
-            counts[kind]++;
-            currentLineEndingIndex++;
-        }
-
-        int dominantKind = -1;
-        int dominantCount = 0;
-        int dominantFirstIndex = int.MaxValue;
-        for (int i = 0; i < LineEndingKindCount; i++)
-        {
-            if (counts[i] > dominantCount || counts[i] == dominantCount && firstIndexes[i] < dominantFirstIndex)
-            {
-                dominantKind = i;
-                dominantCount = counts[i];
-                dominantFirstIndex = firstIndexes[i];
-            }
-        }
-
-        return dominantKind < 0 ? null : GetLineEndingText(dominantKind);
-    }
-
-    private static int GetLineEndingKind(string value, ref int index)
-    {
-        switch (value[index])
-        {
-            case '\r':
-                if (index + 1 < value.Length && value[index + 1] is '\n')
-                {
-                    index++;
-                    return 0;
-                }
-
-                return 1;
-            case '\n':
-                return 2;
-            case '\f':
-                return 3;
-            case '\u0085':
-                return 4;
-            case '\u2028':
-                return 5;
-            case '\u2029':
-                return 6;
-            default:
-                return -1;
-        }
-    }
-
-    private static string GetLineEndingText(int lineEndingKind)
-    {
-        return lineEndingKind switch
-        {
-            0 => "\r\n",
-            1 => "\r",
-            2 => "\n",
-            3 => "\f",
-            4 => "\u0085",
-            5 => "\u2028",
-            6 => "\u2029",
-            _ => throw new ArgumentOutOfRangeException(nameof(lineEndingKind)),
-        };
     }
 }
