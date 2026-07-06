@@ -23,6 +23,30 @@ internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : Ag
         return ReadAsync(filePath, offset, limit, cancellationToken);
     }
 
+    private async Task<AIContent> ReadAsync(string filePath, int offset, int? limit, CancellationToken cancellationToken = default)
+    {
+        MessageResult<AgentWorkspaceFile> result = Context.ResolveWorkspaceFile(filePath);
+        if (result is string message)
+        {
+            return new TextContent(message);
+        }
+
+        if (result is AgentWorkspaceFile file)
+        {
+            ValidationResult validationResult = ValidateInput(file);
+            if (!validationResult.Result)
+            {
+                return new TextContent(validationResult.Message);
+            }
+
+            AIContent content = await AgentWorkspaceReadToolResultFactory.CreateAsync(file, offset, limit, cancellationToken);
+            await Context.MarkFileAsReadAsync(file, cancellationToken);
+            return content;
+        }
+
+        throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile.");
+    }
+
     private ValidationResult ValidateInput(AgentWorkspaceFile file)
     {
         if (!file.Exists)
@@ -60,29 +84,5 @@ internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : Ag
         }
 
         return ValidationResult.Ok;
-    }
-
-    private async Task<AIContent> ReadAsync(string filePath, int offset, int? limit, CancellationToken cancellationToken = default)
-    {
-        MessageResult<AgentWorkspaceFile> result = Context.ResolveWorkspaceFile(filePath);
-        if (result is string message)
-        {
-            return new TextContent(message);
-        }
-
-        if (result is AgentWorkspaceFile file)
-        {
-            ValidationResult validationResult = ValidateInput(file);
-            if (!validationResult.Result)
-            {
-                return new TextContent(validationResult.Message);
-            }
-
-            AIContent content = await AgentWorkspaceReadToolResultFactory.CreateAsync(file, offset, limit, cancellationToken);
-            await Context.MarkFileAsReadAsync(file, cancellationToken);
-            return content;
-        }
-
-        throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile.");
     }
 }
