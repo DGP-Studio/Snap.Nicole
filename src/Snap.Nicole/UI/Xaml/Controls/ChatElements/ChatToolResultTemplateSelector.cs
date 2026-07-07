@@ -17,7 +17,11 @@ internal sealed class ChatToolResultTemplateSelector : DataTemplateSelector
 
     public DataTemplate? McpServerTemplate { get; set; }
 
+    public DataTemplate? ReadTemplate { get; set; }
+
     public DataTemplate? WebSearchTemplate { get; set; }
+
+    public DataTemplate? WriteTemplate { get; set; }
 
     public DataTemplate? FallbackTemplate { get; set; }
 
@@ -27,6 +31,8 @@ internal sealed class ChatToolResultTemplateSelector : DataTemplateSelector
         {
             ObservableCodeInterpreterToolResultContent => CodeInterpreterTemplate,
             ObservableEditToolResultContent => EditTemplate,
+            ObservableReadToolResultContent => ReadTemplate,
+            ObservableWriteToolResultContent => WriteTemplate,
             ObservableFunctionResultContent => FunctionTemplate,
             ObservableImageGenerationToolResultContent => ImageGenerationTemplate,
             ObservableMcpServerToolResultContent => McpServerTemplate,

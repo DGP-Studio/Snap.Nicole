@@ -10,7 +10,9 @@ namespace Snap.Nicole.Services.AI.Observables;
 [JsonDerivedType(typeof(ObservableFunctionResultContent), "function_result")]
 [JsonDerivedType(typeof(ObservableImageGenerationToolResultContent), "image_generation_tool_result")]
 [JsonDerivedType(typeof(ObservableMcpServerToolResultContent), "mcp_server_tool_result")]
+[JsonDerivedType(typeof(ObservableReadToolResultContent), "read_tool_result")]
 [JsonDerivedType(typeof(ObservableWebSearchToolResultContent), "web_search_tool_result")]
+[JsonDerivedType(typeof(ObservableWriteToolResultContent), "write_tool_result")]
 internal partial class ObservableToolResultContent : ObservableAIContent
 {
     [ObservableProperty]

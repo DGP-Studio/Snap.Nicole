@@ -4,9 +4,6 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace.ReadTool;
 
 internal sealed class AgentWorkspaceReadToolTextResult : AgentWorkspaceReadToolResult
 {
-    [JsonPropertyName("filePath")]
-    public required string FilePath { get; init; }
-
     [JsonPropertyName("numLines")]
     public required int NumberOfLines { get; init; }
 

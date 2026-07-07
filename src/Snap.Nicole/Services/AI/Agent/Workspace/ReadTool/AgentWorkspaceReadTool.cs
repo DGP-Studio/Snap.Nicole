@@ -12,6 +12,7 @@ internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : Ag
 {
     public override AITool Tool { get => field ??= AIFunctionFactory.Create(InvokeAsync); }
 
+    // TODO: For non-multi-modality models, disable image capability
     [DisplayName(Prompt.ReadToolName)]
     [Description(Prompt.ReadToolDescription)]
     public Task<AIContent> InvokeAsync(
@@ -39,7 +40,7 @@ internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : Ag
                 return new TextContent(validationResult.Message);
             }
 
-            AIContent content = await AgentWorkspaceReadToolResultFactory.CreateAsync(file, offset, limit, cancellationToken);
+            AIContent content = await AgentWorkspaceReadToolResultFactory.CreateAsync(CallId, file, offset, limit, cancellationToken);
             await Context.MarkFileAsReadAsync(file, cancellationToken);
             return content;
         }

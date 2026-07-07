@@ -4,11 +4,14 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using Snap.Nicole.Services.AI.Agent.Workspace.StructuredPatch;
 
-namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
+namespace Snap.Nicole.Services.AI.Agent.Workspace.WriteTool;
 
-internal sealed class AgentWorkspaceEditToolResult
+internal sealed class AgentWorkspaceWriteToolResult
 {
-    private static readonly ConcurrentDictionary<string, AgentWorkspaceEditToolResult> cache = [];
+    private static readonly ConcurrentDictionary<string, AgentWorkspaceWriteToolResult> cache = [];
+
+    [JsonPropertyName("type")]
+    public required AgentWorkspaceWriteToolResultType Type { get; init; }
 
     [JsonPropertyName("filePath")]
     public required string FilePath { get; init; }
@@ -22,12 +25,15 @@ internal sealed class AgentWorkspaceEditToolResult
     [JsonPropertyName("structuredPatch")]
     public required IReadOnlyList<AgentWorkspaceStructuredPatchHunk> StructuredPatch { get; init; }
 
-    public static bool TryAdd(string callId, AgentWorkspaceEditToolResult result)
+    [JsonPropertyName("originalFile")]
+    public required string? OriginalFile { get; init; }
+
+    public static bool TryAdd(string callId, AgentWorkspaceWriteToolResult result)
     {
         return cache.TryAdd(callId, result);
     }
 
-    public static bool TryRemove(string callId, [MaybeNullWhen(false)] out AgentWorkspaceEditToolResult result)
+    public static bool TryRemove(string callId, [MaybeNullWhen(false)] out AgentWorkspaceWriteToolResult result)
     {
         return cache.TryRemove(callId, out result);
     }

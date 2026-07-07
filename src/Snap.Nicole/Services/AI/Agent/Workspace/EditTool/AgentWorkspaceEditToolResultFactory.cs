@@ -1,238 +1,127 @@
+using Microsoft.Extensions.AI;
 using Snap.Nicole.Core.Text;
+using Snap.Nicole.Services.AI.Agent.Workspace.StructuredPatch;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
 internal static class AgentWorkspaceEditToolResultFactory
 {
-    private const int HunkContextLineCount = 3;
-
-    public static AgentWorkspaceEditToolResult Create(AgentWorkspaceFile file, NormalizedString sourceText, NormalizedString oldString, NormalizedString newString, IReadOnlyList<int> matchStartIndexes)
+    public static async Task<AIContent> CreateAsync(string callId, AgentWorkspaceFile file, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
     {
-        IReadOnlyList<ReplacementTextSpan> replacementTextSpans = CreateReplacementTextSpans(sourceText, oldString, matchStartIndexes);
-        IReadOnlyList<HunkDescription> hunkDescriptions = CreateHunkDescriptions(replacementTextSpans, newString.LineEndingCount - oldString.LineEndingCount);
-        IReadOnlyList<AgentWorkspaceEditToolHunk> structuredPatch = CreateStructuredPatch(sourceText, hunkDescriptions, newString);
-        CountPatchLines(structuredPatch, out int additions, out int deletions);
-
-        return new()
+        string fileText;
+        if (oldString.Length is 0 && !file.Exists)
         {
-            FilePath = file.FullPath,
-            Additions = additions,
-            Deletions = deletions,
-            StructuredPatch = structuredPatch,
-        };
-    }
+            string? directory = Path.GetDirectoryName(file.FullPath);
+            if (directory is not null)
+            {
+                Directory.CreateDirectory(directory);
+            }
 
-    private static IReadOnlyList<ReplacementTextSpan> CreateReplacementTextSpans(NormalizedString sourceText, NormalizedString oldString, IReadOnlyList<int> matchStartIndexes)
-    {
+            fileText = string.Empty;
+        }
+        else
+        {
+            fileText = await File.ReadAllTextAsync(file.FullPath, Encoding.UTF8WithoutBOM, cancellationToken);
+        }
+
+        NormalizedString normalizedFileText = new(fileText);
+        NormalizedString normalizedOldString = new(oldString);
+        NormalizedString normalizedNewString = new(newString);
+
+        if (normalizedOldString.IsEmpty)
+        {
+            if (!normalizedFileText.Value.AsSpan().IsWhiteSpace())
+            {
+                return new TextContent("Cannot create new file - file already exists.");
+            }
+
+            // In case the file is not fully empty, we will use the file text as the old string to replace
+            normalizedOldString = normalizedFileText;
+        }
+
+        IReadOnlyList<int> matchStartIndexes = FindMatchStartIndexes(normalizedFileText, normalizedOldString);
+
         if (matchStartIndexes.Count is 0)
         {
-            return [];
+            string message = $"""
+                String to replace not found in file.
+                String: '{oldString}'
+                """;
+            return new TextContent(message);
         }
 
-        List<ReplacementTextSpan> spans = [with(matchStartIndexes.Count)];
-        int currentOffset = 0;
-        TextPosition currentPosition = new(0, 0);
-        foreach (int matchStartIndex in matchStartIndexes)
+        if (matchStartIndexes.Count > 1 && !replaceAll)
         {
-            currentPosition = Advance(currentPosition, sourceText.Value.AsSpan(currentOffset, matchStartIndex - currentOffset));
-            spans.Add(new()
-            {
-                Start = currentPosition,
-                End = currentPosition.Advance(oldString),
-            });
-
-            currentPosition = currentPosition.Advance(oldString);
-            currentOffset = matchStartIndex + oldString.Value.Length;
+            string message = $"""
+                Found multiple matches of the string to replace, but replaceAll is false.
+                To replace all occurrences, set replaceAll to true.
+                To replace only one occurrence, please provide more context to uniquely identify the instance.
+                String: {oldString}
+                """;
+            return new TextContent(message);
         }
 
-        return spans;
+        string normalizedUpdatedFileText;
+        if (normalizedOldString.IsEmpty)
+        {
+            normalizedUpdatedFileText = normalizedNewString.Value;
+        }
+        else
+        {
+            StringBuilder builder = new(normalizedFileText.Value);
+            builder.Replace(normalizedOldString.Value, normalizedNewString.Value);
+            normalizedUpdatedFileText = builder.ToString();
+        }
+
+        string updatedFileText = (LineEnding.GetDominantLineEnding(fileText) ?? LineEnding.GetDominantLineEnding(newString)) is { } lineEnding
+            ? normalizedUpdatedFileText.ReplaceLineEndings(lineEnding)
+            : normalizedUpdatedFileText;
+
+        AgentWorkspaceStructuredPatch structuredPatch = AgentWorkspaceStructuredPatchBuilder.CreateReplacementPatch(normalizedFileText, normalizedOldString, normalizedNewString, matchStartIndexes);
+
+        AgentWorkspaceEditToolResult result = new()
+        {
+            FilePath = file.FullPath,
+            Additions = structuredPatch.Additions,
+            Deletions = structuredPatch.Deletions,
+            StructuredPatch = structuredPatch.Hunks,
+        };
+
+        await File.WriteAllTextAsync(file.FullPath, updatedFileText, Encoding.UTF8WithoutBOM, cancellationToken);
+        AgentWorkspaceEditToolResult.TryAdd(callId, result);
+
+        return new TextContent(replaceAll
+            ? $"The file {file.FullPath} has been updated. All occurrences were successfully replaced."
+            : $"The file {file.FullPath} has been updated successfully.");
     }
 
-    private static IReadOnlyList<HunkDescription> CreateHunkDescriptions(IReadOnlyList<ReplacementTextSpan> replacementTextSpans, int replacementLineDelta)
+    private static IReadOnlyList<int> FindMatchStartIndexes(NormalizedString fileText, NormalizedString oldString)
     {
-        List<HunkDescription> descriptions = [];
-        int cumulativeLineDelta = 0;
-
-        foreach (ReplacementTextSpan replacementTextSpan in replacementTextSpans)
+        if (oldString.IsEmpty)
         {
-            int oldStartLine = Math.Max(0, replacementTextSpan.Start.Line - HunkContextLineCount);
-            int oldEndLine = TextPosition.GetInclusiveEndLine(replacementTextSpan.Start, replacementTextSpan.End) + HunkContextLineCount;
-
-            // Merge with the previous hunk if they are adjacent or overlapping
-            if (descriptions.Count > 0 && oldStartLine <= descriptions[^1].EndLine + 1)
-            {
-                HunkDescription current = descriptions[^1];
-                current.EndLine = Math.Max(current.EndLine, oldEndLine);
-                current.ReplacementTextSpans.Add(replacementTextSpan);
-            }
-            else
-            {
-                descriptions.Add(new()
-                {
-                    StartLine = oldStartLine,
-                    EndLine = oldEndLine,
-                    LineDeltaBefore = cumulativeLineDelta,
-                    ReplacementTextSpans = [replacementTextSpan],
-                });
-            }
-
-            cumulativeLineDelta += replacementLineDelta;
+            return fileText.IsEmpty ? [0] : [];
         }
 
-        return descriptions;
-    }
+        List<int> matchStartIndexes = [];
 
-    private static IReadOnlyList<AgentWorkspaceEditToolHunk> CreateStructuredPatch(NormalizedString sourceText, IReadOnlyList<HunkDescription> hunkDescriptions, NormalizedString newString)
-    {
-        if (hunkDescriptions.Count is 0)
+        int searchStartIndex = 0;
+        while (searchStartIndex < fileText.Length)
         {
-            return [];
-        }
-
-        TextLineCollection sourceLines = TextLineCollection.FromText(sourceText.Value);
-        List<AgentWorkspaceEditToolHunk> hunks = [with(hunkDescriptions.Count)];
-
-        foreach (HunkDescription hunkDescription in hunkDescriptions)
-        {
-            TextLineCollection oldLines = [];
-            int endLine = Math.Min(hunkDescription.EndLine, sourceLines.Count - 1);
-
-            for (int i = hunkDescription.StartLine; i <= endLine; i++)
+            int matchStartIndex = fileText.IndexOf(oldString, searchStartIndex, StringComparison.Ordinal);
+            if (matchStartIndex < 0)
             {
-                oldLines.Add(sourceLines[i]);
+                break;
             }
 
-            hunks.Add(CreateHunk(hunkDescription, oldLines, newString));
+            matchStartIndexes.Add(matchStartIndex);
+            searchStartIndex = matchStartIndex + oldString.Length;
         }
 
-        return hunks;
-    }
-
-    private static AgentWorkspaceEditToolHunk CreateHunk(HunkDescription hunkDescription, TextLineCollection oldLines, NormalizedString newString)
-    {
-        string oldSegment = oldLines.ToText();
-        StringBuilder builder = new(oldSegment.Length + (newString.Value.Length * hunkDescription.ReplacementTextSpans.Count));
-        int copyStartOffset = 0;
-        foreach (ReplacementTextSpan replacementTextSpan in hunkDescription.ReplacementTextSpans)
-        {
-            int replacementStartOffset = oldLines.GetTextOffset(hunkDescription.StartLine, replacementTextSpan.Start);
-            int replacementEndOffset = oldLines.GetTextOffset(hunkDescription.StartLine, replacementTextSpan.End);
-            builder.Append(oldSegment.AsSpan(copyStartOffset, replacementStartOffset - copyStartOffset));
-            builder.Append(newString.Value);
-            copyStartOffset = replacementEndOffset;
-        }
-
-        builder.Append(oldSegment.AsSpan(copyStartOffset));
-        TextLineCollection newLines = TextLineCollection.FromText(builder.ToString());
-
-        int oldStartLine = hunkDescription.StartLine + 1;
-        int newStartLine = hunkDescription.StartLine + hunkDescription.LineDeltaBefore + 1;
-
-        return AgentWorkspaceEditToolHunk.Create(CreateHunkLines(oldLines.WithoutTrailingEmptyLine(), newLines, oldStartLine, newStartLine));
-    }
-
-    private static IReadOnlyList<AgentWorkspaceEditToolHunkLine> CreateHunkLines(IReadOnlyList<string> oldLines, IReadOnlyList<string> newLines, int oldStartLine, int newStartLine)
-    {
-        int maxLineCount = Math.Min(oldLines.Count, newLines.Count);
-        int commonPrefixLineCount = 0;
-        while (commonPrefixLineCount < maxLineCount && string.Equals(oldLines[commonPrefixLineCount], newLines[commonPrefixLineCount], StringComparison.Ordinal))
-        {
-            commonPrefixLineCount++;
-        }
-
-        int maxSuffixLineCount = maxLineCount - commonPrefixLineCount;
-        int commonSuffixLineCount = 0;
-        while (commonSuffixLineCount < maxSuffixLineCount && string.Equals(oldLines[oldLines.Count - commonSuffixLineCount - 1], newLines[newLines.Count - commonSuffixLineCount - 1], StringComparison.Ordinal))
-        {
-            commonSuffixLineCount++;
-        }
-
-        List<AgentWorkspaceEditToolHunkLine> lines = [with(oldLines.Count + newLines.Count)];
-        int oldLineNumber = oldStartLine;
-        int newLineNumber = newStartLine;
-
-        for (int i = 0; i < commonPrefixLineCount; i++)
-        {
-            lines.Add(AgentWorkspaceEditToolHunkLine.CreateContext(oldLineNumber, oldLines[i]));
-            oldLineNumber++;
-            newLineNumber++;
-        }
-
-        int oldChangeEndLine = oldLines.Count - commonSuffixLineCount;
-        for (int i = commonPrefixLineCount; i < oldChangeEndLine; i++)
-        {
-            lines.Add(AgentWorkspaceEditToolHunkLine.CreateDeletion(oldLineNumber, oldLines[i]));
-            oldLineNumber++;
-        }
-
-        int newChangeEndLine = newLines.Count - commonSuffixLineCount;
-        for (int i = commonPrefixLineCount; i < newChangeEndLine; i++)
-        {
-            lines.Add(AgentWorkspaceEditToolHunkLine.CreateAddition(newLineNumber, newLines[i]));
-            newLineNumber++;
-        }
-
-        int oldSuffixStartLine = oldLines.Count - commonSuffixLineCount;
-        for (int i = 0; i < commonSuffixLineCount; i++)
-        {
-            lines.Add(AgentWorkspaceEditToolHunkLine.CreateContext(oldLineNumber, oldLines[oldSuffixStartLine + i]));
-            oldLineNumber++;
-            newLineNumber++;
-        }
-
-        return lines;
-    }
-
-    private static TextPosition Advance(TextPosition position, ReadOnlySpan<char> value)
-    {
-        TextPosition result = position;
-        for (int i = 0; i < value.Length; i++)
-        {
-            result = result.Advance(value[i]);
-        }
-
-        return result;
-    }
-
-    private static void CountPatchLines(IReadOnlyList<AgentWorkspaceEditToolHunk> structuredPatch, out int additions, out int deletions)
-    {
-        additions = 0;
-        deletions = 0;
-
-        foreach (AgentWorkspaceEditToolHunk hunk in structuredPatch)
-        {
-            foreach (AgentWorkspaceEditToolHunkLine line in hunk.Lines)
-            {
-                switch (line.Kind)
-                {
-                    case AgentWorkspaceEditToolHunkLineKind.Addition:
-                        additions++;
-                        break;
-                    case AgentWorkspaceEditToolHunkLineKind.Deletion:
-                        deletions++;
-                        break;
-                }
-            }
-        }
-    }
-
-    private sealed class ReplacementTextSpan
-    {
-        public required TextPosition Start { get; init; }
-
-        public required TextPosition End { get; init; }
-    }
-
-    private sealed class HunkDescription
-    {
-        public required int StartLine { get; init; }
-
-        public required int EndLine { get; set; }
-
-        public required int LineDeltaBefore { get; init; }
-
-        public required List<ReplacementTextSpan> ReplacementTextSpans { get; init; }
+        return matchStartIndexes;
     }
 }

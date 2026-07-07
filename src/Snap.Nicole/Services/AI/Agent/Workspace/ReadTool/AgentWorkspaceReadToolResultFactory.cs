@@ -1,9 +1,6 @@
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Core.Text;
-using System;
 using System.Collections.Frozen;
-using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -65,12 +62,12 @@ internal static class AgentWorkspaceReadToolResultFactory
         ".png", ".jpg", ".jpeg", ".gif", ".webp",
     ];
 
-    public static async Task<AIContent> CreateAsync(AgentWorkspaceFile file, int offset, int? limit, CancellationToken cancellationToken)
+    public static async Task<AIContent> CreateAsync(string callId, AgentWorkspaceFile file, int offset, int? limit, CancellationToken cancellationToken)
     {
         string extension = Path.GetExtension(file.FullPath);
         return GetImageMediaType(extension) is { } imageMediaType
-            ? await ReadImageFileAsync(file, imageMediaType, cancellationToken)
-            : await ReadTextFileAsync(file, offset, limit, cancellationToken);
+            ? await ReadImageFileAsync(callId, file, imageMediaType, cancellationToken)
+            : await ReadTextFileAsync(callId, file, offset, limit, cancellationToken);
     }
 
     public static bool IsBinaryExtension(string extension)
@@ -83,15 +80,26 @@ internal static class AgentWorkspaceReadToolResultFactory
         return ImageExtensions.Contains(extension);
     }
 
-    private static async Task<DataContent> ReadImageFileAsync(AgentWorkspaceFile file, string mediaType, CancellationToken cancellationToken)
+    private static async Task<DataContent> ReadImageFileAsync(string callId, AgentWorkspaceFile file, string mediaType, CancellationToken cancellationToken)
     {
         using FileStream stream = file.OpenRead(share: FileShare.ReadWrite | FileShare.Delete);
+        long fileSize = stream.Length;
         DataContent content = await DataContent.LoadFromAsync(stream, mediaType, cancellationToken);
         content.Name = Path.GetFileName(file.FullPath);
+
+        AgentWorkspaceReadToolImageResult result = new()
+        {
+            FilePath = file.FullPath,
+            FileSize = fileSize,
+            MediaType = mediaType,
+        };
+
+        AgentWorkspaceReadToolResult.TryAdd(callId, result);
+
         return content;
     }
 
-    private static async Task<TextContent> ReadTextFileAsync(AgentWorkspaceFile file, int offset, int? limit, CancellationToken cancellationToken)
+    private static async Task<TextContent> ReadTextFileAsync(string callId, AgentWorkspaceFile file, int offset, int? limit, CancellationToken cancellationToken)
     {
         int normalizedOffset = Math.Max(1, offset);
         int normalizedLimit = Math.Max(1, limit ?? DefaultReadLineLimit);
@@ -112,14 +120,22 @@ internal static class AgentWorkspaceReadToolResultFactory
                         continue;
                     }
 
-                    if (writtenLineCount >= normalizedLimit)
+                    if (writtenLineCount < normalizedLimit)
                     {
-                        break;
+                        builder.Append($"{currentLineNumber}\t{line}");
+                        writtenLineCount++;
                     }
-
-                    builder.Append($"{currentLineNumber}\t{line}");
-                    writtenLineCount++;
                 }
+
+                AgentWorkspaceReadToolTextResult result = new()
+                {
+                    FilePath = file.FullPath,
+                    NumberOfLines = writtenLineCount,
+                    StartLine = normalizedOffset,
+                    TotalLines = currentLineNumber,
+                };
+
+                AgentWorkspaceReadToolResult.TryAdd(callId, result);
 
                 if (currentLineNumber is 0)
                 {

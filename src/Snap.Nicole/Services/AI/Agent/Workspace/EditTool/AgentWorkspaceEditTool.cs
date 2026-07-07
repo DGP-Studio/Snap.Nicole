@@ -1,9 +1,7 @@
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Core;
 using Snap.Nicole.Core.Text;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,66 +14,22 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
 
     [DisplayName(Prompt.EditToolName)]
     [Description(Prompt.EditToolDescription)]
-    public async Task<AIContent> InvokeAsync(
+    public Task<AIContent> InvokeAsync(
         [Description("The absolute file to the file to modify")] string filePath,
         [Description("The text to replace")] string oldString,
         [Description("The text to replace it with (must be different from oldString)")] string newString,
         [Description("Replace all occurrences of oldString (default false)")] bool replaceAll = false,
         CancellationToken cancellationToken = default)
     {
-        return new TextContent(await EditAsync(filePath, oldString, newString, replaceAll, cancellationToken));
+        return EditAsync(filePath, oldString, newString, replaceAll, cancellationToken);
     }
 
-    private static async Task<AgentWorkspaceEditToolResult> EditFileAsync(AgentWorkspaceFile file, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
-    {
-        string fileText = await File.ReadAllTextAsync(file.FullPath, Encoding.UTF8WithoutBOM, cancellationToken);
-
-        NormalizedString normalizedFileText = new(fileText);
-        NormalizedString normalizedOldString = new(oldString);
-        NormalizedString normalizedNewString = new(newString);
-
-        IReadOnlyList<int> matchStartIndexes = FindMatchStartIndexes(normalizedFileText, normalizedOldString);
-
-        if (matchStartIndexes.Count is 0)
-        {
-            string message = $"""
-                String to replace not found in file.
-                String: '{oldString}'
-                """;
-            AgentWorkspaceException.Throw(message);
-        }
-
-        if (matchStartIndexes.Count > 1 && !replaceAll)
-        {
-            string message = $"""
-                Found multiple matches of the string to replace, but replaceAll is false.
-                To replace all occurrences, set replaceAll to true.
-                To replace only one occurrence, please provide more context to uniquely identify the instance.
-                String: {oldString}
-                """;
-            AgentWorkspaceException.Throw(message);
-        }
-
-        StringBuilder builder = new(normalizedFileText.Value);
-        builder.Replace(normalizedOldString.Value, normalizedNewString.Value);
-        string normalizedUpdatedFileText = builder.ToString();
-
-        string updatedFileText = (LineEnding.GetDominantLineEnding(fileText) ?? LineEnding.GetDominantLineEnding(newString)) is { } lineEnding
-            ? normalizedUpdatedFileText.ReplaceLineEndings(lineEnding)
-            : normalizedUpdatedFileText;
-
-        AgentWorkspaceEditToolResult result = AgentWorkspaceEditToolResultFactory.Create(file, normalizedFileText, normalizedOldString, normalizedNewString, matchStartIndexes);
-
-        await File.WriteAllTextAsync(file.FullPath, updatedFileText, Encoding.UTF8WithoutBOM, cancellationToken);
-        return result;
-    }
-
-    private async Task<string> EditAsync(string filePath, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
+    private async Task<AIContent> EditAsync(string filePath, string oldString, string newString, bool replaceAll, CancellationToken cancellationToken)
     {
         MessageResult<AgentWorkspaceFile> result = Context.ResolveWorkspaceFile(filePath);
         if (result is string message)
         {
-            return message;
+            return new TextContent(message);
         }
 
         if (result is AgentWorkspaceFile file)
@@ -83,25 +37,12 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
             ValidationResult validationResult = await ValidateInputAsync(file, oldString, newString, cancellationToken);
             if (!validationResult.Result)
             {
-                return validationResult.Message;
+                return new TextContent(validationResult.Message);
             }
 
-            // TODO: for empty oldString, we should check if the file exists and is empty, and if so, allow the replacement to create a new file with newString.
-            ArgumentException.ThrowIfNullOrEmpty(oldString, "oldString cannot be empty", nameof(oldString));
-
-            try
-            {
-                AgentWorkspaceEditToolResult.TryAdd(CallId, await EditFileAsync(file, oldString, newString, replaceAll, cancellationToken));
-                await Context.MarkFileAsReadAsync(file, cancellationToken);
-            }
-            catch (AgentWorkspaceException ex)
-            {
-                return ex.Message;
-            }
-
-            return replaceAll
-                ? $"The file {file.FullPath} has been updated. All occurrences were successfully replaced."
-                : $"The file {file.FullPath} has been updated successfully.";
+            AIContent content = await AgentWorkspaceEditToolResultFactory.CreateAsync(CallId, file, oldString, newString, replaceAll, cancellationToken);
+            await Context.MarkFileAsReadAsync(file, cancellationToken);
+            return content;
         }
 
         throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile");
@@ -162,25 +103,5 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
         }
 
         return ValidationResult.Ok;
-    }
-
-    private static IReadOnlyList<int> FindMatchStartIndexes(NormalizedString fileText, NormalizedString oldString)
-    {
-        List<int> matchStartIndexes = [];
-
-        int searchStartIndex = 0;
-        while (searchStartIndex < fileText.Length)
-        {
-            int matchStartIndex = fileText.IndexOf(oldString, searchStartIndex, StringComparison.Ordinal);
-            if (matchStartIndex < 0)
-            {
-                break;
-            }
-
-            matchStartIndexes.Add(matchStartIndex);
-            searchStartIndex = matchStartIndex + oldString.Length;
-        }
-
-        return matchStartIndexes;
     }
 }

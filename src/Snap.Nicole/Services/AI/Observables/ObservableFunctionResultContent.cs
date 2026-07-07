@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
+using Snap.Nicole.Services.AI.Agent.Workspace.ReadTool;
+using Snap.Nicole.Services.AI.Agent.Workspace.WriteTool;
 using Snap.Nicole.Services.AI.Observables.BuiltInTools;
 using System.Globalization;
 using System.Text.Json;
@@ -10,6 +12,8 @@ namespace Snap.Nicole.Services.AI.Observables;
 
 [JsonPolymorphic]
 [JsonDerivedType(typeof(ObservableEditToolResultContent), "edit_tool_result")]
+[JsonDerivedType(typeof(ObservableReadToolResultContent), "read_tool_result")]
+[JsonDerivedType(typeof(ObservableWriteToolResultContent), "write_tool_result")]
 internal partial class ObservableFunctionResultContent : ObservableToolResultContent
 {
     [ObservableProperty]
@@ -20,6 +24,16 @@ internal partial class ObservableFunctionResultContent : ObservableToolResultCon
         if (AgentWorkspaceEditToolResult.TryRemove(functionResultContent.CallId, out AgentWorkspaceEditToolResult? editResult))
         {
             return ObservableEditToolResultContent.Create(functionResultContent, editResult, jsonOptions);
+        }
+
+        if (AgentWorkspaceReadToolResult.TryRemove(functionResultContent.CallId, out AgentWorkspaceReadToolResult? readResult))
+        {
+            return ObservableReadToolResultContent.Create(functionResultContent, readResult, jsonOptions);
+        }
+
+        if (AgentWorkspaceWriteToolResult.TryRemove(functionResultContent.CallId, out AgentWorkspaceWriteToolResult? writeResult))
+        {
+            return ObservableWriteToolResultContent.Create(functionResultContent, writeResult, jsonOptions);
         }
 
         return new()

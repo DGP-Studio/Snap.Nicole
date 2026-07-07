@@ -14,13 +14,11 @@ internal sealed class AgentWorkspaceContextProvider : AIContextProvider
 {
     private readonly AgentWorkspaceContext workspaceContext;
     private readonly IReadOnlyList<AgentWorkspaceTool> toolComponents;
-    private readonly IReadOnlyList<AITool> tools;
 
     public AgentWorkspaceContextProvider(IReadOnlyList<string> workingDirectories)
     {
         workspaceContext = new(workingDirectories);
         toolComponents = CreateToolComponents(workspaceContext);
-        tools = CreateTools(toolComponents);
     }
 
     public override IReadOnlyList<string> StateKeys { get => []; }
@@ -30,7 +28,7 @@ internal sealed class AgentWorkspaceContextProvider : AIContextProvider
         AIContext aiContext = new()
         {
             Instructions = CreateInstructions(),
-            Tools = tools,
+            Tools = CreateTools(toolComponents),
         };
 
         return new(aiContext);

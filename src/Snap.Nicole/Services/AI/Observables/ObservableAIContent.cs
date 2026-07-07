@@ -22,6 +22,7 @@ namespace Snap.Nicole.Services.AI.Observables;
 [JsonDerivedType(typeof(ObservableInputResponseContent), "input_response")]
 [JsonDerivedType(typeof(ObservableMcpServerToolCallContent), "mcp_server_tool_call")]
 [JsonDerivedType(typeof(ObservableMcpServerToolResultContent), "mcp_server_tool_result")]
+[JsonDerivedType(typeof(ObservableReadToolResultContent), "read_tool_result")]
 [JsonDerivedType(typeof(ObservableTextContent), "text")]
 [JsonDerivedType(typeof(ObservableTextReasoningContent), "text_reasoning")]
 [JsonDerivedType(typeof(ObservableToolApprovalRequestContent), "tool_approval_request")]
@@ -32,6 +33,7 @@ namespace Snap.Nicole.Services.AI.Observables;
 [JsonDerivedType(typeof(ObservableUsageContent), "usage")]
 [JsonDerivedType(typeof(ObservableWebSearchToolCallContent), "web_search_tool_call")]
 [JsonDerivedType(typeof(ObservableWebSearchToolResultContent), "web_search_tool_result")]
+[JsonDerivedType(typeof(ObservableWriteToolResultContent), "write_tool_result")]
 internal class ObservableAIContent : ObservableObject
 {
     public static ObservableAIContent? Create(AIContent content, JsonSerializerOptions jsonOptions)

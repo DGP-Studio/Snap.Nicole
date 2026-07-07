@@ -1,6 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
-using Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
+using Snap.Nicole.Services.AI.Agent.Workspace.StructuredPatch;
 
 namespace Snap.Nicole.UI.Xaml.Controls.ChatElements;
 
@@ -11,16 +11,16 @@ internal sealed partial class ChatEditToolHunkLineKindToObjectConverter : Depend
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is not AgentWorkspaceEditToolHunkLineKind kind)
+        if (value is not AgentWorkspaceStructuredPatchHunkLineKind kind)
         {
             return DependencyProperty.UnsetValue;
         }
 
         return kind switch
         {
-            AgentWorkspaceEditToolHunkLineKind.Context => ContextValue,
-            AgentWorkspaceEditToolHunkLineKind.Addition => AdditionValue,
-            AgentWorkspaceEditToolHunkLineKind.Deletion => DeletionValue,
+            AgentWorkspaceStructuredPatchHunkLineKind.Context => ContextValue,
+            AgentWorkspaceStructuredPatchHunkLineKind.Addition => AdditionValue,
+            AgentWorkspaceStructuredPatchHunkLineKind.Deletion => DeletionValue,
             _ => DependencyProperty.UnsetValue,
         };
     }

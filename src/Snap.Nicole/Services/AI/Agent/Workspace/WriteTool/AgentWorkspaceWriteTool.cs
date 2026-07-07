@@ -39,6 +39,10 @@ internal sealed class AgentWorkspaceWriteTool(AgentWorkspaceContext context) : A
                 return new TextContent(validationResult.Message);
             }
 
+            string? originalFile = file.Exists
+                ? await File.ReadAllTextAsync(file.FullPath, Encoding.UTF8WithoutBOM, cancellationToken)
+                : null;
+
             string? directory = Path.GetDirectoryName(file.FullPath);
             if (directory is not null)
             {
@@ -46,8 +50,9 @@ internal sealed class AgentWorkspaceWriteTool(AgentWorkspaceContext context) : A
             }
 
             await File.WriteAllTextAsync(file.FullPath, content, Encoding.UTF8WithoutBOM, cancellationToken);
+            AIContent resultContent = AgentWorkspaceWriteToolResultFactory.Create(CallId, file, content, originalFile);
             await Context.MarkFileAsReadAsync(file, cancellationToken);
-            return AgentWorkspaceWriteToolResultFactory.Create(file);
+            return resultContent;
         }
 
         throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile.");

@@ -17,6 +17,8 @@ internal readonly struct NormalizedString
 
     public int Length { get => Value.Length; }
 
+    public bool IsEmpty { get => Value.Length is 0; }
+
     public int LineEndingCount { get; }
 
     public int IndexOf(NormalizedString value, int startIndex, StringComparison comparisonType)
