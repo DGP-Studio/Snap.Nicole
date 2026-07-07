@@ -1,18 +1,94 @@
-﻿src/.vs
+﻿# IDE and editor
+.vs
 src/.idea
 
+# Visual Studio user and cache files
 *.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.svclog
+*.tmp_proj
+*.VC.db
+*.VC.VC.opendb
+.vshistory/
+enc_temp_folder/
 
-src/Snap.Nicole/bin
-src/Snap.Nicole/obj
+# JetBrains Rider / ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
 
-src/Snap.Nicole.SourceGeneration/bin
-src/Snap.Nicole.SourceGeneration/obj
-
-src/Snap.Nicole.Native/x64/Debug
-src/Snap.Nicole.Native/x64/Release
-src/Snap.Nicole.Native/Snap.Nic.*
-src/packages
-src/x64/Debug
-src/x64/Release
+# AI assistant / tooling
 .claude
+
+# Build output
+[Dd]ebug/
+[Rr]elease/
+[Bb]in/
+[Oo]bj/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+
+# Native (C++) intermediates and artifacts
+src/Snap.Nicole.Native/Snap.Nic.*
+ipch/
+*.aps
+*.ncb
+*.opensdf
+*.sdf
+*.pch
+*.ipch
+*.tlog
+*.ilk
+*.pdb
+*.idb
+*.exp
+*.iobj
+*.ipdb
+*.tli
+*.tlh
+*.pgc
+*.pgd
+
+# MSIX packaging
+AppPackages/
+BundleArtifacts/
+*.appx
+*.appxbundle
+*.appxupload
+*.msix
+*.msixbundle
+*.msixupload
+
+# NuGet
+src/packages
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+
+# Secrets and signing
+*.pfx
+*.pubxml.user
+.sentryclirc
+
+# Test / coverage results
+[Tt]est[Rr]esult*/
+*.coverage
+*.coveragexml
+*.trx
+
+# Logs and temporary files
+*.log
+*.tmp
+*.binlog
+msbuild.err
+msbuild.wrn
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
