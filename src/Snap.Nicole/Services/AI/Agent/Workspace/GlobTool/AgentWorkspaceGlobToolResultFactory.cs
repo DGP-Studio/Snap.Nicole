@@ -1,43 +1,65 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.FileSystemGlobbing;
-using Snap.Nicole.Core;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 
-namespace Snap.Nicole.Services.AI.Agent.Workspace;
+namespace Snap.Nicole.Services.AI.Agent.Workspace.GlobTool;
 
-// See https://github.com/claude-code-best/claude-code/blob/main/packages/builtin-tools/src/tools/GlobTool/GlobTool.ts
-internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
-    : AgentWorkspaceTool(context)
+internal static class AgentWorkspaceGlobToolResultFactory
 {
-    public override AITool Tool { get => field ??= AIFunctionFactory.Create(Glob); }
+    private const string NoFilesFoundText = "No files found";
+    private const string TruncatedText = "(Results are truncated. Consider using a more specific path or pattern.)";
 
-    [DisplayName(Prompt.GlobToolName)]
-    [Description(Prompt.GlobToolDescription)]
-    private AgentWorkspaceGlobToolResult Glob(
-        [Description("The glob pattern to match files against")] string pattern,
-        [Description("""The directory to search in. If not specified, the current working directory will be used. IMPORTANT: Omit this field to use the default directory. DO NOT enter "undefined" or "null" - simply omit it for the default behavior. Must be a valid directory path if provided.""")][DefaultValue(null)] string? path,
-        CancellationToken cancellationToken = default)
+    private static readonly EnumerationOptions DefaultEnumerationOptions = new()
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(pattern, "Glob pattern cannot be empty.", nameof(pattern));
-        long startTimestamp = Stopwatch.GetTimestamp();
+        AttributesToSkip = FileAttributes.ReparsePoint,
+        RecurseSubdirectories = true,
+    };
+
+    public static AIContent Create(AgentWorkspaceDirectory globDirectory, string pattern, CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(globDirectory.FullPath))
+        {
+            return CreateTextContent([]);
+        }
 
         Matcher matcher = new(StringComparison.OrdinalIgnoreCase);
         matcher.AddInclude(pattern.Replace('\\', '/'));
 
-        AgentWorkspaceDirectory globDirectory = Context.ResolveGlobDirectoryPath(path);
-        if (!Directory.Exists(globDirectory.FullPath))
-        {
-            return AgentWorkspaceGlobToolResult.Create([], Stopwatch.GetElapsedTime(startTimestamp));
-        }
-
         List<GlobCandidate> candidates = CreateCandidates(globDirectory, cancellationToken);
         List<GlobResult> matches = CreateMatches(matcher, globDirectory.FullPath, candidates);
-        return AgentWorkspaceGlobToolResult.Create([.. matches.Order(GlobResult.Comparer).Select(static result => result.FilePath)], Stopwatch.GetElapsedTime(startTimestamp));
+        return CreateTextContent([.. matches.Order(GlobResult.Comparer).Select(static result => result.FilePath)]);
+    }
+
+    private static TextContent CreateTextContent(IReadOnlyList<string> fileNames)
+    {
+        AgentWorkspaceGlobToolResult result = AgentWorkspaceGlobToolResult.Create(fileNames);
+        if (result.FileNames.Count is 0)
+        {
+            return new TextContent(NoFilesFoundText);
+        }
+
+        StringBuilder builder = new();
+        for (int i = 0; i < result.FileNames.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.AppendLine();
+            }
+
+            builder.Append(result.FileNames[i]);
+        }
+
+        if (result.Truncated)
+        {
+            builder.AppendLine();
+            builder.Append(TruncatedText);
+        }
+
+        return new TextContent(builder.ToString());
     }
 
     private static List<GlobCandidate> CreateCandidates(AgentWorkspaceDirectory globDirectory, CancellationToken cancellationToken)
