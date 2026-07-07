@@ -66,17 +66,9 @@ internal static class AgentWorkspaceEditToolResultFactory
             return new TextContent(message);
         }
 
-        string normalizedUpdatedFileText;
-        if (normalizedOldString.IsEmpty)
-        {
-            normalizedUpdatedFileText = normalizedNewString.Value;
-        }
-        else
-        {
-            StringBuilder builder = new(normalizedFileText.Value);
-            builder.Replace(normalizedOldString.Value, normalizedNewString.Value);
-            normalizedUpdatedFileText = builder.ToString();
-        }
+        string normalizedUpdatedFileText = normalizedOldString.IsEmpty
+            ? normalizedNewString.Value
+            : normalizedFileText.Replace(normalizedOldString, normalizedNewString);
 
         string updatedFileText = (LineEnding.GetDominantLineEnding(fileText) ?? LineEnding.GetDominantLineEnding(newString)) is { } lineEnding
             ? normalizedUpdatedFileText.ReplaceLineEndings(lineEnding)

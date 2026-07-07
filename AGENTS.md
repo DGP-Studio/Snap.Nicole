@@ -4,7 +4,7 @@ The user might execute `git add`/`git restore` actively to observable/review you
 
 ## Explore external C# symbols
 
-- Extensively use/load the `ilspycmd-find-implementation` skill when writing C# codes and you are not sure about any external symbol's behavior
+Extensively use/load the `ilspycmd-find-implementation` skill when writing C# codes and you are not sure about any external symbol's behavior
 
 ## Line Ending Normalization
 
@@ -93,20 +93,19 @@ src
 
 - DO
 	- Always normalize strings to uppercase before comparison when case-insensitive matching is required and `StringComparison.OrdinalIgnoreCase` is unavailable.
-	- Always organize method arguments in single line, no matter how long they are (Unless they already in multiple lines when editing files).
-	- Wrap related arguments into context class/struct/record if necessary (Consider this when having more the 4 arguments).
+	- Always organize method arguments in single line, unless they already in multiple lines when editing files.
 	- Always add braces to `using` statements, except for single-line `using` declarations.
-	- When comparing an object with `null`, use `==` `!=` for WinRT Projection objects and the `is` `is not` pattern for all other types.
-	- For read-only properties, do not use direct expression-bodied declarations like `Property => value;`; use an expression get accessor instead, for example `Property { get => value; }`. Keep accessors in the same line whenever possible.
-	- For non-constant `string` or `string?` values that need an empty string, use `string.Empty` instead of `""`. Empty string literals are allowed only for constants (especially inside `[Attribute]` where `string.Empty` is not applicable) or the `is pattern`.
-	- Use `Interlocked.Exchange` for atomic read-modify-write operations: `if (Interlocked.Exchange(ref value, true)) { return; }` instead of separate read and write operations:`if (value) { return; } value = true;`
-	- When resolving multiple services from DI, single `IServiceProvider serviceProvider` argument is recommended, and resolve services from that serviceProvider, unless some parameters must be directly injected.
-	- Prefer FrozenSet/FrozenDictionary when creating immutable set/map for faster lookup operations.
+	- Wrap related arguments into context class/struct/record if necessary (Consider this when having more the 4 arguments).
+	- Prefer expression Property getter and setter, for example `Property { get => value; }`. Keep accessors in the same line whenever possible.
+	- Prefer FrozenSet/FrozenDictionary when creating immutable set/map for fast lookup operations.
+	- For non-constant `string` or `string?` values that need an empty string, use `string.Empty`. Empty string literal (`""`) is only allowed for constants (especially inside `[Attribute]` where `string.Empty` is not applicable) or the `is` `is not` pattern.
+	- When comparing an object with `null`, use `==` `!=` for WinRT Projection objects and the `is` `is not` pattern for other types.
+	- When resolving multiple services from DI,  use single `IServiceProvider serviceProvider` parameter, unless some parameters must be directly injected.
+
 - DO NOT
-	- Do not use expression-bodied syntax for methods, constructors, operators, or conversions. Lambdas or expressions inside method/property bodies are unaffected.
-	- Avoid closures that capture more than 4 variables. Closures should generally be minimized; when a method has an overload that accepts a state argument, prefer that overload.
-	- Non-static local functions should generally be avoided for the same reason as closures.
 	- Do not use `await using` when the actual type implments both `IDisposable` & `IAsyncDisposable`.
+	- Do not use expression body syntax for methods, constructors, operators, or conversions. Lambdas or expressions inside method/property bodies are unaffected.
+	- Avoid closures that capture more than 4 variables. Closures should generally be minimized; prefer method overload that accepts a state argument. Non-static local functions should generally be avoided.
 
 ### Implementation choices
 
@@ -115,7 +114,7 @@ src
 ### Resources and reuse
 
 - In `.resx` resources, single-line user-visible text should not end with a sentence-ending period. Preserve meaningful punctuation such as ellipses, URLs, file extensions, or multi-line prose.
-- Do not reinvent the wheel when runtime libraries already provide equivalent functionality; use the `ilspycmd` command-line tool extensively to verify existing implementations before adding new code.
+- Do not reinvent the wheel when runtime libraries already provide equivalent functionality; use the `ilspycmd` command-line tool extensively to verify existing implementations.
 
 ### How to build `Snap.Nicole`
 

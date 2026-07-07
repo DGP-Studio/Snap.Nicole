@@ -97,7 +97,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
             return ValidationResult.Ok;
         }
 
-        if (await Context.FileModifiedSinceLastReadAsync(file.FullPath, cancellationToken))
+        if (await Context.FileModifiedSinceLastReadAsync(file, cancellationToken))
         {
             return ValidationResult.Ask("File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.", 7);
         }

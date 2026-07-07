@@ -26,6 +26,11 @@ internal readonly struct NormalizedString
         return Value.IndexOf(value.Value, startIndex, comparisonType);
     }
 
+    public string Replace(NormalizedString oldValue, NormalizedString newValue)
+    {
+        return Value.Replace(oldValue.Value, newValue.Value);
+    }
+
     private static string NormalizeLineEndings(string value, out int lineEndingCount)
     {
         StringBuilder? builder = null;

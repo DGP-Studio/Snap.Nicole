@@ -11,8 +11,6 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
 internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirectories)
 {
-    private const int FileHashBufferSize = 81920;
-
     private readonly Lock readFileHashesLock = new();
     private readonly Dictionary<string, ulong> readFileHashes = [with(StringComparer.OrdinalIgnoreCase)];
 
@@ -104,63 +102,18 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
         }
     }
 
-    public void InvalidateFileRead(AgentWorkspaceFile file)
-    {
-        lock (readFileHashesLock)
-        {
-            readFileHashes.Remove(file.FullPath);
-        }
-    }
-
-    [Obsolete]
-    public void InvalidateFileRead(string fullPath)
-    {
-        lock (readFileHashesLock)
-        {
-            readFileHashes.Remove(fullPath);
-        }
-    }
-
-    public async Task<bool> FileModifiedSinceLastReadAsync(string fullPath, CancellationToken cancellationToken)
+    public async Task<bool> FileModifiedSinceLastReadAsync(AgentWorkspaceFile file, CancellationToken cancellationToken)
     {
         ulong readFileHash;
         lock (readFileHashesLock)
         {
-            if (!readFileHashes.TryGetValue(fullPath, out readFileHash))
+            if (!readFileHashes.TryGetValue(file.FullPath, out readFileHash))
             {
                 return true;
             }
         }
 
-        return await ComputeFileHashAsync(fullPath, cancellationToken) != readFileHash;
-    }
-
-    [Obsolete]
-    public async Task ValidateFileReadForModificationAsync(string fullPath, CancellationToken cancellationToken)
-    {
-        ulong readFileHash;
-        lock (readFileHashesLock)
-        {
-            if (!readFileHashes.TryGetValue(fullPath, out readFileHash))
-            {
-                throw new InvalidOperationException($"File '{fullPath}' must be read before modifying.");
-            }
-        }
-
-        ulong currentFileHash = await ComputeFileHashAsync(fullPath, cancellationToken);
-        if (currentFileHash != readFileHash)
-        {
-            throw new InvalidOperationException($"File '{fullPath}' content changed after it was read. Read it again before modifying.");
-        }
-    }
-
-    [Obsolete]
-    public static async Task<ulong> ComputeFileHashAsync(string fullPath, CancellationToken cancellationToken)
-    {
-        XxHash64 hash = new();
-        using FileStream stream = new(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileHashBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-        await hash.AppendAsync(stream, cancellationToken);
-        return hash.GetCurrentHashAsUInt64();
+        return await file.ComputeHashAsync(cancellationToken) != readFileHash;
     }
 
     public static string? FindSimilarFile(string fullPath)
