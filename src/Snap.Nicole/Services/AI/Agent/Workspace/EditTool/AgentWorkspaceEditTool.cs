@@ -32,20 +32,20 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
             return new TextContent(message);
         }
 
-        if (result is AgentWorkspaceFile file)
+        if (result is not AgentWorkspaceFile file)
         {
-            ValidationResult validationResult = await ValidateInputAsync(file, oldString, newString, cancellationToken);
-            if (!validationResult.Result)
-            {
-                return new TextContent(validationResult.Message);
-            }
-
-            AIContent content = await AgentWorkspaceEditToolResultFactory.CreateAsync(CallId, file, oldString, newString, replaceAll, cancellationToken);
-            await Context.MarkFileAsReadAsync(file, cancellationToken);
-            return content;
+            throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile");
         }
 
-        throw new InvalidOperationException("Unexpected result from ResolveWorkspaceFile");
+        ValidationResult validationResult = await ValidateInputAsync(file, oldString, newString, cancellationToken);
+        if (!validationResult.Result)
+        {
+            return new TextContent(validationResult.Message);
+        }
+
+        AIContent content = await AgentWorkspaceEditToolResultFactory.CreateAsync(CallId, file, oldString, newString, replaceAll, cancellationToken);
+        await Context.MarkFileAsReadAsync(file, cancellationToken);
+        return content;
     }
 
     private async Task<ValidationResult> ValidateInputAsync(AgentWorkspaceFile file, string oldString, string newString, CancellationToken cancellationToken)

@@ -32,8 +32,30 @@ internal sealed partial class ObservableGrepToolResultContent : ObservableFuncti
 
     private static string CreateSummary(AgentWorkspaceGrepToolResult result)
     {
-        string visibleLineCount = result.Lines.Count.ToString(CultureInfo.InvariantCulture);
+        int visibleLineCountValue = CountVisibleLineCount(result);
+        string visibleLineCount = visibleLineCountValue.ToString(CultureInfo.InvariantCulture);
         string totalLineCount = result.TotalLineCount.ToString(CultureInfo.InvariantCulture);
-        return result.Lines.Count == result.TotalLineCount ? $"{visibleLineCount} lines" : $"{visibleLineCount} of {totalLineCount} lines";
+        return visibleLineCountValue == result.TotalLineCount ? $"{visibleLineCount} lines" : $"{visibleLineCount} of {totalLineCount} lines";
+    }
+
+    private static int CountVisibleLineCount(AgentWorkspaceGrepToolResult result)
+    {
+        if (result.Lines.Count is 0)
+        {
+            return 0;
+        }
+
+        int lineCount = result.Lines.Count;
+        if (result.OutputMode is AgentWorkspaceGrepToolOutputMode.Count)
+        {
+            lineCount -= 2;
+        }
+
+        if (result.Truncated)
+        {
+            lineCount -= 2;
+        }
+
+        return Math.Max(0, lineCount);
     }
 }

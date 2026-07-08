@@ -34,15 +34,15 @@ internal static class AgentWorkspaceGrepToolResultFactory
         Regex regex = CreateRegex(options.Pattern, options);
         Matcher? globMatcher = CreateGlobMatcher(options.Glob);
         IReadOnlyList<GrepCandidate> candidates = CreateCandidates(searchPath, globMatcher, cancellationToken);
-        IReadOnlyList<string> lines = await CreateGrepOutputLinesAsync(searchPath, candidates, regex, options, cancellationToken);
-        GrepOutputWindow outputWindow = WindowGrepOutput(lines, options.Offset, options.HeadLimit);
+        GrepOutput output = await CreateGrepOutputAsync(candidates, regex, options, cancellationToken);
+        GrepOutputWindow outputWindow = WindowGrepOutput(output.Lines, options.Offset, options.HeadLimit);
 
         AgentWorkspaceGrepToolResult result = new()
         {
             SearchPath = searchPath.FullPath,
             OutputMode = options.OutputMode,
-            Lines = [.. outputWindow.Lines],
-            TotalLineCount = lines.Count,
+            Lines = [.. CreateResultLines(outputWindow.Lines, output, options, outputWindow.Truncated)],
+            TotalLineCount = output.Lines.Count,
             Offset = options.Offset,
             HeadLimit = options.HeadLimit,
             Truncated = outputWindow.Truncated,
@@ -68,12 +68,6 @@ internal static class AgentWorkspaceGrepToolResultFactory
             }
 
             builder.Append(result.Lines[i]);
-        }
-
-        if (result.Truncated)
-        {
-            builder.AppendLine();
-            builder.Append("(Results are truncated. Consider using a more specific path or pattern.)");
         }
 
         return new(builder.ToString());
@@ -233,9 +227,11 @@ internal static class AgentWorkspaceGrepToolResultFactory
         return VersionControlDirectoryNames.Contains(directoryName);
     }
 
-    private static async Task<IReadOnlyList<string>> CreateGrepOutputLinesAsync(AgentWorkspacePath searchPath, IReadOnlyList<GrepCandidate> candidates, Regex regex, AgentWorkspaceGrepToolOptions options, CancellationToken cancellationToken)
+    private static async Task<GrepOutput> CreateGrepOutputAsync(IReadOnlyList<GrepCandidate> candidates, Regex regex, AgentWorkspaceGrepToolOptions options, CancellationToken cancellationToken)
     {
         List<string> lines = [];
+        int totalOccurrenceCount = 0;
+        int matchedFileCount = 0;
         foreach (GrepCandidate candidate in candidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -250,10 +246,17 @@ internal static class AgentWorkspaceGrepToolResultFactory
                 continue;
             }
 
-            AppendFileOutput(lines, searchPath, candidate, match, options);
+            totalOccurrenceCount += match.MatchCount;
+            matchedFileCount++;
+            AppendFileOutput(lines, candidate, match, options);
         }
 
-        return lines;
+        return new()
+        {
+            Lines = lines,
+            TotalOccurrenceCount = totalOccurrenceCount,
+            MatchedFileCount = matchedFileCount,
+        };
     }
 
     private static async Task<string?> TryReadTextFileAsync(string fullPath, CancellationToken cancellationToken)
@@ -424,32 +427,32 @@ internal static class AgentWorkspaceGrepToolResultFactory
         return lines;
     }
 
-    private static void AppendFileOutput(List<string> output, AgentWorkspacePath searchPath, GrepCandidate candidate, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
+    private static void AppendFileOutput(List<string> output, GrepCandidate candidate, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
     {
         if (options.OutputMode is AgentWorkspaceGrepToolOutputMode.FilesWithMatches)
         {
-            output.Add(CreateDisplayPath(searchPath, candidate.RootRelativePath));
+            output.Add(CreateDisplayPath(candidate));
             return;
         }
 
         if (options.OutputMode is AgentWorkspaceGrepToolOutputMode.Count)
         {
-            output.Add($"{CreateDisplayPath(searchPath, candidate.RootRelativePath)}:{match.MatchCount.ToString(CultureInfo.InvariantCulture)}");
+            output.Add($"{CreateDisplayPath(candidate)}:{match.MatchCount.ToString(CultureInfo.InvariantCulture)}");
             return;
         }
 
         if (options.OnlyMatching)
         {
-            AppendOnlyMatchingOutput(output, searchPath, candidate, match, options);
+            AppendOnlyMatchingOutput(output, candidate, match, options);
             return;
         }
 
-        AppendContentOutput(output, searchPath, candidate, match, options);
+        AppendContentOutput(output, candidate, match, options);
     }
 
-    private static void AppendOnlyMatchingOutput(List<string> output, AgentWorkspacePath searchPath, GrepCandidate candidate, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
+    private static void AppendOnlyMatchingOutput(List<string> output, GrepCandidate candidate, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
     {
-        string displayPath = CreateDisplayPath(searchPath, candidate.RootRelativePath);
+        string displayPath = CreateDisplayPath(candidate);
         foreach (GrepLineMatch lineMatch in match.Matches)
         {
             foreach (string matchedValue in lineMatch.MatchedValues)
@@ -464,9 +467,9 @@ internal static class AgentWorkspaceGrepToolResultFactory
         }
     }
 
-    private static void AppendContentOutput(List<string> output, AgentWorkspacePath searchPath, GrepCandidate candidate, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
+    private static void AppendContentOutput(List<string> output, GrepCandidate candidate, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
     {
-        string displayPath = CreateDisplayPath(searchPath, candidate.RootRelativePath);
+        string displayPath = CreateDisplayPath(candidate);
         int previousLineNumber = 0;
         HashSet<int> writtenLineNumbers = [];
         foreach (GrepLineMatch lineMatch in match.Matches)
@@ -504,10 +507,55 @@ internal static class AgentWorkspaceGrepToolResultFactory
         return isMatchLine ? $"{displayPath}:{line.Text}" : $"{displayPath}-{line.Text}";
     }
 
-    private static string CreateDisplayPath(AgentWorkspacePath searchPath, string rootRelativePath)
+    private static IReadOnlyList<string> CreateResultLines(IReadOnlyList<string> lines, GrepOutput output, AgentWorkspaceGrepToolOptions options, bool truncated)
     {
-        string relativeLine = rootRelativePath.StartsWith("./", StringComparison.Ordinal) ? rootRelativePath[2..] : rootRelativePath;
-        return $"{searchPath.RootDirectory.Replace('\\', '/')}/{relativeLine}";
+        if (lines.Count is 0)
+        {
+            return lines;
+        }
+
+        List<string> resultLines = new(lines.Count + 4);
+        for (int i = 0; i < lines.Count; i++)
+        {
+            resultLines.Add(lines[i]);
+        }
+
+        if (options.OutputMode is AgentWorkspaceGrepToolOutputMode.Count)
+        {
+            resultLines.Add(string.Empty);
+            resultLines.Add(CreateCountSummary(output.TotalOccurrenceCount, output.MatchedFileCount));
+        }
+
+        if (truncated)
+        {
+            resultLines.Add(string.Empty);
+            resultLines.Add(CreatePaginationSummary(options.HeadLimit));
+        }
+
+        return resultLines;
+    }
+
+    private static string CreateCountSummary(int totalOccurrenceCount, int matchedFileCount)
+    {
+        string occurrenceName = totalOccurrenceCount is 1 ? "occurrence" : "occurrences";
+        string fileName = matchedFileCount is 1 ? "file" : "files";
+        return $"Found {totalOccurrenceCount.ToString(CultureInfo.InvariantCulture)} total {occurrenceName} across {matchedFileCount.ToString(CultureInfo.InvariantCulture)} {fileName}.";
+    }
+
+    private static string CreatePaginationSummary(int headLimit)
+    {
+        return $"[Showing results with pagination = limit: {headLimit.ToString(CultureInfo.InvariantCulture)}]";
+    }
+
+    private static string CreateDisplayPath(GrepCandidate candidate)
+    {
+        string displayPath = candidate.SearchRelativePath;
+        if (string.Equals(displayPath, ".", StringComparison.Ordinal) || displayPath.Length is 0)
+        {
+            displayPath = Path.GetFileName(candidate.FullPath);
+        }
+
+        return displayPath.StartsWith("./", StringComparison.Ordinal) ? displayPath[2..] : displayPath;
     }
 
     private static GrepOutputWindow WindowGrepOutput(IReadOnlyList<string> lines, int offset, int headLimit)
@@ -938,6 +986,15 @@ internal static class AgentWorkspaceGrepToolResultFactory
         public required List<GrepLineMatch> Matches { get; init; }
 
         public required int MatchCount { get; init; }
+    }
+
+    private sealed class GrepOutput
+    {
+        public required IReadOnlyList<string> Lines { get; init; }
+
+        public required int TotalOccurrenceCount { get; init; }
+
+        public required int MatchedFileCount { get; init; }
     }
 
     private sealed class GrepLineMatch

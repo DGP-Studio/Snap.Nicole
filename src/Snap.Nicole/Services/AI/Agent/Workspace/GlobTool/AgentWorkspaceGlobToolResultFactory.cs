@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.GlobTool;
 
@@ -18,11 +19,11 @@ internal static class AgentWorkspaceGlobToolResultFactory
         RecurseSubdirectories = true,
     };
 
-    public static AIContent Create(string callId, AgentWorkspaceDirectory globDirectory, string pattern, CancellationToken cancellationToken)
+    public static Task<AIContent> CreateAsync(string callId, AgentWorkspaceDirectory globDirectory, string pattern, CancellationToken cancellationToken)
     {
         if (!Directory.Exists(globDirectory.FullPath))
         {
-            return CreateTextContent(callId, []);
+            return Task.FromResult<AIContent>(CreateTextContent(callId, []));
         }
 
         Matcher matcher = new(StringComparison.OrdinalIgnoreCase);
@@ -30,7 +31,7 @@ internal static class AgentWorkspaceGlobToolResultFactory
 
         IReadOnlyList<GlobCandidate> candidates = CreateCandidates(globDirectory, cancellationToken);
         IReadOnlyList<GlobResult> matches = CreateMatches(matcher, globDirectory.FullPath, candidates);
-        return CreateTextContent(callId, [.. matches.Order(GlobResult.Comparer).Select(static result => result.FilePath)]);
+        return Task.FromResult<AIContent>(CreateTextContent(callId, [.. matches.Order(GlobResult.Comparer).Select(static result => result.FilePath)]));
     }
 
     private static TextContent CreateTextContent(string callId, IReadOnlyList<string> fileNames)

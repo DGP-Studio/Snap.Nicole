@@ -2,6 +2,7 @@ using Microsoft.Extensions.AI;
 using Snap.Nicole.Core;
 using System.ComponentModel;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.GlobTool;
 
@@ -13,15 +14,15 @@ internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
 
     [DisplayName(Prompt.GlobToolName)]
     [Description(Prompt.GlobToolDescription)]
-    public AIContent Invoke(
+    public Task<AIContent> Invoke(
         [Description("The glob pattern to match files against")] string pattern,
         [Description("""The directory to search in. If not specified, the current working directory will be used. IMPORTANT: Omit this field to use the default directory. DO NOT enter "undefined" or "null" - simply omit it for the default behavior. Must be a valid directory path if provided.""")][DefaultValue(null)] string? path,
         CancellationToken cancellationToken = default)
     {
-        return Glob(pattern, path, cancellationToken);
+        return GlobAsync(pattern, path, cancellationToken);
     }
 
-    private AIContent Glob(string pattern, string? path, CancellationToken cancellationToken)
+    private async Task<AIContent> GlobAsync(string pattern, string? path, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(pattern))
         {
@@ -39,6 +40,6 @@ internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
             throw new InvalidOperationException("Unexpected result from ResolveGlobDirectoryPath.");
         }
 
-        return AgentWorkspaceGlobToolResultFactory.Create(CallId, globDirectory, pattern, cancellationToken);
+        return await AgentWorkspaceGlobToolResultFactory.CreateAsync(CallId, globDirectory, pattern, cancellationToken);
     }
 }
