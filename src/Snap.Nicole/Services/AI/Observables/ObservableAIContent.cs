@@ -14,6 +14,8 @@ namespace Snap.Nicole.Services.AI.Observables;
 [JsonDerivedType(typeof(ObservableErrorContent), "error")]
 [JsonDerivedType(typeof(ObservableFunctionCallContent), "function_call")]
 [JsonDerivedType(typeof(ObservableFunctionResultContent), "function_result")]
+[JsonDerivedType(typeof(ObservableGlobToolResultContent), "glob_tool_result")]
+[JsonDerivedType(typeof(ObservableGrepToolResultContent), "grep_tool_result")]
 [JsonDerivedType(typeof(ObservableHostedFileContent), "hosted_file")]
 [JsonDerivedType(typeof(ObservableHostedVectorStoreContent), "hosted_vector_store")]
 [JsonDerivedType(typeof(ObservableImageGenerationToolCallContent), "image_generation_tool_call")]

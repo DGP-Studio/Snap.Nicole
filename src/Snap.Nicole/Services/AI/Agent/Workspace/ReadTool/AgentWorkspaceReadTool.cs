@@ -69,19 +69,19 @@ internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : Ag
                 message.Append($"Did you mean {similarFileName}?");
             }
 
-            return Task.FromResult(ValidationResult.Ask(message.ToString(), 4));
+            return Task.FromResult(ValidationResult.Ask(message.ToString()));
         }
 
         FileInfo fileInfo = new(file.FullPath);
         if (fileInfo.Length is 0)
         {
-            return Task.FromResult(ValidationResult.Ask($"File '{file.FullPath}' is empty.", 4));
+            return Task.FromResult(ValidationResult.Ask($"File '{file.FullPath}' is empty."));
         }
 
         string extension = Path.GetExtension(file.FullPath);
         if (AgentWorkspaceReadToolResultFactory.IsBinaryExtension(extension) && !AgentWorkspaceReadToolResultFactory.IsSupportedImageExtension(extension))
         {
-            return Task.FromResult(ValidationResult.Ask($"This tool cannot read binary files. The file appears to be a binary {extension.ToLowerInvariant()} file. Please use appropriate tools for binary file analysis.", 4));
+            return Task.FromResult(ValidationResult.Ask($"This tool cannot read binary files. The file appears to be a binary {extension.ToLowerInvariant()} file. Please use appropriate tools for binary file analysis."));
         }
 
         return Task.FromResult(ValidationResult.Ok);

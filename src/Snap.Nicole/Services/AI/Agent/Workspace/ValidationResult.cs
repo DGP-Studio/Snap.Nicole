@@ -16,16 +16,13 @@ internal sealed class ValidationResult
 
     public string? Message { get; init; }
 
-    public int ErrorCode { get; init; }
-
-    public static ValidationResult Ask(string message, int errorCode)
+    public static ValidationResult Ask(string message)
     {
         return new()
         {
             Result = false,
             Behavior = "ask",
             Message = message,
-            ErrorCode = errorCode,
         };
     }
 }

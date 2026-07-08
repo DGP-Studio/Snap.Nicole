@@ -62,7 +62,7 @@ internal sealed class AgentWorkspaceWriteTool(AgentWorkspaceContext context) : A
     {
         if (Directory.Exists(file.FullPath))
         {
-            return ValidationResult.Ask($"'{file.FullPath}' is a directory not a file.", 4);
+            return ValidationResult.Ask($"'{file.FullPath}' is a directory not a file.");
         }
 
         if (!file.Exists)
@@ -72,7 +72,7 @@ internal sealed class AgentWorkspaceWriteTool(AgentWorkspaceContext context) : A
 
         if (await Context.FileModifiedSinceLastReadAsync(file, cancellationToken))
         {
-            return ValidationResult.Ask("File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.", 7);
+            return ValidationResult.Ask("File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.");
         }
 
         return ValidationResult.Ok;

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Snap.Nicole.Core;
 using System.ComponentModel;
 using System.Threading;
 
@@ -24,10 +25,20 @@ internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
     {
         if (string.IsNullOrWhiteSpace(pattern))
         {
-            throw new ArgumentException("Glob pattern cannot be empty.", nameof(pattern));
+            return new TextContent("Glob pattern cannot be empty.");
         }
 
-        AgentWorkspaceDirectory globDirectory = Context.ResolveGlobDirectoryPath(path);
-        return AgentWorkspaceGlobToolResultFactory.Create(globDirectory, pattern, cancellationToken);
+        MessageResult<AgentWorkspaceDirectory> result = Context.ResolveGlobDirectoryPath(path);
+        if (result is string message)
+        {
+            return new TextContent(message);
+        }
+
+        if (result is not AgentWorkspaceDirectory globDirectory)
+        {
+            throw new InvalidOperationException("Unexpected result from ResolveGlobDirectoryPath.");
+        }
+
+        return AgentWorkspaceGlobToolResultFactory.Create(CallId, globDirectory, pattern, cancellationToken);
     }
 }

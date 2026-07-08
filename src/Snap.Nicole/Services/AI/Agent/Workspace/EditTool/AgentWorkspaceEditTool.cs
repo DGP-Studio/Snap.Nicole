@@ -52,7 +52,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
     {
         if (string.Equals(oldString, newString, StringComparison.Ordinal))
         {
-            return ValidationResult.Ask("No changes to make: oldString and newString are exactly the same.", 1);
+            return ValidationResult.Ask("No changes to make: oldString and newString are exactly the same.");
         }
 
         // File doesn't exist
@@ -81,7 +81,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
                 message.Append($"Did you mean {similarFileName}?");
             }
 
-            return ValidationResult.Ask(message.ToString(), 4);
+            return ValidationResult.Ask(message.ToString());
         }
 
         // File exists with empty oldString — only valid if file is empty
@@ -90,7 +90,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
             // Only reject if the file has content (for file creation attempt)
             if (!await file.IsEmptyOrWhitespaceAsync(Encoding.UTF8WithoutBOM, cancellationToken))
             {
-                return ValidationResult.Ask("Cannot create new file - file already exists.", 3);
+                return ValidationResult.Ask("Cannot create new file - file already exists.");
             }
 
             // Empty file with empty oldString is valid - we're replacing empty with content
@@ -99,7 +99,7 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
 
         if (await Context.FileModifiedSinceLastReadAsync(file, cancellationToken))
         {
-            return ValidationResult.Ask("File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.", 7);
+            return ValidationResult.Ask("File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.");
         }
 
         return ValidationResult.Ok;

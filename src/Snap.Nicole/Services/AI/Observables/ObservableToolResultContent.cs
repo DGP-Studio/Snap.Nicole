@@ -8,6 +8,8 @@ namespace Snap.Nicole.Services.AI.Observables;
 [JsonDerivedType(typeof(ObservableCodeInterpreterToolResultContent), "code_interpreter_tool_result")]
 [JsonDerivedType(typeof(ObservableEditToolResultContent), "edit_tool_result")]
 [JsonDerivedType(typeof(ObservableFunctionResultContent), "function_result")]
+[JsonDerivedType(typeof(ObservableGlobToolResultContent), "glob_tool_result")]
+[JsonDerivedType(typeof(ObservableGrepToolResultContent), "grep_tool_result")]
 [JsonDerivedType(typeof(ObservableImageGenerationToolResultContent), "image_generation_tool_result")]
 [JsonDerivedType(typeof(ObservableMcpServerToolResultContent), "mcp_server_tool_result")]
 [JsonDerivedType(typeof(ObservableReadToolResultContent), "read_tool_result")]

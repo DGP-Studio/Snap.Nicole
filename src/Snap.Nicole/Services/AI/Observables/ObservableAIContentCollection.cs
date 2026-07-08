@@ -102,6 +102,6 @@ internal sealed class ObservableAIContentCollection : ObservableCollection<Obser
 
     private static bool ShouldReplaceFunctionResult(ObservableFunctionResultContent currentContent, ObservableFunctionResultContent newContent)
     {
-        return currentContent.CallId == newContent.CallId && currentContent.GetType() != newContent.GetType() && newContent is ObservableEditToolResultContent or ObservableReadToolResultContent or ObservableWriteToolResultContent;
+        return currentContent.CallId == newContent.CallId && currentContent.GetType() != newContent.GetType() && newContent is ObservableEditToolResultContent or ObservableGlobToolResultContent or ObservableGrepToolResultContent or ObservableReadToolResultContent or ObservableWriteToolResultContent;
     }
 }

@@ -21,7 +21,7 @@ internal static class AgentWorkspaceWriteToolResultFactory
 
         AgentWorkspaceWriteToolResult.TryAdd(callId, result);
         return new TextContent(originalFile is null
-            ? $"File '{file.FullPath}' created."
-            : $"File '{file.FullPath}' written.");
+            ? $"File created successfully at: '{file.FullPath}'"
+            : $"The file '{file.FullPath}' has been updated successfully.");
     }
 }

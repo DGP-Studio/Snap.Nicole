@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
+using Snap.Nicole.Services.AI.Agent.Workspace.GlobTool;
+using Snap.Nicole.Services.AI.Agent.Workspace.GrepTool;
 using Snap.Nicole.Services.AI.Agent.Workspace.ReadTool;
 using Snap.Nicole.Services.AI.Agent.Workspace.WriteTool;
 using Snap.Nicole.Services.AI.Observables.BuiltInTools;
@@ -12,6 +14,8 @@ namespace Snap.Nicole.Services.AI.Observables;
 
 [JsonPolymorphic]
 [JsonDerivedType(typeof(ObservableEditToolResultContent), "edit_tool_result")]
+[JsonDerivedType(typeof(ObservableGlobToolResultContent), "glob_tool_result")]
+[JsonDerivedType(typeof(ObservableGrepToolResultContent), "grep_tool_result")]
 [JsonDerivedType(typeof(ObservableReadToolResultContent), "read_tool_result")]
 [JsonDerivedType(typeof(ObservableWriteToolResultContent), "write_tool_result")]
 internal partial class ObservableFunctionResultContent : ObservableToolResultContent
@@ -24,6 +28,16 @@ internal partial class ObservableFunctionResultContent : ObservableToolResultCon
         if (AgentWorkspaceEditToolResult.TryRemove(functionResultContent.CallId, out AgentWorkspaceEditToolResult? editResult))
         {
             return ObservableEditToolResultContent.Create(functionResultContent, editResult, jsonOptions);
+        }
+
+        if (AgentWorkspaceGlobToolResult.TryRemove(functionResultContent.CallId, out AgentWorkspaceGlobToolResult? globResult))
+        {
+            return ObservableGlobToolResultContent.Create(functionResultContent, globResult, jsonOptions);
+        }
+
+        if (AgentWorkspaceGrepToolResult.TryRemove(functionResultContent.CallId, out AgentWorkspaceGrepToolResult? grepResult))
+        {
+            return ObservableGrepToolResultContent.Create(functionResultContent, grepResult, jsonOptions);
         }
 
         if (AgentWorkspaceReadToolResult.TryRemove(functionResultContent.CallId, out AgentWorkspaceReadToolResult? readResult))

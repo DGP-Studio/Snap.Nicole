@@ -156,6 +156,146 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate x:Key="GlobToolResultTemplate" x:DataType="snsaobt:ObservableGlobToolResultContent">
+            <Border
+                Padding="8"
+                Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="{ThemeResource ControlCornerRadius}">
+                <StackPanel Spacing="6">
+                    <Grid ColumnSpacing="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <FontIcon
+                            Grid.Column="0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Glyph="&#xEC7A;" />
+                        <FontIcon
+                            Grid.Column="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Glyph="&#xE721;" />
+                        <TextBlock
+                            Grid.Column="2"
+                            Opacity="0.7"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="{Binding CallId}"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            Grid.Column="3"
+                            Opacity="0.7"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="{Binding Summary}" />
+                    </Grid>
+
+                    <ScrollViewer
+                        MaxHeight="280"
+                        HorizontalScrollBarVisibility="Auto"
+                        HorizontalScrollMode="Auto"
+                        Visibility="{Binding FileNames, Converter={StaticResource ContentVisibilityConverter}}">
+                        <ItemsControl
+                            Margin="4"
+                            ItemsSource="{Binding FileNames}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="2" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock
+                                        FontFamily="Cascadia Code, Consolas, Courier New"
+                                        FontSize="13"
+                                        IsTextSelectionEnabled="True"
+                                        Text="{Binding}"
+                                        TextWrapping="NoWrap" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="GrepToolResultTemplate" x:DataType="snsaobt:ObservableGrepToolResultContent">
+            <Border
+                Padding="8"
+                Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="{ThemeResource ControlCornerRadius}">
+                <StackPanel Spacing="6">
+                    <Grid ColumnSpacing="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <FontIcon
+                            Grid.Column="0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Glyph="&#xEC7A;" />
+                        <FontIcon
+                            Grid.Column="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Glyph="&#xE721;" />
+                        <TextBlock
+                            Grid.Column="2"
+                            Opacity="0.7"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="{Binding SearchPath}"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            Grid.Column="3"
+                            Opacity="0.7"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="{Binding Summary}" />
+                    </Grid>
+
+                    <ScrollViewer
+                        MaxHeight="320"
+                        HorizontalScrollBarVisibility="Auto"
+                        HorizontalScrollMode="Auto"
+                        Visibility="{Binding Lines, Converter={StaticResource ContentVisibilityConverter}}">
+                        <ItemsControl
+                            Margin="4"
+                            ItemsSource="{Binding Lines}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="2" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock
+                                        FontFamily="Cascadia Code, Consolas, Courier New"
+                                        FontSize="13"
+                                        IsTextSelectionEnabled="True"
+                                        Text="{Binding}"
+                                        TextWrapping="NoWrap" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
         <DataTemplate x:Key="ReadToolResultTemplate" x:DataType="snsaobt:ObservableReadToolResultContent">
             <Border
                 Padding="8"
@@ -401,6 +541,8 @@
             EditTemplate="{StaticResource EditToolResultTemplate}"
             FallbackTemplate="{StaticResource FallbackToolResultTemplate}"
             FunctionTemplate="{StaticResource FunctionToolResultTemplate}"
+            GlobTemplate="{StaticResource GlobToolResultTemplate}"
+            GrepTemplate="{StaticResource GrepToolResultTemplate}"
             ImageGenerationTemplate="{StaticResource ContentCollectionToolResultTemplate}"
             McpServerTemplate="{StaticResource ContentCollectionToolResultTemplate}"
             ReadTemplate="{StaticResource ReadToolResultTemplate}"

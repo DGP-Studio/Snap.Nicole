@@ -2,6 +2,9 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
 internal static class Prompt
 {
+    public const string BashToolName = "run_shell";
+    public const string AgentToolName = "Agent";
+
     // This files contents should only be modified manually. Agent should notify the user if changes are required.
     public const string WriteToolName = "Write";
     public const string WriteToolDescription = $"""
@@ -51,14 +54,26 @@ internal static class Prompt
 
     // This files contents should only be modified manually. Agent should notify the user if changes are required.
     public const string GlobToolName = "Glob";
-    public const string GlobToolDescription = """
+    public const string GlobToolDescription = $"""
         - Fast file pattern matching tool that works with any codebase size
         - Supports glob patterns like "**/*.js" or "src/**/*.ts"
         - Returns matching file paths sorted by modification time
         - Use this tool when you need to find files by name patterns
-        - When you are doing an open ended search that may require multiple rounds of globbing and grepping, use the Agent tool instead
+        - When you are doing an open ended search that may require multiple rounds of globbing and grepping, use the {AgentToolName} tool instead
         """;
 
     // This files contents should only be modified manually. Agent should notify the user if changes are required.
     public const string GrepToolName = "Grep";
+    public const string GrepToolDescription = $$"""
+        A powerful search tool built on ripgrep
+
+        Usage:
+        - ALWAYS use {{GrepToolName}} for search tasks. NEVER invoke `grep` or `rg` as a {{BashToolName}} command. The {{GrepToolName}} tool has been optimized for correct permissions and access.
+        - Supports full regex syntax (e.g., "log.*Error", "function\s+\w+")
+        - Filter files with glob parameter (e.g., "*.js", "**/*.tsx")
+        - Output modes: "content" shows matching lines, "files_with_matches" shows only file paths (default), "count" shows match counts
+        - Use {{AgentToolName}} tool for open-ended searches requiring multiple rounds
+        - Pattern syntax: Uses ripgrep (not grep) - literal braces need escaping (use `interface\{\}` to find `interface{}` in Go code)
+        - Multiline matching: By default patterns match within single lines only. For cross-line patterns like `struct \{[\s\S]*?field`, use `multiline: true`
+        """;
 }

@@ -2,6 +2,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 using Snap.Nicole.Services.AI.Agent.Workspace.GlobTool;
+using Snap.Nicole.Services.AI.Agent.Workspace.GrepTool;
 using Snap.Nicole.Services.AI.Agent.Workspace.ReadTool;
 using Snap.Nicole.Services.AI.Agent.Workspace.WriteTool;
 using System.Collections.Generic;

@@ -10,8 +10,7 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace.GlobTool;
 
 internal static class AgentWorkspaceGlobToolResultFactory
 {
-    private const string NoFilesFoundText = "No files found";
-    private const string TruncatedText = "(Results are truncated. Consider using a more specific path or pattern.)";
+    private const int MaximumGlobFileNameCount = 100;
 
     private static readonly EnumerationOptions DefaultEnumerationOptions = new()
     {
@@ -19,27 +18,34 @@ internal static class AgentWorkspaceGlobToolResultFactory
         RecurseSubdirectories = true,
     };
 
-    public static AIContent Create(AgentWorkspaceDirectory globDirectory, string pattern, CancellationToken cancellationToken)
+    public static AIContent Create(string callId, AgentWorkspaceDirectory globDirectory, string pattern, CancellationToken cancellationToken)
     {
         if (!Directory.Exists(globDirectory.FullPath))
         {
-            return CreateTextContent([]);
+            return CreateTextContent(callId, []);
         }
 
         Matcher matcher = new(StringComparison.OrdinalIgnoreCase);
         matcher.AddInclude(pattern.Replace('\\', '/'));
 
-        List<GlobCandidate> candidates = CreateCandidates(globDirectory, cancellationToken);
-        List<GlobResult> matches = CreateMatches(matcher, globDirectory.FullPath, candidates);
-        return CreateTextContent([.. matches.Order(GlobResult.Comparer).Select(static result => result.FilePath)]);
+        IReadOnlyList<GlobCandidate> candidates = CreateCandidates(globDirectory, cancellationToken);
+        IReadOnlyList<GlobResult> matches = CreateMatches(matcher, globDirectory.FullPath, candidates);
+        return CreateTextContent(callId, [.. matches.Order(GlobResult.Comparer).Select(static result => result.FilePath)]);
     }
 
-    private static TextContent CreateTextContent(IReadOnlyList<string> fileNames)
+    private static TextContent CreateTextContent(string callId, IReadOnlyList<string> fileNames)
     {
-        AgentWorkspaceGlobToolResult result = AgentWorkspaceGlobToolResult.Create(fileNames);
+        AgentWorkspaceGlobToolResult result = new()
+        {
+            FileNames = [.. fileNames.Take(MaximumGlobFileNameCount)],
+            Truncated = fileNames.Count > MaximumGlobFileNameCount,
+        };
+
+        AgentWorkspaceGlobToolResult.TryAdd(callId, result);
+
         if (result.FileNames.Count is 0)
         {
-            return new TextContent(NoFilesFoundText);
+            return new TextContent("No files found");
         }
 
         StringBuilder builder = new();
@@ -56,13 +62,13 @@ internal static class AgentWorkspaceGlobToolResultFactory
         if (result.Truncated)
         {
             builder.AppendLine();
-            builder.Append(TruncatedText);
+            builder.Append("(Results are truncated. Consider using a more specific path or pattern.)");
         }
 
         return new TextContent(builder.ToString());
     }
 
-    private static List<GlobCandidate> CreateCandidates(AgentWorkspaceDirectory globDirectory, CancellationToken cancellationToken)
+    private static IReadOnlyList<GlobCandidate> CreateCandidates(AgentWorkspaceDirectory globDirectory, CancellationToken cancellationToken)
     {
         List<GlobCandidate> candidates = [];
         foreach (string filePath in Directory.EnumerateFiles(globDirectory.FullPath, "*", DefaultEnumerationOptions))
@@ -81,7 +87,7 @@ internal static class AgentWorkspaceGlobToolResultFactory
         return candidates;
     }
 
-    private static List<GlobResult> CreateMatches(Matcher matcher, string rootDirectory, List<GlobCandidate> candidates)
+    private static IReadOnlyList<GlobResult> CreateMatches(Matcher matcher, string rootDirectory, IReadOnlyList<GlobCandidate> candidates)
     {
         Dictionary<string, GlobCandidate> candidatesByRelativePath = candidates
             .ToDictionary(static candidate => candidate.RelativePath, StringComparer.OrdinalIgnoreCase);
@@ -95,8 +101,7 @@ internal static class AgentWorkspaceGlobToolResultFactory
         List<GlobResult> results = [];
         foreach (FilePatternMatch match in matchResult.Files)
         {
-            GlobCandidate candidate = candidatesByRelativePath[match.Path];
-            results.Add(GlobResult.Create(candidate));
+            results.Add(GlobResult.Create(candidatesByRelativePath[match.Path]));
         }
 
         return results;
