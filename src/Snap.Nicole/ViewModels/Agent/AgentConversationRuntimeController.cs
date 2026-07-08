@@ -33,9 +33,9 @@ internal sealed class AgentConversationRuntimeController(IServiceProvider servic
             return runtime.Agent;
         }
 
-        AgentCreationResult result = await agentService.CreateAgentAsync(requestOptions, workspace, cancellationToken);
-        await runtime.ResetAsync(result.Agent, requestOptions, workspace, result.Resources);
-        return result.Agent;
+        HarnessAgent agent = await agentService.CreateAgentAsync(requestOptions, workspace, cancellationToken);
+        runtime.Reset(agent, requestOptions, workspace);
+        return agent;
     }
 
     public async ValueTask<AgentSession> EnsureConversationSessionAsync(AgentConversationRuntime runtime, HarnessAgent agent, CancellationToken cancellationToken)

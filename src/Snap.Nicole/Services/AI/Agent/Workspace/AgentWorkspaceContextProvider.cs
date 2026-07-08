@@ -4,6 +4,7 @@ using Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 using Snap.Nicole.Services.AI.Agent.Workspace.GlobTool;
 using Snap.Nicole.Services.AI.Agent.Workspace.GrepTool;
 using Snap.Nicole.Services.AI.Agent.Workspace.ReadTool;
+using Snap.Nicole.Services.AI.Agent.Workspace.ShellTool;
 using Snap.Nicole.Services.AI.Agent.Workspace.WriteTool;
 using System.Collections.Generic;
 using System.Text;
@@ -41,7 +42,7 @@ internal sealed class AgentWorkspaceContextProvider : AIContextProvider
         IReadOnlyList<string> rootDirectories = workspaceContext.RootDirectories;
         StringBuilder builder = new();
         builder.AppendLine("## Workspace File Access");
-        builder.AppendLine("You have access to workspace files via `Read` for reading files, `Write` for full file replacement, `Edit` for exact string replacement, `Glob` for file pattern matching, and `Grep` for content search.");
+        builder.AppendLine($"You have access to workspace files via `Read` for reading files, `Write` for full file replacement, `Edit` for exact string replacement, `Glob` for file pattern matching, `Grep` for content search, and `{Prompt.ShellToolName}` for shell commands.");
         builder.AppendLine("These files persist beyond the current session and may be shared by future sessions that use the same workspace.");
         builder.AppendLine("Use these tools to read input data provided by the user, write output artifacts, and manage files the user has asked you to work with.");
         builder.AppendLine();
@@ -64,6 +65,7 @@ internal sealed class AgentWorkspaceContextProvider : AIContextProvider
 
         builder.AppendLine();
         builder.AppendLine("- Never overwrite existing files unless the user has explicitly asked you to do so. Writing and editing files require explicit user approval.");
+        builder.AppendLine($"- Use `{Prompt.ShellToolName}` to execute a single shell command in the current workspace directory. Each call starts a fresh shell process, so `cd`, environment changes, aliases, and functions do not persist across calls.");
         builder.AppendLine($"- Use `{Prompt.ReadToolName}` to read files. `Read.file_path` must be an absolute path under a workspace root. Text results use cat -n line numbers. Image results are returned as visual content.");
         builder.AppendLine("- File paths returned by these tools are full paths.");
         builder.AppendLine("- Use `Write` to create a new file or fully replace a file already read with `Read`. Overwriting an unread existing file fails. Overwriting a file whose content changed after `Read` fails until it is read again. Use `Edit` for partial changes.");
@@ -82,6 +84,7 @@ internal sealed class AgentWorkspaceContextProvider : AIContextProvider
     {
         return
         [
+            new AgentWorkspaceShellTool(workspaceContext),
             new AgentWorkspaceWriteTool(workspaceContext),
             new AgentWorkspaceReadTool(workspaceContext),
             new AgentWorkspaceEditTool(workspaceContext),

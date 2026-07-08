@@ -2,8 +2,19 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
 internal static class Prompt
 {
-    public const string BashToolName = "run_shell";
+    public const string ShellToolName = "run_shell";
     public const string AgentToolName = "Agent";
+
+    // This files contents should only be modified manually. Agent should notify the user if changes are required.
+    public const string ShellToolDescription = """
+        Execute a single shell command in a fresh local shell process and return its stdout, stderr, and exit code.
+
+        Usage:
+        - Each call starts a fresh shell process. Working directory changes, environment variables, aliases, and functions do not persist across calls.
+        - The command starts in the current workspace directory.
+        - On Windows, use PowerShell syntax unless the shell resolver falls back to cmd.exe.
+        - Combine related steps into one command if command state matters.
+        """;
 
     // This files contents should only be modified manually. Agent should notify the user if changes are required.
     public const string WriteToolName = "Write";
@@ -32,7 +43,7 @@ internal static class Prompt
         - When you already know which part of the file you need, only read that part. This can be important for larger files.
         - Results are returned using cat -n format, with line numbers starting at 1
         - This tool allows you to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually.
-        - This tool can only read files, not directories. To read a directory, use an ls command via the run_shell tool.
+        - This tool can only read files, not directories. To read a directory, use an ls command via the {ShellToolName} tool.
         - You will regularly be asked to read screenshots. If the user provides a path to a screenshot, ALWAYS use this tool to view the file at the path.
         - If you read a file that exists but has empty contents you will receive a system reminder warning in place of file contents.
         """;
@@ -68,7 +79,7 @@ internal static class Prompt
         A powerful search tool built on ripgrep
 
         Usage:
-        - ALWAYS use {{GrepToolName}} for search tasks. NEVER invoke `grep` or `rg` as a {{BashToolName}} command. The {{GrepToolName}} tool has been optimized for correct permissions and access.
+        - ALWAYS use {{GrepToolName}} for search tasks. NEVER invoke `grep` or `rg` as a {{ShellToolName}} command. The {{GrepToolName}} tool has been optimized for correct permissions and access.
         - Supports full regex syntax (e.g., "log.*Error", "function\s+\w+")
         - Filter files with glob parameter (e.g., "*.js", "**/*.tsx")
         - Output modes: "content" shows matching lines, "files_with_matches" shows only file paths (default), "count" shows match counts

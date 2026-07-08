@@ -21,7 +21,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
     private readonly AgentChatClientFactory chatClientFactory = serviceProvider.GetRequiredService<AgentChatClientFactory>();
     private readonly JsonSerializerOptions functionContentJsonOptions = serviceProvider.GetRequiredKeyedService<JsonSerializerOptions>(JsonSerializerOptionsKey.AIFunctionContent);
 
-    public ValueTask<AgentCreationResult> CreateAgentAsync(ExtendedAgentOptions options, AgentWorkspaceSnapshot workspace, CancellationToken cancellationToken = default)
+    public ValueTask<HarnessAgent> CreateAgentAsync(ExtendedAgentOptions options, AgentWorkspaceSnapshot workspace, CancellationToken cancellationToken = default)
     {
         IChatClient chatClient = chatClientFactory.Create(options);
         return options.CreateHarnessAgentAsync(chatClient, CreateBuiltInTools(), serviceProvider, workspace, cancellationToken);
@@ -105,7 +105,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
             return;
         }
 
-        string workingDirectory = string.Equals(functionCall.Name, "run_shell", StringComparison.Ordinal) ? context.Workspace.WorkingDirectory : string.Join(Environment.NewLine, context.Workspace.WorkingDirectories);
+        string workingDirectory = string.Equals(functionCall.Name, Prompt.ShellToolName, StringComparison.Ordinal) ? context.Workspace.WorkingDirectory : string.Join(Environment.NewLine, context.Workspace.WorkingDirectories);
         toolApprovalRequest.WorkingDirectory = workingDirectory;
         Dictionary<string, string> data = new()
         {
@@ -117,7 +117,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
 
     private static bool IsWorkspaceScopedApprovalTool(string name)
     {
-        return string.Equals(name, "run_shell", StringComparison.Ordinal)
+        return string.Equals(name, Prompt.ShellToolName, StringComparison.Ordinal)
             || string.Equals(name, "Write", StringComparison.Ordinal)
             || string.Equals(name, "FileAccess_DeleteFile", StringComparison.Ordinal)
             || string.Equals(name, "Edit", StringComparison.Ordinal);

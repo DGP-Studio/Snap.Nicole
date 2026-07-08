@@ -131,7 +131,7 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
         IAsyncRelayCommand? command = GenerationCommand;
         GenerationCommand = null;
         command?.Cancel();
-        Runtime.Dispose();
+        Runtime.Reset();
     }
 
     public void UpdateConversationStatistics()

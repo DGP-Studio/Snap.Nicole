@@ -1,5 +1,4 @@
 using Microsoft.Agents.AI;
-using Microsoft.Agents.AI.Tools.Shell;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
@@ -117,38 +116,23 @@ internal sealed class ExtendedAgentOptions
         return new(chatOptions);
     }
 
-    public async ValueTask<AgentCreationResult> CreateHarnessAgentAsync(IChatClient chatClient, IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace, CancellationToken cancellationToken)
+    public ValueTask<HarnessAgent> CreateHarnessAgentAsync(IChatClient chatClient, IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         int maxOutputTokens = Math.Clamp(MaxOutputTokens ?? DefaultMaxOutputTokens, 1, int.MaxValue - 1);
         int maxContextWindowTokens = Math.Clamp(MaxContextWindowTokens ?? ((MaxInputTokens ?? DefaultMaxInputTokens) + maxOutputTokens), maxOutputTokens + 1, int.MaxValue);
 
-        IAsyncDisposable? resources = null;
-        try
-        {
-            HarnessAgentOptions harnessOptions = CreateHarnessAgentOptions(tools, serviceProvider, workspace, maxContextWindowTokens, maxOutputTokens, out resources);
-            HarnessAgent agent = chatClient.AsHarnessAgent(harnessOptions, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>(), services: serviceProvider);
-            return new()
-            {
-                Agent = agent,
-                Resources = resources,
-            };
-        }
-        catch
-        {
-            await (resources?.DisposeAsync() ?? ValueTask.CompletedTask);
-            throw;
-        }
+        HarnessAgentOptions harnessOptions = CreateHarnessAgentOptions(tools, serviceProvider, workspace, maxContextWindowTokens, maxOutputTokens);
+        HarnessAgent agent = chatClient.AsHarnessAgent(harnessOptions, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>(), services: serviceProvider);
+        return ValueTask.FromResult(agent);
     }
 
-    private HarnessAgentOptions CreateHarnessAgentOptions(IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace, int maxContextWindowTokens, int maxOutputTokens, out IAsyncDisposable? resources)
+    private HarnessAgentOptions CreateHarnessAgentOptions(IList<AITool>? tools, IServiceProvider serviceProvider, AgentWorkspaceSnapshot workspace, int maxContextWindowTokens, int maxOutputTokens)
     {
         // TODO: The compaction strategy should be controlled by ourselves.
         // The history provider would then take in compaction strategy as chat reducer.
         List<AIContextProvider> contextProviders = [new AgentWorkspaceContextProvider(workspace.WorkingDirectories)];
-        LocalShellExecutor shellExecutor = CreateShellExecutor(workspace);
-        resources = shellExecutor;
 
         return new()
         {
@@ -170,29 +154,7 @@ internal sealed class ExtendedAgentOptions
             DisableAgentSkillsProvider = false,
             AgentSkillsSource = EmptyAgentSkillsSource.Instance,
             DisableOpenTelemetry = true,
-            ShellExecutor = shellExecutor,
         };
-    }
-
-    private static LocalShellExecutor CreateShellExecutor(AgentWorkspaceSnapshot workspace)
-    {
-        return new(new LocalShellExecutorOptions
-        {
-            WorkingDirectory = workspace.WorkingDirectory,
-            ConfineWorkingDirectory = true,
-            Timeout = LocalShellExecutor.DefaultTimeout,
-            Policy = CreateShellPolicy(),
-        });
-    }
-
-    private static ShellPolicy CreateShellPolicy()
-    {
-        return new(
-        [
-            @"(^|[;&|]\s*)rm\b(?=.*\s-rf\b|.*\s-fr\b|.*\s-r\b.*\s-f\b|.*\s-f\b.*\s-r\b)\s+[/\\]?(?=\s|$)",
-            @"(^|[;&|]\s*)Remove-Item\b(?=.*\b(-Recurse|-r)\b)(?=.*\b(-Force|-fo)\b)",
-            @"(^|[;&|]\s*)format(\.com)?\b",
-        ]);
     }
 
     private ChatHistoryProvider CreateChatHistoryProvider(IServiceProvider serviceProvider)

@@ -38,6 +38,20 @@ internal sealed class AgentWorkspaceContext
 
     public IReadOnlyList<string> RootDirectories { get; }
 
+    public bool TryGetShellWorkingDirectory([NotNullWhen(true)] out string? workingDirectory, [NotNullWhen(false)] out string? message)
+    {
+        if (initializationMessage is not null)
+        {
+            workingDirectory = null;
+            message = initializationMessage;
+            return false;
+        }
+
+        workingDirectory = RootDirectories[0];
+        message = null;
+        return true;
+    }
+
     public MessageResult<AgentWorkspaceFile> ResolveWorkspaceFile(string path)
     {
         if (initializationMessage is not null)
