@@ -32,12 +32,12 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
         return GrepAsync(pattern, path, glob, outputMode, beforeContext, afterContext, context, showLineNumbers, ignoreCase, headLimit, offset, multiline, onlyMatching, cancellationToken);
     }
 
-    private Task<AIContent> GrepAsync(string pattern, string? path, string? glob, AgentWorkspaceGrepToolOutputMode outputMode, int? beforeContext, int? afterContext, int? context, bool showLineNumbers, bool ignoreCase, int? headLimit, int offset, bool multiline, bool onlyMatching, CancellationToken cancellationToken)
+    private async Task<AIContent> GrepAsync(string pattern, string? path, string? glob, AgentWorkspaceGrepToolOutputMode outputMode, int? beforeContext, int? afterContext, int? context, bool showLineNumbers, bool ignoreCase, int? headLimit, int offset, bool multiline, bool onlyMatching, CancellationToken cancellationToken)
     {
         MessageResult<AgentWorkspaceGrepToolOptions> optionsResult = AgentWorkspaceGrepToolOptions.Create(pattern, glob, outputMode, beforeContext, afterContext, context, showLineNumbers, ignoreCase, headLimit, offset, multiline, onlyMatching);
         if (optionsResult is string optionsMessage)
         {
-            return Task.FromResult<AIContent>(new TextContent(optionsMessage));
+            return new TextContent(optionsMessage);
         }
 
         if (optionsResult is not AgentWorkspaceGrepToolOptions options)
@@ -48,7 +48,7 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
         MessageResult<AgentWorkspacePath> searchPathResult = Context.ResolveGrepSearchPath(path);
         if (searchPathResult is string searchPathMessage)
         {
-            return Task.FromResult<AIContent>(new TextContent(searchPathMessage));
+            return new TextContent(searchPathMessage);
         }
 
         if (searchPathResult is not AgentWorkspacePath searchPath)
@@ -56,6 +56,6 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
             throw new InvalidOperationException("Unexpected result from ResolveGrepSearchPath.");
         }
 
-        return AgentWorkspaceGrepToolResultFactory.CreateAsync(CallId, searchPath, options, cancellationToken);
+        return await AgentWorkspaceGrepToolResultFactory.CreateAsync(CallId, searchPath, options, cancellationToken);
     }
 }

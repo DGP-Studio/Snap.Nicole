@@ -9,26 +9,35 @@ internal sealed class AgentWorkspaceGrepToolResult
 {
     private static readonly ConcurrentDictionary<string, AgentWorkspaceGrepToolResult> cache = [];
 
-    [JsonPropertyName("searchPath")]
-    public required string SearchPath { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("mode")]
+    public AgentWorkspaceGrepToolOutputMode? Mode { get; init; }
 
-    [JsonPropertyName("outputMode")]
-    public required AgentWorkspaceGrepToolOutputMode OutputMode { get; init; }
+    [JsonPropertyName("numFiles")]
+    public required int NumberOfFiles { get; init; }
 
-    [JsonPropertyName("lines")]
-    public required List<string> Lines { get; init; }
+    [JsonPropertyName("filenames")]
+    public required List<string> FileNames { get; init; }
 
-    [JsonPropertyName("totalLineCount")]
-    public required int TotalLineCount { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("content")]
+    public string? Content { get; init; }
 
-    [JsonPropertyName("offset")]
-    public required int Offset { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("numLines")]
+    public int? NumberOfLines { get; init; }
 
-    [JsonPropertyName("headLimit")]
-    public required int HeadLimit { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("numMatches")]
+    public int? NumberOfMatches { get; init; }
 
-    [JsonPropertyName("truncated")]
-    public required bool Truncated { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("appliedLimit")]
+    public int? AppliedLimit { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("appliedOffset")]
+    public int? AppliedOffset { get; init; }
 
     public static bool TryAdd(string callId, AgentWorkspaceGrepToolResult result)
     {

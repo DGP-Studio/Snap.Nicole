@@ -12,6 +12,8 @@ internal sealed class AgentWorkspaceFile : AgentWorkspacePath
 {
     public bool Exists { get => File.Exists(FullPath); }
 
+    public AgentWorkspaceDirectory Directory { get => AgentWorkspaceDirectory.Create(RootDirectory, Path.GetDirectoryName(FullPath)!); }
+
     public static AgentWorkspaceFile Create(string rootDirectory, string fullPath)
     {
         return new()

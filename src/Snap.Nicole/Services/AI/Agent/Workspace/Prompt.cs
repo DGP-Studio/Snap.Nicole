@@ -5,7 +5,6 @@ internal static class Prompt
     public const string ShellToolName = "run_shell";
     public const string AgentToolName = "Agent";
 
-    // This files contents should only be modified manually. Agent should notify the user if changes are required.
     public const string ShellToolDescription = """
         Execute a single shell command in a fresh local shell process and return its stdout, stderr, and exit code.
 
@@ -16,7 +15,6 @@ internal static class Prompt
         - Combine related steps into one command if command state matters.
         """;
 
-    // This files contents should only be modified manually. Agent should notify the user if changes are required.
     public const string WriteToolName = "Write";
     public const string WriteToolDescription = $"""
         Writes a file to the local filesystem.
@@ -30,7 +28,6 @@ internal static class Prompt
         - Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.
         """;
 
-    // This files contents should only be modified manually. Agent should notify the user if changes are required.
     public const string ReadToolName = "Read";
     public const string ReadToolDescription = $"""
         Reads a file from the local filesystem. You can access any file directly by using this tool.
@@ -48,7 +45,6 @@ internal static class Prompt
         - If you read a file that exists but has empty contents you will receive a system reminder warning in place of file contents.
         """;
 
-    // This files contents should only be modified manually. Agent should notify the user if changes are required.
     public const string EditToolName = "Edit";
     public const string EditToolDescription = $"""
         Performs exact string replacements in files.
@@ -63,7 +59,6 @@ internal static class Prompt
         - Use `replaceAll` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.
         """;
 
-    // This files contents should only be modified manually. Agent should notify the user if changes are required.
     public const string GlobToolName = "Glob";
     public const string GlobToolDescription = $"""
         - Fast file pattern matching tool that works with any codebase size
@@ -73,7 +68,6 @@ internal static class Prompt
         - When you are doing an open ended search that may require multiple rounds of globbing and grepping, use the {AgentToolName} tool instead
         """;
 
-    // This files contents should only be modified manually. Agent should notify the user if changes are required.
     public const string GrepToolName = "Grep";
     public const string GrepToolDescription = $$"""
         A powerful search tool built on ripgrep

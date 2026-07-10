@@ -258,7 +258,7 @@
                             Grid.Column="2"
                             Opacity="0.7"
                             Style="{ThemeResource CaptionTextBlockStyle}"
-                            Text="{Binding SearchPath}"
+                            Text="{Binding ResultLabel}"
                             TextTrimming="CharacterEllipsis" />
                         <TextBlock
                             Grid.Column="3"
