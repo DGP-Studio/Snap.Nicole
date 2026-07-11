@@ -5,11 +5,10 @@ using System.Text.Json.Serialization;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.GrepTool;
 
-internal sealed class AgentWorkspaceGrepToolResult
+internal sealed class AgentWorkspaceGrepToolResult : IAgentWorkspaceToolResult<AgentWorkspaceGrepToolResult>
 {
     private static readonly ConcurrentDictionary<string, AgentWorkspaceGrepToolResult> cache = [];
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonPropertyName("mode")]
     public AgentWorkspaceGrepToolOutputMode? Mode { get; init; }
 
@@ -19,23 +18,18 @@ internal sealed class AgentWorkspaceGrepToolResult
     [JsonPropertyName("filenames")]
     public required List<string> FileNames { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonPropertyName("content")]
     public string? Content { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonPropertyName("numLines")]
     public int? NumberOfLines { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonPropertyName("numMatches")]
     public int? NumberOfMatches { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonPropertyName("appliedLimit")]
     public int? AppliedLimit { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonPropertyName("appliedOffset")]
     public int? AppliedOffset { get; init; }
 

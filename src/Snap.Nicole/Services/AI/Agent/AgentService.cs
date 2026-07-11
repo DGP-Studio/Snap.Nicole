@@ -24,7 +24,7 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
     public ValueTask<HarnessAgent> CreateAgentAsync(ExtendedAgentOptions options, AgentWorkspaceSnapshot workspace, CancellationToken cancellationToken = default)
     {
         IChatClient chatClient = chatClientFactory.Create(options);
-        return options.CreateHarnessAgentAsync(chatClient, CreateBuiltInTools(), serviceProvider, workspace, cancellationToken);
+        return options.CreateHarnessAgentAsync(chatClient, null, serviceProvider, workspace, cancellationToken);
     }
 
     public async ValueTask<SpanStatus> RunStreamingAsync(AgentRunStreamingContext context, TaskScheduler taskScheduler, CancellationToken cancellationToken)
@@ -118,16 +118,8 @@ internal sealed class AgentService(IServiceProvider serviceProvider) : IAgentSer
     private static bool IsWorkspaceScopedApprovalTool(string name)
     {
         return string.Equals(name, Prompt.ShellToolName, StringComparison.Ordinal)
-            || string.Equals(name, "Write", StringComparison.Ordinal)
+            || string.Equals(name, Prompt.WriteToolName, StringComparison.Ordinal)
             || string.Equals(name, "FileAccess_DeleteFile", StringComparison.Ordinal)
-            || string.Equals(name, "Edit", StringComparison.Ordinal);
-    }
-
-    private static IList<AITool> CreateBuiltInTools()
-    {
-        return
-        [
-            new ApprovalRequiredAIFunction(AIFunctionFactory.Create(BuiltInFunctions.GetCurrentTime))
-        ];
+            || string.Equals(name, Prompt.EditToolName, StringComparison.Ordinal);
     }
 }

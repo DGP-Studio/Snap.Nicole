@@ -2,14 +2,13 @@ using Snap.Nicole.Core.IO;
 using Snap.Nicole.Core.Text;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.GrepTool;
 
 internal sealed class GitIgnoreRuleSet
 {
-    private const string GitIgnoreFileName = ".gitignore";
-
     public static GitIgnoreRuleSet Empty { get; } = new()
     {
         Rules = [],
@@ -27,11 +26,11 @@ internal sealed class GitIgnoreRuleSet
             return Empty;
         }
 
-        List<string> directories = [];
+        Stack<string> directories = [];
         string currentDirectory = normalizedDirectoryPath;
         while (true)
         {
-            directories.Add(currentDirectory);
+            directories.Push(currentDirectory);
             if (Path.IsEqual(normalizedRootDirectory, currentDirectory))
             {
                 break;
@@ -46,20 +45,21 @@ internal sealed class GitIgnoreRuleSet
             currentDirectory = Path.TrimEndingDirectorySeparator(parentDirectory);
         }
 
+        // Create a rule set by traversing from the root directory to the specified directory, loading .gitignore rules along the way.
         GitIgnoreRuleSet ruleSet = Empty;
-        for (int i = directories.Count - 1; i >= 0; i--)
+        while (directories.Count > 0)
         {
-            ruleSet = ruleSet.CreateChild(normalizedRootDirectory, directories[i]);
+            ruleSet = ruleSet.CreateChild(normalizedRootDirectory, directories.Pop());
         }
 
         return ruleSet;
     }
 
-    public static GitIgnoreRuleSet CreateForParentDirectory(string rootDirectory, string directoryPath)
+    public static GitIgnoreRuleSet CreateForParentDirectory(AgentWorkspaceDirectory directory)
     {
-        string normalizedDirectoryPath = Path.TrimEndingDirectorySeparator(directoryPath);
-        string? parentDirectory = Path.GetDirectoryName(normalizedDirectoryPath);
-        return string.IsNullOrEmpty(parentDirectory) ? Empty : CreateForDirectory(rootDirectory, parentDirectory);
+        // Loads all .gitignore rules from the root directory to the parent directory of the specified directory.
+        string? parentDirectory = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(directory.FullPath));
+        return string.IsNullOrEmpty(parentDirectory) ? Empty : CreateForDirectory(directory.RootDirectory, parentDirectory);
     }
 
     public GitIgnoreRuleSet CreateChild(string rootDirectory, string directoryPath)
@@ -70,49 +70,30 @@ internal sealed class GitIgnoreRuleSet
             return this;
         }
 
-        List<GitIgnoreRule> rules = new(Rules.Count + localRules.Count);
-        for (int i = 0; i < Rules.Count; i++)
-        {
-            rules.Add(Rules[i]);
-        }
-
-        for (int i = 0; i < localRules.Count; i++)
-        {
-            rules.Add(localRules[i]);
-        }
-
         return new()
         {
-            Rules = rules,
+            Rules = [.. Rules, .. localRules],
         };
     }
 
     public GitIgnoreRuleSet WithoutRulesMatching(string rootRelativePath, bool isDirectory)
     {
-        List<GitIgnoreRule>? remainingRules = null;
+        List<GitIgnoreRule>? rules = null;
         for (int i = 0; i < Rules.Count; i++)
         {
             GitIgnoreRule rule = Rules[i];
             if (rule.Matches(rootRelativePath, isDirectory))
             {
-                if (remainingRules is null)
-                {
-                    remainingRules = new(i);
-                    for (int j = 0; j < i; j++)
-                    {
-                        remainingRules.Add(Rules[j]);
-                    }
-                }
-
+                rules ??= [with(i), .. Rules.Take(i)];
                 continue;
             }
 
-            remainingRules?.Add(rule);
+            rules?.Add(rule);
         }
 
-        return remainingRules is null ? this : new()
+        return rules is null ? this : new()
         {
-            Rules = remainingRules,
+            Rules = rules,
         };
     }
 
@@ -133,24 +114,22 @@ internal sealed class GitIgnoreRuleSet
 
     private static IReadOnlyList<GitIgnoreRule> CreateRules(string rootDirectory, string directoryPath)
     {
-        string gitIgnorePath = Path.Combine(directoryPath, GitIgnoreFileName);
+        string gitIgnorePath = Path.Combine(directoryPath, ".gitignore");
         if (!File.Exists(gitIgnorePath))
         {
             return [];
         }
 
-        string baseRelativeDirectory = AgentWorkspacePath.GetRelativePath(rootDirectory, directoryPath);
-        if (string.Equals(baseRelativeDirectory, ".", StringComparison.Ordinal))
+        string rootRelativeDirectory = AgentWorkspacePath.GetRelativePath(rootDirectory, directoryPath);
+        if (string.Equals(rootRelativeDirectory, ".", StringComparison.Ordinal))
         {
-            baseRelativeDirectory = string.Empty;
+            rootRelativeDirectory = string.Empty;
         }
 
-        string[] lines = File.ReadAllLines(gitIgnorePath, Encoding.UTF8WithoutBOM);
         List<GitIgnoreRule> rules = [];
-        for (int i = 0; i < lines.Length; i++)
+        foreach ((int index, string line) in File.ReadAllLines(gitIgnorePath, Encoding.UTF8WithoutBOM).Index())
         {
-            string line = i is 0 ? lines[i].TrimStart('\uFEFF') : lines[i];
-            if (GitIgnoreRule.Create(baseRelativeDirectory, line) is { } rule)
+            if (GitIgnoreRule.Create(rootRelativeDirectory, index is 0 ? line.TrimStart('\uFEFF') : line) is { } rule)
             {
                 rules.Add(rule);
             }

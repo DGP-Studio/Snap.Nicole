@@ -11,7 +11,6 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace;
 internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirectories)
 {
     private const string NoWorkspaceRootsMessage = "At least one workspace directory is required.";
-    private const string ReparsePointMessage = "Invalid path: the resolved path contains a symbolic link or reparse point.";
 
     private readonly Lock readFileHashesLock = new();
     private readonly Dictionary<string, ulong> readFileHashes = [with(StringComparer.OrdinalIgnoreCase)];
@@ -302,7 +301,7 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
 
         if (containsReparsePoint)
         {
-            message = ReparsePointMessage;
+            message = "Invalid path: the resolved path contains a symbolic link or reparse point.";
             return false;
         }
 

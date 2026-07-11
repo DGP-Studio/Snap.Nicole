@@ -1,3 +1,5 @@
+using Snap.Nicole.Core;
+using Snap.Nicole.Core.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -13,15 +15,25 @@ internal sealed class GitIgnoreRule
 
     public required bool DirectoryOnly { get; init; }
 
-    public static GitIgnoreRule? Create(string baseRelativeDirectory, string line)
+    // See https://git-scm.com/docs/gitignore
+    public static GitIgnoreRule? Create(string rootRelativeDirectory, string line)
     {
+        // Trailing spaces are ignored unless they are quoted with backslash ("\").
         string pattern = TrimUnescapedTrailingWhiteSpace(line);
-        if (pattern.Length is 0 || pattern[0] is '#')
+
+        // A blank line matches no files, so it can serve as a separator for readability.
+        // A line starting with # serves as a comment. Put a backslash ("\") in front of the first hash for patterns that begin with a hash.
+        if (pattern.Length is 0 || pattern.StartsWith('#'))
         {
             return null;
         }
 
-        bool isNegated = pattern[0] is '!';
+        // An optional prefix "!" which negates the pattern; any matching file excluded by a previous pattern will become included again.
+        // It is not possible to re-include a file if a parent directory of that file is excluded.
+        // Git doesn’t list excluded directories for performance reasons, so any patterns on contained files have no effect,
+        // no matter where they are defined. Put a backslash ("\") in front of the first "!" for patterns that begin with a literal "!",
+        // for example, "\!important!.txt".
+        bool isNegated = pattern.StartsWith('!');
         if (isNegated)
         {
             pattern = pattern[1..];
@@ -31,29 +43,35 @@ internal sealed class GitIgnoreRule
             }
         }
 
-        bool directoryOnly = pattern.EndsWith("/", StringComparison.Ordinal);
+        // If there is a separator at the end of the pattern then the pattern will only match directories,
+        // otherwise the pattern can match both files and directories.
+        bool directoryOnly = pattern.EndsWith('/');
         if (directoryOnly)
         {
-            pattern = pattern.TrimEnd('/');
+            pattern = pattern[..^1];
             if (pattern.Length is 0)
             {
                 return null;
             }
         }
 
-        bool anchored = pattern.StartsWith("/", StringComparison.Ordinal);
-        pattern = pattern.TrimStart('/');
-        if (pattern.Length is 0)
+        // If there is a separator at the beginning or middle (or both) of the pattern,
+        // then the pattern is relative to the directory level of the particular .gitignore file itself.
+        // Otherwise the pattern may also match at any level below the .gitignore level.
+        bool anchored = pattern.Contains('/', StringComparison.Ordinal);
+        if (pattern.StartsWith('/'))
         {
-            return null;
+            pattern = pattern[1..];
+            if (pattern.Length is 0)
+            {
+                return null;
+            }
         }
-
-        anchored = anchored || pattern.Contains("/", StringComparison.Ordinal);
 
         return new()
         {
-            ExactPathRegex = CreatePathRegex(baseRelativeDirectory, pattern, anchored, descendant: false),
-            DescendantPathRegex = CreatePathRegex(baseRelativeDirectory, pattern, anchored, descendant: true),
+            ExactPathRegex = CreatePathRegex(rootRelativeDirectory, pattern, anchored, false),
+            DescendantPathRegex = CreatePathRegex(rootRelativeDirectory, pattern, anchored, true),
             IsNegated = isNegated,
             DirectoryOnly = directoryOnly,
         };
@@ -69,13 +87,31 @@ internal sealed class GitIgnoreRule
         return ExactPathRegex.IsMatch(rootRelativePath) || DescendantPathRegex.IsMatch(rootRelativePath);
     }
 
-    private static Regex CreatePathRegex(string baseRelativeDirectory, string pattern, bool anchored, bool descendant)
+    private static Regex CreatePathRegex(string rootRelativeDirectory, string pattern, bool anchored, bool descendant)
     {
+        // An asterisk "*" matches anything except a slash. The character "?" matches any one character except "/".
+        // The range notation, e.g. [a-zA-Z], can be used to match one of the characters in a range.
+        // A backslash ("\") can be used to escape any character. E.g., "\*" matches a literal asterisk (and "\a" matches "a", even though there is no need for escaping there).
+        // A leading "**" followed by a slash means match in all directories.
+        // For example, "**/foo" matches file or directory "foo" anywhere, the same as pattern "foo".
+        // "**/foo/bar" matches file or directory "bar" anywhere that is directly under directory "foo".
+        // A trailing "/**" matches everything inside. For example, "abc/**" matches all files inside directory "abc", relative to the location of the .gitignore file, with infinite depth.
+        // A slash followed by two consecutive asterisks then a slash matches zero or more directories. For example, "a/**/b" matches "a/b", "a/x/b", "a/x/y/b" and so on.
+        // Other consecutive asterisks are considered regular asterisks and will match according to the previous rules.
         StringBuilder builder = new();
         builder.Append('^');
-        if (!string.IsNullOrEmpty(baseRelativeDirectory))
+        if (!string.IsNullOrEmpty(rootRelativeDirectory))
         {
-            AppendPathLiteralRegex(builder, baseRelativeDirectory);
+            PathReader reader = new(rootRelativeDirectory);
+            while (reader.TryReadSegment(out string segment, out bool hasNextSegment))
+            {
+                builder.Append(Regex.Escape(segment));
+                if (hasNextSegment)
+                {
+                    builder.Append('/');
+                }
+            }
+
             builder.Append('/');
         }
 
@@ -84,7 +120,8 @@ internal sealed class GitIgnoreRule
             builder.Append("(?:.*/)?");
         }
 
-        AppendGlobRegex(builder, pattern);
+        GitIgnorePatternParser.AppendRegex(builder, pattern);
+
         if (descendant)
         {
             builder.Append("/.*");
@@ -94,158 +131,25 @@ internal sealed class GitIgnoreRule
         return new(builder.ToString(), RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(10));
     }
 
-    private static void AppendPathLiteralRegex(StringBuilder builder, string path)
-    {
-        for (int i = 0; i < path.Length; i++)
-        {
-            char value = path[i];
-            if (value is '/')
-            {
-                builder.Append('/');
-                continue;
-            }
-
-            builder.Append(Regex.Escape(value.ToString()));
-        }
-    }
-
-    private static void AppendGlobRegex(StringBuilder builder, string pattern)
-    {
-        for (int i = 0; i < pattern.Length; i++)
-        {
-            char value = pattern[i];
-            if (value is '\\' && i + 1 < pattern.Length)
-            {
-                i++;
-                AppendRegexLiteral(builder, pattern[i]);
-                continue;
-            }
-
-            if (value is '*')
-            {
-                AppendStarRegex(builder, pattern, ref i);
-                continue;
-            }
-
-            if (value is '?')
-            {
-                builder.Append("[^/]");
-                continue;
-            }
-
-            if (value is '[' && TryAppendCharacterClassRegex(builder, pattern, ref i))
-            {
-                continue;
-            }
-
-            AppendRegexLiteral(builder, value);
-        }
-    }
-
-    private static void AppendStarRegex(StringBuilder builder, string pattern, ref int index)
-    {
-        if (index + 1 >= pattern.Length || pattern[index + 1] is not '*')
-        {
-            builder.Append("[^/]*");
-            return;
-        }
-
-        bool precededBySlash = index is 0 || pattern[index - 1] is '/';
-        bool followedBySlash = index + 2 < pattern.Length && pattern[index + 2] is '/';
-        if (precededBySlash && followedBySlash)
-        {
-            builder.Append("(?:[^/]+/)*");
-            index += 2;
-            return;
-        }
-
-        builder.Append(".*");
-        index++;
-    }
-
-    private static void AppendRegexLiteral(StringBuilder builder, char value)
-    {
-        if (value is '/')
-        {
-            builder.Append('/');
-            return;
-        }
-
-        builder.Append(Regex.Escape(value.ToString()));
-    }
-
-    private static bool TryAppendCharacterClassRegex(StringBuilder builder, string pattern, ref int index)
-    {
-        int endIndex = index + 1;
-        if (endIndex < pattern.Length && pattern[endIndex] is '!' or '^')
-        {
-            endIndex++;
-        }
-
-        if (endIndex < pattern.Length && pattern[endIndex] is ']')
-        {
-            endIndex++;
-        }
-
-        while (endIndex < pattern.Length && pattern[endIndex] is not ']')
-        {
-            endIndex++;
-        }
-
-        if (endIndex >= pattern.Length)
-        {
-            return false;
-        }
-
-        builder.Append('[');
-        int startIndex = index + 1;
-        if (pattern[startIndex] is '!')
-        {
-            builder.Append('^');
-            startIndex++;
-        }
-
-        for (int i = startIndex; i < endIndex; i++)
-        {
-            char value = pattern[i];
-            if (value is '\\' && i + 1 < endIndex)
-            {
-                i++;
-                value = pattern[i];
-            }
-
-            if (value is '\\' or '^')
-            {
-                builder.Append('\\');
-            }
-
-            builder.Append(value);
-        }
-
-        builder.Append(']');
-        index = endIndex;
-        return true;
-    }
-
     private static string TrimUnescapedTrailingWhiteSpace(string line)
     {
         int endIndex = line.Length;
-        while (endIndex > 0 && char.IsWhiteSpace(line[endIndex - 1]) && !IsEscaped(line, endIndex - 1))
+        while (endIndex > 0 && char.IsWhiteSpace(line[endIndex - 1]))
         {
+            int slashCount = 0;
+            for (int i = endIndex - 2; i >= 0 && line[i] is '\\'; i--)
+            {
+                slashCount++;
+            }
+
+            if (slashCount.IsOdd())
+            {
+                break;
+            }
+
             endIndex--;
         }
 
         return line[..endIndex];
-    }
-
-    private static bool IsEscaped(string value, int index)
-    {
-        int slashCount = 0;
-        for (int i = index - 1; i >= 0 && value[i] is '\\'; i--)
-        {
-            slashCount++;
-        }
-
-        return slashCount % 2 is 1;
     }
 }

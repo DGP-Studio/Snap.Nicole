@@ -1,5 +1,6 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.FileSystemGlobbing;
+using Snap.Nicole.Core;
 using Snap.Nicole.Core.Text;
 using System.Collections.Frozen;
 using System.Collections.Generic;
@@ -130,7 +131,7 @@ internal static class AgentWorkspaceGrepToolResultFactory
         {
             AgentWorkspaceFile searchFile => CreateCandidates(searchFile, globMatcher),
             AgentWorkspaceDirectory searchDirectory => CreateCandidates(searchDirectory, globMatcher, cancellationToken),
-            _ => throw new InvalidOperationException($"Unsupported workspace search path type: {searchPath.GetType().FullName}."),
+            _ => throw new InvalidOperationException($"Unsupported workspace search path type: {TypeNameHelper.GetTypeDisplayName(searchPath)}."),
         };
     }
 
@@ -153,7 +154,7 @@ internal static class AgentWorkspaceGrepToolResultFactory
         }
 
         GitIgnoreRuleSet ignoreRules = GitIgnoreRuleSet
-            .CreateForParentDirectory(searchDirectory.RootDirectory, searchDirectory.FullPath)
+            .CreateForParentDirectory(searchDirectory)
             .WithoutRulesMatching(searchDirectory.GetRootRelativePath(searchDirectory.FullPath), isDirectory: true)
             .CreateChild(searchDirectory.RootDirectory, searchDirectory.FullPath);
 

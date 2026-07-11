@@ -6,7 +6,7 @@ using Snap.Nicole.Services.AI.Agent.Workspace.StructuredPatch;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.EditTool;
 
-internal sealed class AgentWorkspaceEditToolResult
+internal sealed class AgentWorkspaceEditToolResult : IAgentWorkspaceToolResult<AgentWorkspaceEditToolResult>
 {
     private static readonly ConcurrentDictionary<string, AgentWorkspaceEditToolResult> cache = [];
 

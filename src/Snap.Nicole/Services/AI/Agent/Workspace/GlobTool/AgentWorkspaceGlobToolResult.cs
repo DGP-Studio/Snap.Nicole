@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.GlobTool;
 
-internal sealed class AgentWorkspaceGlobToolResult
+internal sealed class AgentWorkspaceGlobToolResult : IAgentWorkspaceToolResult<AgentWorkspaceGlobToolResult>
 {
     private static readonly ConcurrentDictionary<string, AgentWorkspaceGlobToolResult> cache = [];
 
