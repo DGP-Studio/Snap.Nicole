@@ -16,17 +16,12 @@ internal static class AgentWorkspaceEditToolResultFactory
         string fileText;
         if (oldString.Length is 0 && !file.Exists)
         {
-            string? directory = Path.GetDirectoryName(file.FullPath);
-            if (directory is not null)
-            {
-                Directory.CreateDirectory(directory);
-            }
-
+            file.Directory.CreateDirectory();
             fileText = string.Empty;
         }
         else
         {
-            fileText = await File.ReadAllTextAsync(file.FullPath, Encoding.UTF8WithoutBOM, cancellationToken);
+            fileText = await file.ReadAllTextAsync(Encoding.UTF8WithoutBOM, cancellationToken);
         }
 
         NormalizedString normalizedFileText = new(fileText);
@@ -84,7 +79,7 @@ internal static class AgentWorkspaceEditToolResultFactory
             StructuredPatch = structuredPatch.Hunks,
         };
 
-        await File.WriteAllTextAsync(file.FullPath, updatedFileText, Encoding.UTF8WithoutBOM, cancellationToken);
+        await file.WriteAllTextAsync(updatedFileText, Encoding.UTF8WithoutBOM, cancellationToken);
         AgentWorkspaceEditToolResult.TryAdd(callId, result);
 
         return new TextContent(replaceAll

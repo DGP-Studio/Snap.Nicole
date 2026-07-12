@@ -8,13 +8,21 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspaceFile : AgentWorkspacePath
+internal sealed class AgentWorkspaceFile : AgentWorkspacePath, IEquatable<AgentWorkspaceFile>
 {
     public bool Exists { get => File.Exists(FullPath); }
 
+    public DateTime LastWriteTimeUtc { get => File.GetLastWriteTimeUtc(FullPath); }
+
     public AgentWorkspaceDirectory Directory { get => AgentWorkspaceDirectory.Create(RootDirectory, Path.GetDirectoryName(FullPath)!); }
 
-    public static AgentWorkspaceFile Create(string rootDirectory, string fullPath)
+    public string Name { get => Path.GetFileName(FullPath); }
+
+    public string NameWithoutExtension { get => Path.GetFileNameWithoutExtension(FullPath); }
+
+    public string Extension { get => Path.GetExtension(FullPath); }
+
+    public static AgentWorkspaceFile Create(AgentWorkspaceRootDirectory rootDirectory, string fullPath)
     {
         return new()
         {
@@ -70,5 +78,30 @@ internal sealed class AgentWorkspaceFile : AgentWorkspacePath
             await hash.AppendAsync(stream, cancellationToken);
             return hash.GetCurrentHashAsUInt64();
         }
+    }
+
+    public Task<string> ReadAllTextAsync(Encoding encoding, CancellationToken cancellationToken = default)
+    {
+        return File.ReadAllTextAsync(FullPath, encoding, cancellationToken);
+    }
+
+    public Task WriteAllTextAsync(string? contents, Encoding encoding, CancellationToken cancellationToken = default)
+    {
+        return File.WriteAllTextAsync(FullPath, contents, encoding, cancellationToken);
+    }
+
+    public bool Equals(AgentWorkspaceFile? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        return Path.IsEqual(FullPath, other.FullPath);
     }
 }

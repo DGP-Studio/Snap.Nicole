@@ -35,11 +35,11 @@ internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
             return new TextContent(message);
         }
 
-        if (result is not AgentWorkspaceDirectory globDirectory)
+        if (result is not AgentWorkspaceDirectory directory)
         {
             throw new InvalidOperationException("Unexpected result from ResolveGlobDirectoryPath.");
         }
 
-        return await AgentWorkspaceGlobToolResultFactory.CreateAsync(CallId, globDirectory, pattern, cancellationToken);
+        return await AgentWorkspaceGlobToolResultFactory.CreateAsync(CallId, directory, pattern, cancellationToken);
     }
 }

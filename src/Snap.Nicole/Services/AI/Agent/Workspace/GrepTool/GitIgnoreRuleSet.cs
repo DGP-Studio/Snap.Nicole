@@ -16,12 +16,11 @@ internal sealed class GitIgnoreRuleSet
 
     public required IReadOnlyList<GitIgnoreRule> Rules { get; init; }
 
-    public static GitIgnoreRuleSet CreateForDirectory(string rootDirectory, string directoryPath)
+    public static GitIgnoreRuleSet CreateForDirectory(AgentWorkspaceRootDirectory rootDirectory, string directoryPath)
     {
-        string normalizedRootDirectory = Path.TrimEndingDirectorySeparator(rootDirectory);
         string normalizedDirectoryPath = Path.TrimEndingDirectorySeparator(directoryPath);
 
-        if (!Path.IsEqualOrSubdirectory(normalizedRootDirectory, normalizedDirectoryPath))
+        if (!rootDirectory.Contains(normalizedDirectoryPath))
         {
             return Empty;
         }
@@ -31,7 +30,7 @@ internal sealed class GitIgnoreRuleSet
         while (true)
         {
             directories.Push(currentDirectory);
-            if (Path.IsEqual(normalizedRootDirectory, currentDirectory))
+            if (Path.IsEqual(rootDirectory.FullPath, currentDirectory))
             {
                 break;
             }
@@ -49,7 +48,7 @@ internal sealed class GitIgnoreRuleSet
         GitIgnoreRuleSet ruleSet = Empty;
         while (directories.Count > 0)
         {
-            ruleSet = ruleSet.CreateChild(normalizedRootDirectory, directories.Pop());
+            ruleSet = ruleSet.CreateChild(rootDirectory, directories.Pop());
         }
 
         return ruleSet;
@@ -62,7 +61,7 @@ internal sealed class GitIgnoreRuleSet
         return string.IsNullOrEmpty(parentDirectory) ? Empty : CreateForDirectory(directory.RootDirectory, parentDirectory);
     }
 
-    public GitIgnoreRuleSet CreateChild(string rootDirectory, string directoryPath)
+    public GitIgnoreRuleSet CreateChild(AgentWorkspaceRootDirectory rootDirectory, string directoryPath)
     {
         IReadOnlyList<GitIgnoreRule> localRules = CreateRules(rootDirectory, directoryPath);
         if (localRules.Count is 0)
@@ -112,7 +111,7 @@ internal sealed class GitIgnoreRuleSet
         return ignored;
     }
 
-    private static IReadOnlyList<GitIgnoreRule> CreateRules(string rootDirectory, string directoryPath)
+    private static IReadOnlyList<GitIgnoreRule> CreateRules(AgentWorkspaceRootDirectory rootDirectory, string directoryPath)
     {
         string gitIgnorePath = Path.Combine(directoryPath, ".gitignore");
         if (!File.Exists(gitIgnorePath))
@@ -120,7 +119,7 @@ internal sealed class GitIgnoreRuleSet
             return [];
         }
 
-        string rootRelativeDirectory = AgentWorkspacePath.GetRelativePath(rootDirectory, directoryPath);
+        string rootRelativeDirectory = rootDirectory.GetRelativePath(directoryPath);
         if (string.Equals(rootRelativeDirectory, ".", StringComparison.Ordinal))
         {
             rootRelativeDirectory = string.Empty;

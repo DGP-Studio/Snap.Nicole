@@ -1,12 +1,23 @@
 using Microsoft.Extensions.AI;
+using Snap.Nicole.Core.Text;
 using Snap.Nicole.Services.AI.Agent.Workspace.StructuredPatch;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.WriteTool;
 
 internal static class AgentWorkspaceWriteToolResultFactory
 {
-    public static AIContent Create(string callId, AgentWorkspaceFile file, string content, string? originalFile)
+    public static async Task<AIContent> CreateAsync(string callId, AgentWorkspaceFile file, string content, CancellationToken cancellationToken)
     {
+        string? originalFile = file.Exists
+            ? await file.ReadAllTextAsync(Encoding.UTF8WithoutBOM, cancellationToken)
+            : null;
+
+        file.Directory.CreateDirectory();
+        await file.WriteAllTextAsync(content, Encoding.UTF8WithoutBOM, cancellationToken);
+
         AgentWorkspaceStructuredPatch structuredPatch = AgentWorkspaceStructuredPatchBuilder.CreateOverwritePatch(originalFile, content);
 
         AgentWorkspaceWriteToolResult result = new()

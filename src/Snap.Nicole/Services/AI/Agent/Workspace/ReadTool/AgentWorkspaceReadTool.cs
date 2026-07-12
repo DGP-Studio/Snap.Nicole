@@ -55,16 +55,16 @@ internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : Ag
             StringBuilder message = new();
             message.AppendLine($"File '{file.FullPath}' not found.");
             message.AppendLine("Available workspace roots:");
-            foreach (string rootDirectory in Context.RootDirectories)
+            foreach (AgentWorkspaceRootDirectory rootDirectory in Context.RootDirectories)
             {
-                message.AppendLine($"- {rootDirectory}");
+                message.AppendLine($"- {rootDirectory.FullPath}");
             }
 
-            if (Context.SuggestPathUnderWorkspaceRoots(file.FullPath) is { } cwdSuggestion)
+            if (Context.SuggestPathUnderWorkspaceRoots(file) is { } cwdSuggestion)
             {
                 message.Append($"Did you mean {cwdSuggestion}?");
             }
-            else if (AgentWorkspaceContext.FindSimilarFile(file.FullPath) is { } similarFileName)
+            else if (AgentWorkspaceContext.FindSimilarFile(file) is { } similarFileName)
             {
                 message.Append($"Did you mean {similarFileName}?");
             }
@@ -72,13 +72,7 @@ internal sealed class AgentWorkspaceReadTool(AgentWorkspaceContext context) : Ag
             return Task.FromResult(ValidationResult.Ask(message.ToString()));
         }
 
-        FileInfo fileInfo = new(file.FullPath);
-        if (fileInfo.Length is 0)
-        {
-            return Task.FromResult(ValidationResult.Ask($"File '{file.FullPath}' is empty."));
-        }
-
-        string extension = Path.GetExtension(file.FullPath);
+        string extension = file.Extension;
         if (AgentWorkspaceReadToolResultFactory.IsBinaryExtension(extension) && !AgentWorkspaceReadToolResultFactory.IsSupportedImageExtension(extension))
         {
             return Task.FromResult(ValidationResult.Ask($"This tool cannot read binary files. The file appears to be a binary {extension.ToLowerInvariant()} file. Please use appropriate tools for binary file analysis."));

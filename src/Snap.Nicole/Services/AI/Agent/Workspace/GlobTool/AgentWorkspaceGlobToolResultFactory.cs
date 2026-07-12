@@ -1,7 +1,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.FileSystemGlobbing;
+using Snap.Nicole.Core.Collections.Generic;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -11,17 +11,11 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace.GlobTool;
 
 internal static class AgentWorkspaceGlobToolResultFactory
 {
-    private const int MaximumGlobFileNameCount = 100;
+    private const int MaximumGlobResultCount = 100;
 
-    private static readonly EnumerationOptions DefaultEnumerationOptions = new()
+    public static Task<AIContent> CreateAsync(string callId, AgentWorkspaceDirectory directory, string pattern, CancellationToken cancellationToken)
     {
-        AttributesToSkip = FileAttributes.ReparsePoint,
-        RecurseSubdirectories = true,
-    };
-
-    public static Task<AIContent> CreateAsync(string callId, AgentWorkspaceDirectory globDirectory, string pattern, CancellationToken cancellationToken)
-    {
-        if (!Directory.Exists(globDirectory.FullPath))
+        if (!directory.Exists)
         {
             return Task.FromResult<AIContent>(CreateTextContent(callId, []));
         }
@@ -29,17 +23,17 @@ internal static class AgentWorkspaceGlobToolResultFactory
         Matcher matcher = new(StringComparison.OrdinalIgnoreCase);
         matcher.AddInclude(pattern.Replace('\\', '/'));
 
-        IReadOnlyList<GlobCandidate> candidates = CreateCandidates(globDirectory, cancellationToken);
-        IReadOnlyList<GlobResult> matches = CreateMatches(matcher, globDirectory.FullPath, candidates);
-        return Task.FromResult<AIContent>(CreateTextContent(callId, [.. matches.Order(GlobResult.Comparer).Select(static result => result.FilePath)]));
+        IReadOnlyList<GlobCandidate> candidates = CreateCandidates(directory, cancellationToken);
+        IReadOnlyList<GlobCandidate> matches = CreateMatches(matcher, directory, candidates);
+        return Task.FromResult<AIContent>(CreateTextContent(callId, [.. matches.Order(GlobCandidate.Comparer).Select(static result => result.RelativePath)]));
     }
 
-    private static TextContent CreateTextContent(string callId, IReadOnlyList<string> fileNames)
+    private static TextContent CreateTextContent(string callId, IReadOnlyList<string> relativePathList)
     {
         AgentWorkspaceGlobToolResult result = new()
         {
-            FileNames = [.. fileNames.Take(MaximumGlobFileNameCount)],
-            Truncated = fileNames.Count > MaximumGlobFileNameCount,
+            FileNames = [.. relativePathList.Take(MaximumGlobResultCount)],
+            Truncated = relativePathList.Count > MaximumGlobResultCount,
         };
 
         AgentWorkspaceGlobToolResult.TryAdd(callId, result);
@@ -69,72 +63,56 @@ internal static class AgentWorkspaceGlobToolResultFactory
         return new TextContent(builder.ToString());
     }
 
-    private static IReadOnlyList<GlobCandidate> CreateCandidates(AgentWorkspaceDirectory globDirectory, CancellationToken cancellationToken)
+    private static IReadOnlyList<GlobCandidate> CreateCandidates(AgentWorkspaceDirectory directory, CancellationToken cancellationToken)
     {
-        List<GlobCandidate> candidates = [];
-        foreach (string filePath in Directory.EnumerateFiles(globDirectory.FullPath, "*", DefaultEnumerationOptions))
+        ArrayBuilder<GlobCandidate> candidates = new();
+        foreach (AgentWorkspaceFile file in directory.EnumerateFiles("*", recurseSubdirectories: true))
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            string fullPath = Path.GetFullPath(filePath);
-            candidates.Add(new()
-            {
-                FilePath = fullPath,
-                RelativePath = globDirectory.GetRelativePath(fullPath),
-                LastWriteTimeUtc = File.GetLastWriteTimeUtc(filePath),
-            });
+            candidates.Add(GlobCandidate.Create(directory, file));
         }
 
-        return candidates;
+        return candidates.ToReadOnlyListAndClear();
     }
 
-    private static IReadOnlyList<GlobResult> CreateMatches(Matcher matcher, string rootDirectory, IReadOnlyList<GlobCandidate> candidates)
+    private static IReadOnlyList<GlobCandidate> CreateMatches(Matcher matcher, AgentWorkspaceDirectory directory, IReadOnlyList<GlobCandidate> candidates)
     {
         Dictionary<string, GlobCandidate> candidatesByRelativePath = candidates
             .ToDictionary(static candidate => candidate.RelativePath, StringComparer.OrdinalIgnoreCase);
 
-        PatternMatchingResult matchResult = matcher.Match(rootDirectory, candidatesByRelativePath.Keys);
+        PatternMatchingResult matchResult = matcher.Match(directory.FullPath, candidatesByRelativePath.Keys);
         if (!matchResult.HasMatches)
         {
             return [];
         }
 
-        List<GlobResult> results = [];
+        ArrayBuilder<GlobCandidate> results = new();
         foreach (FilePatternMatch match in matchResult.Files)
         {
-            results.Add(GlobResult.Create(candidatesByRelativePath[match.Path]));
+            results.Add(candidatesByRelativePath[match.Path]);
         }
 
-        return results;
+        return results.ToReadOnlyListAndClear();
     }
 
     private sealed class GlobCandidate
     {
-        public required string FilePath { get; init; }
+        public static Comparer<GlobCandidate> Comparer { get; } = Comparer<GlobCandidate>.Create(static (left, right) =>
+        {
+            int result = right.LastWriteTimeUtc.CompareTo(left.LastWriteTimeUtc);
+            return result is not 0 ? result : string.Compare(left.RelativePath, right.RelativePath, StringComparison.Ordinal);
+        });
 
         public required string RelativePath { get; init; }
 
         public required DateTime LastWriteTimeUtc { get; init; }
-    }
 
-    private sealed class GlobResult
-    {
-        public static Comparer<GlobResult> Comparer { get; } = Comparer<GlobResult>.Create(static (left, right) =>
-        {
-            int result = right.LastWriteTimeUtc.CompareTo(left.LastWriteTimeUtc);
-            return result is not 0 ? result : string.Compare(left.FilePath, right.FilePath, StringComparison.Ordinal);
-        });
-
-        public required string FilePath { get; init; }
-
-        public required DateTime LastWriteTimeUtc { get; init; }
-
-        public static GlobResult Create(GlobCandidate candidate)
+        public static GlobCandidate Create(AgentWorkspaceDirectory directory, AgentWorkspaceFile file)
         {
             return new()
             {
-                FilePath = candidate.FilePath,
-                LastWriteTimeUtc = candidate.LastWriteTimeUtc,
+                RelativePath = directory.GetRelativePath(file),
+                LastWriteTimeUtc = file.LastWriteTimeUtc,
             };
         }
     }

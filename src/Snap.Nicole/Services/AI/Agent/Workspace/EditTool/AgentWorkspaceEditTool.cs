@@ -66,16 +66,16 @@ internal sealed class AgentWorkspaceEditTool(AgentWorkspaceContext context) : Ag
 
             StringBuilder message = new();
             message.AppendLine("File does not exist. Available workspace roots:");
-            foreach (string rootDirectory in Context.RootDirectories)
+            foreach (AgentWorkspaceRootDirectory rootDirectory in Context.RootDirectories)
             {
-                message.AppendLine($"- {rootDirectory}");
+                message.AppendLine($"- {rootDirectory.FullPath}");
             }
 
-            if (Context.SuggestPathUnderWorkspaceRoots(file.FullPath) is { } cwdSuggestion)
+            if (Context.SuggestPathUnderWorkspaceRoots(file) is { } cwdSuggestion)
             {
                 message.Append($"Did you mean {cwdSuggestion}?");
             }
-            else if (AgentWorkspaceContext.FindSimilarFile(file.FullPath) is { } similarFileName)
+            else if (AgentWorkspaceContext.FindSimilarFile(file) is { } similarFileName)
             {
                 // Try to find a similar file with a different extension
                 message.Append($"Did you mean {similarFileName}?");

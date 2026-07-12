@@ -1,7 +1,9 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Snap.Nicole.Core;
+using Snap.Nicole.Core.Collections.Generic;
 using Snap.Nicole.Core.Text;
+using System.Buffers;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Globalization;
@@ -18,20 +20,12 @@ internal static class AgentWorkspaceGrepToolResultFactory
 {
     private const int BinaryProbeByteCount = 4096;
 
-    private static readonly EnumerationOptions DefaultEnumerationOptions = new()
-    {
-        AttributesToSkip = FileAttributes.ReparsePoint,
-        RecurseSubdirectories = false,
-    };
-
     private static readonly FrozenSet<string> VersionControlDirectoryNames = [with(StringComparer.OrdinalIgnoreCase), ".git", ".svn", ".hg", ".bzr", ".jj", ".sl"];
 
     public static async Task<AIContent> CreateAsync(string callId, AgentWorkspacePath searchPath, AgentWorkspaceGrepToolOptions options, CancellationToken cancellationToken)
     {
-        Regex regex = CreateRegex(options.Pattern, options);
-        Matcher? globMatcher = CreateGlobMatcher(options.Glob);
-        IReadOnlyList<GrepCandidate> candidates = CreateCandidates(searchPath, globMatcher, cancellationToken);
-        GrepOutput output = await CreateGrepOutputAsync(candidates, regex, options, cancellationToken);
+        IReadOnlyList<GrepCandidate> candidates = CreateGrepCandidates(searchPath, CreateGlobMatcher(options.Glob), cancellationToken);
+        GrepOutput output = await CreateGrepOutputAsync(candidates, CreateContentRegex(options.Pattern, options), options, cancellationToken);
         GrepOutputWindow outputWindow = WindowGrepOutput(output.Lines, options.Offset, options.HeadLimit);
 
         AgentWorkspaceGrepToolResult result = new()
@@ -87,7 +81,7 @@ internal static class AgentWorkspaceGrepToolResultFactory
         return builder.ToString();
     }
 
-    private static Regex CreateRegex(string pattern, AgentWorkspaceGrepToolOptions options)
+    private static Regex CreateContentRegex(string pattern, AgentWorkspaceGrepToolOptions options)
     {
         RegexOptions regexOptions = RegexOptions.CultureInvariant;
         if (options.IgnoreCase)
@@ -125,28 +119,28 @@ internal static class AgentWorkspaceGrepToolResultFactory
         return matcher;
     }
 
-    private static IReadOnlyList<GrepCandidate> CreateCandidates(AgentWorkspacePath searchPath, Matcher? globMatcher, CancellationToken cancellationToken)
+    private static IReadOnlyList<GrepCandidate> CreateGrepCandidates(AgentWorkspacePath searchPath, Matcher? globMatcher, CancellationToken cancellationToken)
     {
         return searchPath switch
         {
-            AgentWorkspaceFile searchFile => CreateCandidates(searchFile, globMatcher),
-            AgentWorkspaceDirectory searchDirectory => CreateCandidates(searchDirectory, globMatcher, cancellationToken),
+            AgentWorkspaceFile searchFile => CreateGrepCandidates(searchFile, globMatcher),
+            AgentWorkspaceDirectory searchDirectory => CreateGrepCandidates(searchDirectory, globMatcher, cancellationToken),
             _ => throw new InvalidOperationException($"Unsupported workspace search path type: {TypeNameHelper.GetTypeDisplayName(searchPath)}."),
         };
     }
 
-    private static IReadOnlyList<GrepCandidate> CreateCandidates(AgentWorkspaceFile searchFile, Matcher? globMatcher)
+    private static IReadOnlyList<GrepCandidate> CreateGrepCandidates(AgentWorkspaceFile searchFile, Matcher? globMatcher)
     {
         if (!searchFile.Exists)
         {
             return [];
         }
 
-        GrepCandidate candidate = GrepCandidate.Create(searchFile, searchFile.FullPath);
-        return candidate.MatchesGlob(globMatcher) ? [candidate] : [];
+        GrepCandidate candidate = GrepCandidate.Create(searchFile, searchFile);
+        return candidate.GlobMatches(globMatcher) ? [candidate] : [];
     }
 
-    private static IReadOnlyList<GrepCandidate> CreateCandidates(AgentWorkspaceDirectory searchDirectory, Matcher? globMatcher, CancellationToken cancellationToken)
+    private static IReadOnlyList<GrepCandidate> CreateGrepCandidates(AgentWorkspaceDirectory searchDirectory, Matcher? globMatcher, CancellationToken cancellationToken)
     {
         if (!searchDirectory.Exists)
         {
@@ -155,71 +149,67 @@ internal static class AgentWorkspaceGrepToolResultFactory
 
         GitIgnoreRuleSet ignoreRules = GitIgnoreRuleSet
             .CreateForParentDirectory(searchDirectory)
-            .WithoutRulesMatching(searchDirectory.GetRootRelativePath(searchDirectory.FullPath), isDirectory: true)
+            .WithoutRulesMatching(searchDirectory.RootDirectory.GetRelativePath(searchDirectory.FullPath), isDirectory: true)
             .CreateChild(searchDirectory.RootDirectory, searchDirectory.FullPath);
 
-        List<GrepCandidate> candidates = [];
-        CollectCandidates(searchDirectory, searchDirectory.FullPath, ignoreRules, globMatcher, candidates, cancellationToken);
+        ArrayBuilder<GrepCandidate> candidates = new();
+        CollectGrepCandidates(searchDirectory, searchDirectory, ignoreRules, globMatcher, candidates, cancellationToken);
         candidates.Sort(GrepCandidate.Comparer);
 
-        return candidates;
+        return candidates.ToReadOnlyListAndClear();
     }
 
-    private static void CollectCandidates(AgentWorkspaceDirectory searchDirectory, string directoryPath, GitIgnoreRuleSet ignoreRules, Matcher? globMatcher, List<GrepCandidate> candidates, CancellationToken cancellationToken)
+    private static void CollectGrepCandidates(AgentWorkspaceDirectory searchDirectory, AgentWorkspaceDirectory directory, GitIgnoreRuleSet ignoreRules, Matcher? globMatcher, ArrayBuilder<GrepCandidate> candidates, CancellationToken cancellationToken)
     {
-        foreach (string filePath in Directory.EnumerateFiles(directoryPath, "*", DefaultEnumerationOptions))
+        foreach (AgentWorkspaceFile file in directory.EnumerateFiles("*", recurseSubdirectories: false))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            string fullPath = Path.GetFullPath(filePath);
-            GrepCandidate candidate = GrepCandidate.Create(searchDirectory, fullPath);
-            if (!ignoreRules.IsIgnored(candidate.RootRelativePath, isDirectory: false) && candidate.MatchesGlob(globMatcher))
-            {
-                candidates.Add(candidate);
-            }
-        }
-
-        foreach (string childDirectoryPath in Directory.EnumerateDirectories(directoryPath, "*", DefaultEnumerationOptions))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            string childFullPath = Path.GetFullPath(childDirectoryPath);
-            if (IsVersionControlDirectory(childFullPath))
+            GrepCandidate candidate = GrepCandidate.Create(searchDirectory, file);
+            if (ignoreRules.IsIgnored(candidate.RootRelativePath, false) || !candidate.GlobMatches(globMatcher))
             {
                 continue;
             }
 
-            string childRootRelativePath = searchDirectory.GetRootRelativePath(childFullPath);
-            if (ignoreRules.IsIgnored(childRootRelativePath, isDirectory: true))
+            candidates.Add(candidate);
+        }
+
+        foreach (AgentWorkspaceDirectory childDirectory in directory.EnumerateDirectories("*", recurseSubdirectories: false))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (VersionControlDirectoryNames.Contains(childDirectory.Name))
             {
                 continue;
             }
 
-            GitIgnoreRuleSet childIgnoreRules = ignoreRules.CreateChild(searchDirectory.RootDirectory, childFullPath);
-            CollectCandidates(searchDirectory, childFullPath, childIgnoreRules, globMatcher, candidates, cancellationToken);
+            if (ignoreRules.IsIgnored(searchDirectory.RootDirectory.GetRelativePath(childDirectory.FullPath), true))
+            {
+                continue;
+            }
+
+            GitIgnoreRuleSet childIgnoreRules = ignoreRules.CreateChild(searchDirectory.RootDirectory, childDirectory.FullPath);
+            CollectGrepCandidates(searchDirectory, childDirectory, childIgnoreRules, globMatcher, candidates, cancellationToken);
         }
     }
 
-    private static bool IsVersionControlDirectory(string directoryPath)
+    private static async Task<GrepOutput> CreateGrepOutputAsync(IReadOnlyList<GrepCandidate> candidates, Regex contentRegex, AgentWorkspaceGrepToolOptions options, CancellationToken cancellationToken)
     {
-        string directoryName = Path.GetFileName(Path.TrimEndingDirectorySeparator(directoryPath));
-        return VersionControlDirectoryNames.Contains(directoryName);
-    }
-
-    private static async Task<GrepOutput> CreateGrepOutputAsync(IReadOnlyList<GrepCandidate> candidates, Regex regex, AgentWorkspaceGrepToolOptions options, CancellationToken cancellationToken)
-    {
-        List<string> lines = [];
-        List<string> matchedFileNames = [];
+        ArrayBuilder<string> lines = new();
+        ArrayBuilder<string> matchedFileNames = new();
         int totalOccurrenceCount = 0;
+
         foreach (GrepCandidate candidate in candidates)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
             if (await TryReadTextFileAsync(candidate.FullPath, cancellationToken) is not { } content)
             {
                 continue;
             }
 
-            GrepFileMatch match = options.Multiline ? CreateMultilineMatch(content, regex) : CreateLineMatch(content, regex);
+            NormalizedString normalizedContent = new(content);
+            GrepFileMatch match = options.Multiline ? CreateMultilineMatch(normalizedContent, contentRegex) : CreateLineMatch(normalizedContent, contentRegex);
             if (match.MatchCount is 0)
             {
                 continue;
@@ -233,8 +223,8 @@ internal static class AgentWorkspaceGrepToolResultFactory
 
         return new()
         {
-            Lines = lines,
-            MatchedFileNames = matchedFileNames,
+            Lines = lines.ToReadOnlyListAndClear(),
+            MatchedFileNames = matchedFileNames.ToReadOnlyListAndClear(),
             TotalOccurrenceCount = totalOccurrenceCount,
         };
     }
@@ -247,11 +237,23 @@ internal static class AgentWorkspaceGrepToolResultFactory
             return string.Empty;
         }
 
-        byte[] probeBuffer = new byte[(int)Math.Min(BinaryProbeByteCount, stream.Length)];
-        int probeByteCount = await stream.ReadAsync(probeBuffer, cancellationToken);
-        if (ContainsNullByte(probeBuffer, probeByteCount))
+        using (IMemoryOwner<byte> bufferOwner = MemoryPool<byte>.Shared.Rent((int)Math.Min(BinaryProbeByteCount, stream.Length)))
         {
-            return null;
+            Memory<byte> buffer = bufferOwner.Memory;
+            while (true)
+            {
+                int readCount = await stream.ReadAsync(buffer, cancellationToken);
+                if (readCount is 0)
+                {
+                    break;
+                }
+
+                if (buffer.Span[..readCount].Contains((byte)0x00))
+                {
+                    // This file contains a null byte, which is a strong indicator that it is a binary file. Skip processing this file.
+                    return null;
+                }
+            }
         }
 
         stream.Position = 0;
@@ -259,20 +261,7 @@ internal static class AgentWorkspaceGrepToolResultFactory
         return await reader.ReadToEndAsync(cancellationToken);
     }
 
-    private static bool ContainsNullByte(byte[] buffer, int byteCount)
-    {
-        for (int i = 0; i < byteCount; i++)
-        {
-            if (buffer[i] is 0)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static GrepFileMatch CreateLineMatch(string content, Regex regex)
+    private static GrepFileMatch CreateLineMatch(NormalizedString content, Regex regex)
     {
         List<GrepTextLine> lines = CreateTextLines(content);
         List<GrepLineMatch> matches = [];
@@ -313,11 +302,10 @@ internal static class AgentWorkspaceGrepToolResultFactory
         };
     }
 
-    private static GrepFileMatch CreateMultilineMatch(string content, Regex regex)
+    private static GrepFileMatch CreateMultilineMatch(NormalizedString content, Regex regex)
     {
-        string normalizedContent = content.ReplaceLineEndings("\n");
-        List<GrepTextLine> lines = CreateTextLines(normalizedContent);
-        MatchCollection textMatches = regex.Matches(normalizedContent);
+        List<GrepTextLine> lines = CreateTextLines(content);
+        MatchCollection textMatches = regex.Matches(content.Value);
         if (textMatches.Count is 0)
         {
             return new()
@@ -383,16 +371,14 @@ internal static class AgentWorkspaceGrepToolResultFactory
         return matchStart < lineEnd && matchEnd > line.StartIndex;
     }
 
-    private static List<GrepTextLine> CreateTextLines(string content)
+    private static List<GrepTextLine> CreateTextLines(NormalizedString content)
     {
-        string normalizedContent = content.ReplaceLineEndings("\n");
-        string[] splitLines = normalizedContent.Split('\n');
-        int lineCount = splitLines.Length > 0 && splitLines[^1].Length is 0 ? splitLines.Length - 1 : splitLines.Length;
-        List<GrepTextLine> lines = [];
+        TextLineCollection textLines = TextLineCollection.FromText(content);
+        List<GrepTextLine> lines = new(textLines.Count);
         int currentIndex = 0;
-        for (int i = 0; i < lineCount; i++)
+        for (int i = 0; i < textLines.Count; i++)
         {
-            string line = splitLines[i];
+            string line = textLines[i];
             lines.Add(new()
             {
                 LineNumber = i + 1,
@@ -407,7 +393,7 @@ internal static class AgentWorkspaceGrepToolResultFactory
         return lines;
     }
 
-    private static void AppendFileOutput(List<string> output, string displayPath, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
+    private static void AppendFileOutput(ArrayBuilder<string> output, string displayPath, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
     {
         if (options.OutputMode is AgentWorkspaceGrepToolOutputMode.FilesWithMatches)
         {
@@ -430,7 +416,7 @@ internal static class AgentWorkspaceGrepToolResultFactory
         AppendContentOutput(output, displayPath, match, options);
     }
 
-    private static void AppendOnlyMatchingOutput(List<string> output, string displayPath, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
+    private static void AppendOnlyMatchingOutput(ArrayBuilder<string> output, string displayPath, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
     {
         foreach (GrepLineMatch lineMatch in match.Matches)
         {
@@ -446,7 +432,7 @@ internal static class AgentWorkspaceGrepToolResultFactory
         }
     }
 
-    private static void AppendContentOutput(List<string> output, string displayPath, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
+    private static void AppendContentOutput(ArrayBuilder<string> output, string displayPath, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
     {
         int previousLineNumber = 0;
         HashSet<int> writtenLineNumbers = [];
@@ -577,17 +563,17 @@ internal static class AgentWorkspaceGrepToolResultFactory
 
         public required string SearchRelativePath { get; init; }
 
-        public static GrepCandidate Create(AgentWorkspacePath searchPath, string fullPath)
+        public static GrepCandidate Create(AgentWorkspacePath searchPath, AgentWorkspaceFile file)
         {
             return new()
             {
-                FullPath = fullPath,
-                RootRelativePath = searchPath.GetRootRelativePath(fullPath),
-                SearchRelativePath = searchPath.GetRelativePath(fullPath),
+                FullPath = file.FullPath,
+                RootRelativePath = searchPath.RootDirectory.GetRelativePath(file.FullPath),
+                SearchRelativePath = searchPath.GetRelativePath(file.FullPath),
             };
         }
 
-        public bool MatchesGlob(Matcher? globMatcher)
+        public bool GlobMatches(Matcher? globMatcher)
         {
             return globMatcher is null || globMatcher.Match(SearchRelativePath).HasMatches;
         }

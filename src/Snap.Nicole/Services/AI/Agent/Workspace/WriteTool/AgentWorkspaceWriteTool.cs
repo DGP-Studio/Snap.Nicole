@@ -1,9 +1,7 @@
 using Microsoft.Extensions.AI;
 using Snap.Nicole.Core;
-using Snap.Nicole.Core.Text;
 using System.ComponentModel;
 using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,18 +37,7 @@ internal sealed class AgentWorkspaceWriteTool(AgentWorkspaceContext context) : A
                 return new TextContent(validationResult.Message);
             }
 
-            string? originalFile = file.Exists
-                ? await File.ReadAllTextAsync(file.FullPath, Encoding.UTF8WithoutBOM, cancellationToken)
-                : null;
-
-            string? directory = Path.GetDirectoryName(file.FullPath);
-            if (directory is not null)
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            await File.WriteAllTextAsync(file.FullPath, content, Encoding.UTF8WithoutBOM, cancellationToken);
-            AIContent resultContent = AgentWorkspaceWriteToolResultFactory.Create(CallId, file, content, originalFile);
+            AIContent resultContent = await AgentWorkspaceWriteToolResultFactory.CreateAsync(CallId, file, content, cancellationToken);
             await Context.MarkFileAsReadAsync(file, cancellationToken);
             return resultContent;
         }

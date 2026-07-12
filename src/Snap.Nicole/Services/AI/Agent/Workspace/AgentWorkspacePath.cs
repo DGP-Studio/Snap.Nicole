@@ -4,22 +4,17 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
 internal abstract class AgentWorkspacePath
 {
-    public required string RootDirectory { get; init; }
+    public required AgentWorkspaceRootDirectory RootDirectory { get; init; }
 
     public required string FullPath { get; init; }
 
-    public static string GetRelativePath(string relativeTo, string path)
+    public string GetRelativePath(AgentWorkspacePath path)
     {
-        return Path.GetRelativePath(relativeTo, path).Replace('\\', '/');
+        return GetRelativePath(path.FullPath);
     }
 
     public string GetRelativePath(string path)
     {
-        return GetRelativePath(FullPath, path);
-    }
-
-    public string GetRootRelativePath(string path)
-    {
-        return GetRelativePath(RootDirectory, path);
+        return Path.GetRelativePath(FullPath, path).Replace('\\', '/');
     }
 }
