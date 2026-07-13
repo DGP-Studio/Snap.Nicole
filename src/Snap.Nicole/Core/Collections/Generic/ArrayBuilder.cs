@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Generic;
 
 namespace Snap.Nicole.Core.Collections.Generic;
@@ -13,19 +14,20 @@ internal sealed class ArrayBuilder<T>
 
     public ArrayBuilder(int initialCapacity)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(initialCapacity, 0);
-        array = new T[initialCapacity];
+        array = ArrayPool<T>.Shared.Rent(initialCapacity);
     }
 
     public void Add(T item)
     {
         if (array is null)
         {
-            array = new T[4];
+            array = ArrayPool<T>.Shared.Rent(4);
         }
         else if (count == array.Length)
         {
-            Array.Resize(ref array, count * 2);
+            T[] newArray = ArrayPool<T>.Shared.Rent(count * 2);
+            Array.Copy(array, newArray, count);
+            ArrayPool<T>.Shared.Return(array);
         }
 
         array[count++] = item;
@@ -39,7 +41,7 @@ internal sealed class ArrayBuilder<T>
         }
     }
 
-    public IReadOnlyList<T> ToReadOnlyListAndClear()
+    public T[] ToArrayAndClear()
     {
         if (array is null || count is 0)
         {
@@ -48,9 +50,15 @@ internal sealed class ArrayBuilder<T>
 
         T[] result = new T[count];
         Array.Copy(array, result, count);
+        ArrayPool<T>.Shared.Return(array);
 
         array = null;
         count = 0;
         return result;
+    }
+
+    public IReadOnlyList<T> ToReadOnlyListAndClear()
+    {
+        return ToArrayAndClear();
     }
 }

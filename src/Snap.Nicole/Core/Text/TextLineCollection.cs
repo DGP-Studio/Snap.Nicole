@@ -3,11 +3,11 @@ using System.Collections.Generic;
 
 namespace Snap.Nicole.Core.Text;
 
-internal sealed class TextLineCollection : IList<string>, IReadOnlyList<string>
+internal sealed class TextLineCollection : IReadOnlyList<string>
 {
     private const char LF = '\n';
 
-    private readonly List<string> lines;
+    private readonly string[] lines;
 
     private int[]? lineStartOffsets;
     private int textLength;
@@ -17,32 +17,14 @@ internal sealed class TextLineCollection : IList<string>, IReadOnlyList<string>
         lines = [];
     }
 
-    public TextLineCollection(IEnumerable<string> lines)
+    private TextLineCollection(string[] lines)
     {
-        ArgumentNullException.ThrowIfNull(lines);
-
-        this.lines = [];
-        foreach (string line in lines)
-        {
-            Add(line);
-        }
+        this.lines = lines;
     }
 
-    public int Count { get => lines.Count; }
+    public int Count { get => lines.Length; }
 
-    public bool IsReadOnly { get => false; }
-
-    public string this[int index]
-    {
-        get => lines[index];
-        set
-        {
-            ArgumentNullException.ThrowIfNull(value);
-
-            lines[index] = value;
-            InvalidateLineStartOffsets();
-        }
-    }
+    public string this[int index] { get => lines[index]; }
 
     public static TextLineCollection FromText(string value)
     {
@@ -54,42 +36,20 @@ internal sealed class TextLineCollection : IList<string>, IReadOnlyList<string>
         string[] splitLines = value.Value.Split(LF);
         int lineCount = splitLines.Length > 0 && splitLines[^1].Length is 0 ? splitLines.Length - 1 : splitLines.Length;
 
-        TextLineCollection lines = [];
-        for (int i = 0; i < lineCount; i++)
-        {
-            lines.Add(splitLines[i]);
-        }
-
-        return lines;
+        // TODO: optimize lineCount & splitLines reference to avoid unnecessary array copy when lineCount is equal to splitLines.Length
+        return [with(splitLines[..lineCount])];
     }
 
-    public void Add(string item)
+    public TextLineCollection Add(string item)
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        lines.Add(item);
-        InvalidateLineStartOffsets();
-    }
-
-    public void Clear()
-    {
-        lines.Clear();
-        InvalidateLineStartOffsets();
-    }
-
-    public bool Contains(string item)
-    {
-        return lines.Contains(item);
-    }
-
-    public void CopyTo(string[] array, int arrayIndex)
-    {
-        lines.CopyTo(array, arrayIndex);
+        return [with([.. lines, item])];
     }
 
     public IEnumerator<string> GetEnumerator()
     {
-        return lines.GetEnumerator();
+        return ((IEnumerable<string>)lines).GetEnumerator();
     }
 
     public int GetTextOffset(int startLine, TextPosition position)
@@ -105,7 +65,7 @@ internal sealed class TextLineCollection : IList<string>, IReadOnlyList<string>
             throw new ArgumentOutOfRangeException(nameof(position), "Position column cannot be negative.");
         }
 
-        if (relativeLine >= lines.Count)
+        if (relativeLine >= lines.Length)
         {
             return GetTextLength();
         }
@@ -119,36 +79,6 @@ internal sealed class TextLineCollection : IList<string>, IReadOnlyList<string>
         return GetLineStartOffsets()[relativeLine] + position.Column;
     }
 
-    public int IndexOf(string item)
-    {
-        return lines.IndexOf(item);
-    }
-
-    public void Insert(int index, string item)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-
-        lines.Insert(index, item);
-        InvalidateLineStartOffsets();
-    }
-
-    public bool Remove(string item)
-    {
-        bool removed = lines.Remove(item);
-        if (removed)
-        {
-            InvalidateLineStartOffsets();
-        }
-
-        return removed;
-    }
-
-    public void RemoveAt(int index)
-    {
-        lines.RemoveAt(index);
-        InvalidateLineStartOffsets();
-    }
-
     public string ToText()
     {
         return string.Join(LF, lines);
@@ -156,18 +86,12 @@ internal sealed class TextLineCollection : IList<string>, IReadOnlyList<string>
 
     public TextLineCollection WithoutTrailingEmptyLine()
     {
-        if (lines.Count is 0 || lines[^1].Length is not 0)
+        if (lines.Length is 0 || lines[^1].Length is not 0)
         {
             return this;
         }
 
-        TextLineCollection result = [];
-        for (int i = 0; i < lines.Count - 1; i++)
-        {
-            result.Add(lines[i]);
-        }
-
-        return result;
+        return new(lines[..^1]);
     }
 
     IEnumerator IEnumerable.GetEnumerator()
@@ -193,22 +117,17 @@ internal sealed class TextLineCollection : IList<string>, IReadOnlyList<string>
             return cachedLineStartOffsets;
         }
 
-        int[] offsets = new int[lines.Count];
+        int[] offsets = new int[lines.Length];
         int offset = 0;
-        for (int i = 0; i < lines.Count; i++)
+        for (int i = 0; i < lines.Length; i++)
         {
             offsets[i] = offset;
             offset += lines[i].Length + 1;
         }
 
-        textLength = lines.Count > 0 ? offset - 1 : 0;
+        textLength = lines.Length > 0 ? offset - 1 : 0;
         lineStartOffsets = offsets;
         return offsets;
     }
 
-    private void InvalidateLineStartOffsets()
-    {
-        lineStartOffsets = null;
-        textLength = 0;
-    }
 }

@@ -122,7 +122,7 @@ internal static class AgentWorkspaceStructuredPatchBuilder
 
             for (int i = hunkDescription.StartLine; i <= endLine; i++)
             {
-                oldLines.Add(sourceLines[i]);
+                oldLines = oldLines.Add(sourceLines[i]);
             }
 
             hunks.Add(CreateHunk(hunkDescription, oldLines, newString));
