@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Snap.Nicole.Core.Text;
 
 namespace Snap.Nicole.Core.IO;
 
@@ -12,10 +13,6 @@ internal sealed class LineEndingNormalizingTextReader : TextReader
     private const int EndOfStream = -1;
     private const int CR = '\r';
     private const int LF = '\n';
-    private const int FormFeed = '\f';
-    private const int NextLine = '\u0085';
-    private const int LineSeparator = '\u2028';
-    private const int ParagraphSeparator = '\u2029';
 
     private readonly TextReader sourceReader;
 
@@ -163,7 +160,7 @@ internal sealed class LineEndingNormalizingTextReader : TextReader
 
     private static bool IsSingleCharacterLineEnding(int value)
     {
-        return value is (LF or FormFeed or NextLine or LineSeparator or ParagraphSeparator);
+        return value is not CR && LineEnding.IsNewLine((char)value);
     }
 
     private int ReadCharacter()

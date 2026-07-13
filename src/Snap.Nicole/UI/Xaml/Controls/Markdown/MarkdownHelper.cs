@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Snap.Nicole.Core.Text;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -182,17 +183,12 @@ internal static partial class MarkdownHelper
             return lineEnd + 2;
         }
 
-        if (IsLineEnding(markdown[lineEnd]))
+        if (LineEnding.IsNewLine(markdown[lineEnd]))
         {
             return lineEnd + 1;
         }
 
         return lineEnd;
-    }
-
-    private static bool IsLineEnding(char character)
-    {
-        return character is '\r' or '\n' or '\f' or '\u0085' or '\u2028' or '\u2029';
     }
 
     private static string GetCodeBlockText(StringBuilder? codeBuffer)
@@ -203,7 +199,7 @@ internal static partial class MarkdownHelper
         }
 
         int length = codeBuffer.Length;
-        while (length > 0 && (codeBuffer[length - 1] == '\r' || codeBuffer[length - 1] == '\n'))
+        while (length > 0 && LineEnding.IsNewLine(codeBuffer[length - 1]))
         {
             length--;
         }

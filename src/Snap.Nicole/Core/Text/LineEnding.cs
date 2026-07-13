@@ -1,9 +1,11 @@
-using System.Linq;
+using System.Buffers;
 
 namespace Snap.Nicole.Core.Text;
 
 internal static class LineEnding
 {
+    private static readonly SearchValues<char> NewLineChars = SearchValues.Create("\r\n\f\u0085\u2028\u2029");
+
     private enum LineEndingKind
     {
         CarriageReturnLineFeed,
@@ -23,13 +25,16 @@ internal static class LineEnding
         Array.Fill(firstIndexes, int.MaxValue);
 
         int currentLineEndingIndex = 0;
-        for (int i = 0; i < value.Length; i++)
+        ReadOnlySpan<char> remainingValue = value;
+        while (true)
         {
-            if (GetKind(value, ref i) is not { } currentKind)
+            int index = IndexOfNewLine(remainingValue);
+            if (index < 0)
             {
-                continue;
+                break;
             }
 
+            LineEndingKind currentKind = GetKind(remainingValue, ref index);
             int kindIndex = (int)currentKind;
             if (counts[kindIndex] is 0)
             {
@@ -38,6 +43,7 @@ internal static class LineEnding
 
             counts[kindIndex]++;
             currentLineEndingIndex++;
+            remainingValue = remainingValue[(index + 1)..];
         }
 
         if (currentLineEndingIndex is 0)
@@ -45,14 +51,17 @@ internal static class LineEnding
             return null;
         }
 
-        LineEndingKind dominantKind = (LineEndingKind)counts
-            .Zip(firstIndexes, static (count, firstIndex) => (Count: count, FirstIndex: firstIndex))
-            .Select(static (item, kindIndex) => (KindIndex: kindIndex, item.Count, item.FirstIndex))
-            .OrderByDescending(static item => item.Count)
-            .ThenBy(static item => item.FirstIndex)
-            .First()
-            .KindIndex;
+        int dominantKindIndex = 0;
+        for (int kindIndex = 1; kindIndex < counts.Length; kindIndex++)
+        {
+            if (counts[kindIndex] > counts[dominantKindIndex]
+                || (counts[kindIndex] == counts[dominantKindIndex] && firstIndexes[kindIndex] < firstIndexes[dominantKindIndex]))
+            {
+                dominantKindIndex = kindIndex;
+            }
+        }
 
+        LineEndingKind dominantKind = (LineEndingKind)dominantKindIndex;
         return dominantKind switch
         {
             LineEndingKind.CarriageReturnLineFeed => "\r\n",
@@ -62,11 +71,21 @@ internal static class LineEnding
             LineEndingKind.NextLine => "\u0085",
             LineEndingKind.LineSeparator => "\u2028",
             LineEndingKind.ParagraphSeparator => "\u2029",
-            _ => throw new ArgumentOutOfRangeException(nameof(dominantKind)),
+            _ => throw new InvalidOperationException($"Unexpected LineEndingKind: {dominantKind}"),
         };
     }
 
-    private static LineEndingKind? GetKind(ReadOnlySpan<char> value, ref int index)
+    internal static int IndexOfNewLine(ReadOnlySpan<char> value)
+    {
+        return value.IndexOfAny(NewLineChars);
+    }
+
+    internal static bool IsNewLine(char value)
+    {
+        return NewLineChars.Contains(value);
+    }
+
+    private static LineEndingKind GetKind(ReadOnlySpan<char> value, ref int index)
     {
         switch (value[index])
         {
@@ -89,7 +108,7 @@ internal static class LineEnding
             case '\u2029':
                 return LineEndingKind.ParagraphSeparator;
             default:
-                return null;
+                throw new ArgumentOutOfRangeException(nameof(value));
         }
     }
 }

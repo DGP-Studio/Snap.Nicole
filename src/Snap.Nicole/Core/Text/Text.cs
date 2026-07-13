@@ -1,12 +1,9 @@
-using System.Buffers;
 using System.Text;
 
 namespace Snap.Nicole.Core.Text;
 
 internal readonly struct Text
 {
-    private static readonly SearchValues<char> NewLineChars = SearchValues.Create("\r\n\f\u0085\u2028\u2029");
-
     public Text(string value)
     {
         Value = NormalizeLineEndings(value, out int lineEndingCount);
@@ -40,7 +37,7 @@ internal readonly struct Text
         for (int i = 0; i < value.Length; i++)
         {
             char current = value[i];
-            if (!NewLineChars.Contains(current))
+            if (!LineEnding.IsNewLine(current))
             {
                 continue;
             }
