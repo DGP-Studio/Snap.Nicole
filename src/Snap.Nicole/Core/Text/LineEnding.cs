@@ -4,6 +4,8 @@ namespace Snap.Nicole.Core.Text;
 
 internal static class LineEnding
 {
+    public const char LF = '\n';
+
     private static readonly SearchValues<char> NewLineChars = SearchValues.Create("\r\n\f\u0085\u2028\u2029");
 
     private enum LineEndingKind

@@ -112,18 +112,15 @@ internal static class AgentWorkspaceStructuredPatchBuilder
             return [];
         }
 
-        TextLineCollection sourceLines = TextLineCollection.FromText(sourceText.Value);
+        TextLineCollection sourceLines = TextLineCollection.FromText(sourceText);
         List<AgentWorkspaceStructuredPatchHunk> hunks = [with(hunkDescriptions.Count)];
 
         foreach (HunkDescription hunkDescription in hunkDescriptions)
         {
-            TextLineCollection oldLines = [];
             int endLine = Math.Min(hunkDescription.EndLine, sourceLines.Count - 1);
-
-            for (int i = hunkDescription.StartLine; i <= endLine; i++)
-            {
-                oldLines = oldLines.Add(sourceLines[i]);
-            }
+            TextLineCollection oldLines = endLine >= hunkDescription.StartLine
+                ? sourceLines.Slice(hunkDescription.StartLine, endLine - hunkDescription.StartLine + 1)
+                : TextLineCollection.Empty;
 
             hunks.Add(CreateHunk(hunkDescription, oldLines, newString));
         }
@@ -138,8 +135,8 @@ internal static class AgentWorkspaceStructuredPatchBuilder
         int copyStartOffset = 0;
         foreach (ReplacementTextSpan replacementTextSpan in hunkDescription.ReplacementTextSpans)
         {
-            int replacementStartOffset = oldLines.GetTextOffset(hunkDescription.StartLine, replacementTextSpan.Start);
-            int replacementEndOffset = oldLines.GetTextOffset(hunkDescription.StartLine, replacementTextSpan.End);
+            int replacementStartOffset = oldLines.GetTextOffset(replacementTextSpan.Start);
+            int replacementEndOffset = oldLines.GetTextOffset(replacementTextSpan.End);
             builder.Append(oldSegment.AsSpan(copyStartOffset, replacementStartOffset - copyStartOffset));
             builder.Append(newString.Value);
             copyStartOffset = replacementEndOffset;
@@ -154,18 +151,18 @@ internal static class AgentWorkspaceStructuredPatchBuilder
         return AgentWorkspaceStructuredPatchHunk.Create(CreateHunkLines(oldLines.WithoutTrailingEmptyLine(), newLines, oldStartLine, newStartLine));
     }
 
-    private static IReadOnlyList<AgentWorkspaceStructuredPatchHunkLine> CreateHunkLines(IReadOnlyList<string> oldLines, IReadOnlyList<string> newLines, int oldStartLine, int newStartLine)
+    private static IReadOnlyList<AgentWorkspaceStructuredPatchHunkLine> CreateHunkLines(IReadOnlyList<TextLine> oldLines, IReadOnlyList<TextLine> newLines, int oldStartLine, int newStartLine)
     {
         int maxLineCount = Math.Min(oldLines.Count, newLines.Count);
         int commonPrefixLineCount = 0;
-        while (commonPrefixLineCount < maxLineCount && string.Equals(oldLines[commonPrefixLineCount], newLines[commonPrefixLineCount], StringComparison.Ordinal))
+        while (commonPrefixLineCount < maxLineCount && string.Equals(oldLines[commonPrefixLineCount].Value, newLines[commonPrefixLineCount].Value, StringComparison.Ordinal))
         {
             commonPrefixLineCount++;
         }
 
         int maxSuffixLineCount = maxLineCount - commonPrefixLineCount;
         int commonSuffixLineCount = 0;
-        while (commonSuffixLineCount < maxSuffixLineCount && string.Equals(oldLines[oldLines.Count - commonSuffixLineCount - 1], newLines[newLines.Count - commonSuffixLineCount - 1], StringComparison.Ordinal))
+        while (commonSuffixLineCount < maxSuffixLineCount && string.Equals(oldLines[oldLines.Count - commonSuffixLineCount - 1].Value, newLines[newLines.Count - commonSuffixLineCount - 1].Value, StringComparison.Ordinal))
         {
             commonSuffixLineCount++;
         }
@@ -176,7 +173,7 @@ internal static class AgentWorkspaceStructuredPatchBuilder
 
         for (int i = 0; i < commonPrefixLineCount; i++)
         {
-            lines.Add(AgentWorkspaceStructuredPatchHunkLine.CreateContext(oldLineNumber, oldLines[i]));
+            lines.Add(AgentWorkspaceStructuredPatchHunkLine.CreateContext(oldLineNumber, oldLines[i].Value));
             oldLineNumber++;
             newLineNumber++;
         }
@@ -184,21 +181,21 @@ internal static class AgentWorkspaceStructuredPatchBuilder
         int oldChangeEndLine = oldLines.Count - commonSuffixLineCount;
         for (int i = commonPrefixLineCount; i < oldChangeEndLine; i++)
         {
-            lines.Add(AgentWorkspaceStructuredPatchHunkLine.CreateDeletion(oldLineNumber, oldLines[i]));
+            lines.Add(AgentWorkspaceStructuredPatchHunkLine.CreateDeletion(oldLineNumber, oldLines[i].Value));
             oldLineNumber++;
         }
 
         int newChangeEndLine = newLines.Count - commonSuffixLineCount;
         for (int i = commonPrefixLineCount; i < newChangeEndLine; i++)
         {
-            lines.Add(AgentWorkspaceStructuredPatchHunkLine.CreateAddition(newLineNumber, newLines[i]));
+            lines.Add(AgentWorkspaceStructuredPatchHunkLine.CreateAddition(newLineNumber, newLines[i].Value));
             newLineNumber++;
         }
 
         int oldSuffixStartLine = oldLines.Count - commonSuffixLineCount;
         for (int i = 0; i < commonSuffixLineCount; i++)
         {
-            lines.Add(AgentWorkspaceStructuredPatchHunkLine.CreateContext(oldLineNumber, oldLines[oldSuffixStartLine + i]));
+            lines.Add(AgentWorkspaceStructuredPatchHunkLine.CreateContext(oldLineNumber, oldLines[oldSuffixStartLine + i].Value));
             oldLineNumber++;
             newLineNumber++;
         }
