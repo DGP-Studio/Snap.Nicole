@@ -3,11 +3,11 @@ using System.Text;
 
 namespace Snap.Nicole.Core.Text;
 
-internal readonly struct NormalizedString
+internal readonly struct Text
 {
     private static readonly SearchValues<char> NewLineChars = SearchValues.Create("\r\n\f\u0085\u2028\u2029");
 
-    public NormalizedString(string value)
+    public Text(string value)
     {
         Value = NormalizeLineEndings(value, out int lineEndingCount);
         LineEndingCount = lineEndingCount;
@@ -21,12 +21,12 @@ internal readonly struct NormalizedString
 
     public int LineEndingCount { get; }
 
-    public int IndexOf(NormalizedString value, int startIndex, StringComparison comparisonType)
+    public int IndexOf(Text value, int startIndex, StringComparison comparisonType)
     {
         return Value.IndexOf(value.Value, startIndex, comparisonType);
     }
 
-    public string Replace(NormalizedString oldValue, NormalizedString newValue)
+    public string Replace(Text oldValue, Text newValue)
     {
         return Value.Replace(oldValue.Value, newValue.Value);
     }

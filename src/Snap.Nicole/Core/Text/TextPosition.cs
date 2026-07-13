@@ -4,6 +4,7 @@ namespace Snap.Nicole.Core.Text;
 /// 0-based line and column position in a text file.
 /// Line and column numbers are both 0-based, meaning the first line is line 0 and the first column is column 0.
 /// </summary>
+[Obsolete("Use LinePosition instead.")]
 internal readonly struct TextPosition
 {
     private const char LF = '\n';
@@ -22,7 +23,7 @@ internal readonly struct TextPosition
     {
         if (start.Line > end.Line || (start.Line == end.Line && start.Column > end.Column))
         {
-            throw new ArgumentException("Start position must be less than or equal to end position.");
+            throw new ArgumentException("StartIndex position must be less than or equal to end position.");
         }
 
         // If the end position is at the start of a line, we consider the inclusive end line to be the previous line.
@@ -44,7 +45,7 @@ internal readonly struct TextPosition
         return new(Line, Column + 1);
     }
 
-    public TextPosition Advance(NormalizedString value)
+    public TextPosition Advance(Text value)
     {
         ReadOnlySpan<char> span = value.Value.AsSpan();
 

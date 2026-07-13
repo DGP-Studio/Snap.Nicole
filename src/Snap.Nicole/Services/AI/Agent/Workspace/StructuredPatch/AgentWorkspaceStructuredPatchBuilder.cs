@@ -11,8 +11,8 @@ internal static class AgentWorkspaceStructuredPatchBuilder
 
     public static AgentWorkspaceStructuredPatch CreateOverwritePatch(string? originalText, string content)
     {
-        NormalizedString sourceText = new(originalText ?? string.Empty);
-        NormalizedString newString = new(content);
+        Text sourceText = new(originalText ?? string.Empty);
+        Text newString = new(content);
         if (string.Equals(sourceText.Value, newString.Value, StringComparison.Ordinal))
         {
             return Empty();
@@ -21,7 +21,7 @@ internal static class AgentWorkspaceStructuredPatchBuilder
         return CreateReplacementPatch(sourceText, sourceText, newString, [0]);
     }
 
-    public static AgentWorkspaceStructuredPatch CreateReplacementPatch(NormalizedString sourceText, NormalizedString oldString, NormalizedString newString, IReadOnlyList<int> matchStartIndexes)
+    public static AgentWorkspaceStructuredPatch CreateReplacementPatch(Text sourceText, Text oldString, Text newString, IReadOnlyList<int> matchStartIndexes)
     {
         IReadOnlyList<ReplacementTextSpan> replacementTextSpans = CreateReplacementTextSpans(sourceText, oldString, matchStartIndexes);
         IReadOnlyList<HunkDescription> hunkDescriptions = CreateHunkDescriptions(replacementTextSpans, newString.LineEndingCount - oldString.LineEndingCount);
@@ -46,7 +46,7 @@ internal static class AgentWorkspaceStructuredPatchBuilder
         };
     }
 
-    private static IReadOnlyList<ReplacementTextSpan> CreateReplacementTextSpans(NormalizedString sourceText, NormalizedString oldString, IReadOnlyList<int> matchStartIndexes)
+    private static IReadOnlyList<ReplacementTextSpan> CreateReplacementTextSpans(Text sourceText, Text oldString, IReadOnlyList<int> matchStartIndexes)
     {
         if (matchStartIndexes.Count is 0)
         {
@@ -105,7 +105,7 @@ internal static class AgentWorkspaceStructuredPatchBuilder
         return descriptions;
     }
 
-    private static IReadOnlyList<AgentWorkspaceStructuredPatchHunk> CreateStructuredPatch(NormalizedString sourceText, IReadOnlyList<HunkDescription> hunkDescriptions, NormalizedString newString)
+    private static IReadOnlyList<AgentWorkspaceStructuredPatchHunk> CreateStructuredPatch(Text sourceText, IReadOnlyList<HunkDescription> hunkDescriptions, Text newString)
     {
         if (hunkDescriptions.Count is 0)
         {
@@ -131,7 +131,7 @@ internal static class AgentWorkspaceStructuredPatchBuilder
         return hunks;
     }
 
-    private static AgentWorkspaceStructuredPatchHunk CreateHunk(HunkDescription hunkDescription, TextLineCollection oldLines, NormalizedString newString)
+    private static AgentWorkspaceStructuredPatchHunk CreateHunk(HunkDescription hunkDescription, TextLineCollection oldLines, Text newString)
     {
         string oldSegment = oldLines.ToText();
         StringBuilder builder = new(oldSegment.Length + (newString.Value.Length * hunkDescription.ReplacementTextSpans.Count));

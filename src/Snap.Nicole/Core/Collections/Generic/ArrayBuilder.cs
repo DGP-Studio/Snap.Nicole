@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Snap.Nicole.Core.Collections.Generic;
 
@@ -6,6 +6,16 @@ internal sealed class ArrayBuilder<T>
 {
     private T[]? array;
     private int count;
+
+    public ArrayBuilder()
+    {
+    }
+
+    public ArrayBuilder(int initialCapacity)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(initialCapacity, 0);
+        array = new T[initialCapacity];
+    }
 
     public void Add(T item)
     {
@@ -31,7 +41,7 @@ internal sealed class ArrayBuilder<T>
 
     public IReadOnlyList<T> ToReadOnlyListAndClear()
     {
-        if (array is null)
+        if (array is null || count is 0)
         {
             return [];
         }

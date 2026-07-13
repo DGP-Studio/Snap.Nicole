@@ -46,10 +46,10 @@ internal sealed class TextLineCollection : IList<string>, IReadOnlyList<string>
 
     public static TextLineCollection FromText(string value)
     {
-        return FromText(new NormalizedString(value));
+        return FromText(new Text(value));
     }
 
-    public static TextLineCollection FromText(NormalizedString value)
+    public static TextLineCollection FromText(Text value)
     {
         string[] splitLines = value.Value.Split(LF);
         int lineCount = splitLines.Length > 0 && splitLines[^1].Length is 0 ? splitLines.Length - 1 : splitLines.Length;

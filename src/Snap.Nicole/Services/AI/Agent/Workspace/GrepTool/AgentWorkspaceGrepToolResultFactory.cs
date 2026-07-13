@@ -208,7 +208,7 @@ internal static class AgentWorkspaceGrepToolResultFactory
                 continue;
             }
 
-            NormalizedString normalizedContent = new(content);
+            Text normalizedContent = new(content);
             GrepFileMatch match = options.Multiline ? CreateMultilineMatch(normalizedContent, contentRegex) : CreateLineMatch(normalizedContent, contentRegex);
             if (match.MatchCount is 0)
             {
@@ -261,9 +261,9 @@ internal static class AgentWorkspaceGrepToolResultFactory
         return await reader.ReadToEndAsync(cancellationToken);
     }
 
-    private static GrepFileMatch CreateLineMatch(NormalizedString content, Regex regex)
+    private static GrepFileMatch CreateLineMatch(Text content, Regex regex)
     {
-        List<GrepTextLine> lines = CreateTextLines(content);
+        IReadOnlyList<GrepTextLine> lines = CreateTextLines(content);
         List<GrepLineMatch> matches = [];
         int matchCount = 0;
         foreach (GrepTextLine line in lines)
@@ -277,13 +277,10 @@ internal static class AgentWorkspaceGrepToolResultFactory
             List<string> matchedValues = [];
             foreach (Match match in lineMatches)
             {
-                if (match.Success)
+                matchCount++;
+                if (match.Length > 0)
                 {
-                    matchCount++;
-                    if (match.Length > 0)
-                    {
-                        matchedValues.Add(match.Value);
-                    }
+                    matchedValues.Add(match.Value);
                 }
             }
 
@@ -302,9 +299,9 @@ internal static class AgentWorkspaceGrepToolResultFactory
         };
     }
 
-    private static GrepFileMatch CreateMultilineMatch(NormalizedString content, Regex regex)
+    private static GrepFileMatch CreateMultilineMatch(Text content, Regex regex)
     {
-        List<GrepTextLine> lines = CreateTextLines(content);
+        IReadOnlyList<GrepTextLine> lines = CreateTextLines(content);
         MatchCollection textMatches = regex.Matches(content.Value);
         if (textMatches.Count is 0)
         {
@@ -320,11 +317,6 @@ internal static class AgentWorkspaceGrepToolResultFactory
         int matchCount = 0;
         foreach (Match match in textMatches)
         {
-            if (!match.Success)
-            {
-                continue;
-            }
-
             matchCount++;
             foreach (GrepTextLine line in lines)
             {
@@ -362,19 +354,20 @@ internal static class AgentWorkspaceGrepToolResultFactory
     {
         if (match.Length is 0)
         {
-            return match.Index >= line.StartIndex && match.Index <= line.EndExclusive;
+            return match.Index >= line.StartIndex && match.Index <= line.EndIndex;
         }
 
         int matchStart = match.Index;
         int matchEnd = match.Index + match.Length;
-        int lineEnd = Math.Max(line.EndExclusive, line.StartIndex + 1);
+        int lineEnd = Math.Max(line.EndIndex, line.StartIndex + 1);
         return matchStart < lineEnd && matchEnd > line.StartIndex;
     }
 
-    private static List<GrepTextLine> CreateTextLines(NormalizedString content)
+    private static IReadOnlyList<GrepTextLine> CreateTextLines(Text content)
     {
         TextLineCollection textLines = TextLineCollection.FromText(content);
-        List<GrepTextLine> lines = new(textLines.Count);
+        ArrayBuilder<GrepTextLine> lines = new(textLines.Count);
+
         int currentIndex = 0;
         for (int i = 0; i < textLines.Count; i++)
         {
@@ -384,13 +377,14 @@ internal static class AgentWorkspaceGrepToolResultFactory
                 LineNumber = i + 1,
                 Text = line,
                 StartIndex = currentIndex,
-                EndExclusive = currentIndex + line.Length,
+                EndIndex = currentIndex + line.Length,
             });
 
+            // '\n' separates lines in the content.
             currentIndex += line.Length + 1;
         }
 
-        return lines;
+        return lines.ToReadOnlyListAndClear();
     }
 
     private static void AppendFileOutput(ArrayBuilder<string> output, string displayPath, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
@@ -581,7 +575,7 @@ internal static class AgentWorkspaceGrepToolResultFactory
 
     private sealed class GrepFileMatch
     {
-        public required List<GrepTextLine> Lines { get; init; }
+        public required IReadOnlyList<GrepTextLine> Lines { get; init; }
 
         public required List<GrepLineMatch> Matches { get; init; }
 
@@ -619,6 +613,6 @@ internal static class AgentWorkspaceGrepToolResultFactory
 
         public required int StartIndex { get; init; }
 
-        public required int EndExclusive { get; init; }
+        public required int EndIndex { get; init; }
     }
 }

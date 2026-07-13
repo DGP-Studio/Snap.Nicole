@@ -24,9 +24,9 @@ internal static class AgentWorkspaceEditToolResultFactory
             fileText = await file.ReadAllTextAsync(Encoding.UTF8WithoutBOM, cancellationToken);
         }
 
-        NormalizedString normalizedFileText = new(fileText);
-        NormalizedString normalizedOldString = new(oldString);
-        NormalizedString normalizedNewString = new(newString);
+        Text normalizedFileText = new(fileText);
+        Text normalizedOldString = new(oldString);
+        Text normalizedNewString = new(newString);
 
         if (normalizedOldString.IsEmpty)
         {
@@ -87,7 +87,7 @@ internal static class AgentWorkspaceEditToolResultFactory
             : $"The file {file.FullPath} has been updated successfully.");
     }
 
-    private static IReadOnlyList<int> FindMatchStartIndexes(NormalizedString fileText, NormalizedString oldString)
+    private static IReadOnlyList<int> FindMatchStartIndexes(Text fileText, Text oldString)
     {
         if (oldString.IsEmpty)
         {
