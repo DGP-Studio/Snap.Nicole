@@ -18,15 +18,15 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
         [Description("Absolute file or directory to search. Defaults to current working directory.")][DefaultValue(null)] string? path,
         [Description("""Glob pattern to filter files (e.g. "*.js", "*.{ts,tsx}")""")][DefaultValue(null)] string? glob,
         [Description("""Output mode: "content" shows matching lines (supports context and line numbers), "files_with_matches" shows file paths, "count" shows match counts. Defaults to "files_with_matches".""")][DefaultValue(AgentWorkspaceGrepToolOutputMode.FilesWithMatches)] AgentWorkspaceGrepToolOutputMode outputMode,
-        [Description("""Number of lines to show before each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? beforeContext,
-        [Description("""Number of lines to show after each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? afterContext,
-        [Description("""Number of lines to show before and after each match. Requires output_mode: "content", ignored otherwise.""")][DefaultValue(null)] int? context,
-        [Description("""Show line numbers in output. Requires output_mode: "content", ignored otherwise. Defaults to true.""")][DefaultValue(true)] bool showLineNumbers,
+        [Description("""Number of lines to show before each match. Requires outputMode: "content", ignored otherwise.""")][DefaultValue(null)] int? beforeContext,
+        [Description("""Number of lines to show after each match. Requires outputMode: "content", ignored otherwise.""")][DefaultValue(null)] int? afterContext,
+        [Description("""Number of lines to show before and after each match. Requires outputMode: "content", ignored otherwise.""")][DefaultValue(null)] int? context,
+        [Description("""Show line numbers in output. Requires outputMode: "content", ignored otherwise. Defaults to true.""")][DefaultValue(true)] bool showLineNumbers,
         [Description("Case insensitive search")][DefaultValue(false)] bool ignoreCase,
         [Description("""Limit output to first N lines/entries. Works across all output modes. Defaults to 250 when unspecified. Pass 0 for unlimited (use sparingly - large result sets waste context).""")][DefaultValue(250)] int? headLimit,
         [Description("""Skip first N lines/entries before applying head_limit. Works across all output modes. Defaults to 0.""")][DefaultValue(0)] int offset,
         [Description("Enable multiline mode where . matches newlines and patterns can span lines. Default: false.")][DefaultValue(false)] bool multiline,
-        [Description("""Print only the matched (non-empty) parts of each matching line, one match per output line. Requires output_mode: "content", ignored otherwise. Defaults to false.""")][DefaultValue(false)] bool onlyMatching,
+        [Description("""Print only the matched (non-empty) parts of each matching line, one match per output line. Requires outputMode: "content", ignored otherwise. Defaults to false.""")][DefaultValue(false)] bool onlyMatching,
         CancellationToken cancellationToken = default)
     {
         return GrepAsync(pattern, path, glob, outputMode, beforeContext, afterContext, context, showLineNumbers, ignoreCase, headLimit, offset, multiline, onlyMatching, cancellationToken);

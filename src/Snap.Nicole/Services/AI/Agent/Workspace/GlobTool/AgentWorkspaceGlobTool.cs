@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.GlobTool;
 
-// See https://github.com/claude-code-best/claude-code/blob/main/packages/builtin-tools/src/tools/GlobTool/GlobTool.ts
 internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
     : AgentWorkspaceTool(context)
 {

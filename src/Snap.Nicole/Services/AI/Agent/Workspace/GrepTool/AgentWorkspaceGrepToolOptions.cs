@@ -9,25 +9,25 @@ internal sealed class AgentWorkspaceGrepToolOptions
 
     public required string Pattern { get; init; }
 
+    public string? Glob { get; init; }
+
     public required AgentWorkspaceGrepToolOutputMode OutputMode { get; init; }
-
-    public required int Offset { get; init; }
-
-    public required int HeadLimit { get; init; }
-
-    public required bool IgnoreCase { get; init; }
-
-    public required bool Multiline { get; init; }
-
-    public required bool ShowLineNumbers { get; init; }
-
-    public required bool OnlyMatching { get; init; }
 
     public required int BeforeContext { get; init; }
 
     public required int AfterContext { get; init; }
 
-    public string? Glob { get; init; }
+    public required bool ShowLineNumbers { get; init; }
+
+    public required bool IgnoreCase { get; init; }
+
+    public required int HeadLimit { get; init; }
+
+    public required int Offset { get; init; }
+
+    public required bool Multiline { get; init; }
+
+    public required bool OnlyMatching { get; init; }
 
     public static MessageResult<AgentWorkspaceGrepToolOptions> Create(string pattern, string? glob, AgentWorkspaceGrepToolOutputMode outputMode, int? beforeContext, int? afterContext, int? context, bool showLineNumbers, bool ignoreCase, int? headLimit, int offset, bool multiline, bool onlyMatching)
     {

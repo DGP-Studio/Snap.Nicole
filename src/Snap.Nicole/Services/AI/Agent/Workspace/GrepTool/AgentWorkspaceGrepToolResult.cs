@@ -16,7 +16,7 @@ internal sealed class AgentWorkspaceGrepToolResult : IAgentWorkspaceToolResult<A
     public required int NumberOfFiles { get; init; }
 
     [JsonPropertyName("filenames")]
-    public required List<string> FileNames { get; init; }
+    public required IReadOnlyList<string> FileNames { get; init; }
 
     [JsonPropertyName("content")]
     public string? Content { get; init; }

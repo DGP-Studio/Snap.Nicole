@@ -29,8 +29,6 @@ internal readonly struct TextLine
 
     public int Length { get => span.Length; }
 
-    public string Value { get => text.ToString(span); }
-
     public static bool operator ==(TextLine left, TextLine right)
     {
         return left.Equals(right);

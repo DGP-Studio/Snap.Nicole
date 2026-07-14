@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Snap.Nicole.Core.Collections.Generic;
 using Snap.Nicole.Core.Text;
 using Snap.Nicole.Services.AI.Agent.Workspace.StructuredPatch;
 using System.Collections.Generic;
@@ -94,7 +95,7 @@ internal static class AgentWorkspaceEditToolResultFactory
             return fileText.IsEmpty ? [0] : [];
         }
 
-        List<int> matchStartIndexes = [];
+        ArrayBuilder<int> matchStartIndexes = new();
 
         int searchStartIndex = 0;
         while (searchStartIndex < fileText.Length)
@@ -109,6 +110,6 @@ internal static class AgentWorkspaceEditToolResultFactory
             searchStartIndex = matchStartIndex + oldString.Length;
         }
 
-        return matchStartIndexes;
+        return matchStartIndexes.ToReadOnlyListAndClear();
     }
 }

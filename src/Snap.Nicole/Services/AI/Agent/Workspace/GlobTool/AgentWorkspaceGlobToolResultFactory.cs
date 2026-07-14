@@ -23,9 +23,8 @@ internal static class AgentWorkspaceGlobToolResultFactory
         Matcher matcher = new(StringComparison.OrdinalIgnoreCase);
         matcher.AddInclude(pattern.Replace('\\', '/'));
 
-        IReadOnlyList<GlobCandidate> candidates = CreateCandidates(directory, cancellationToken);
-        IReadOnlyList<GlobCandidate> matches = CreateMatches(matcher, directory, candidates);
-        return Task.FromResult<AIContent>(CreateTextContent(callId, [.. matches.Order(GlobCandidate.Comparer).Select(static result => result.RelativePath)]));
+        IReadOnlyList<GlobCandidate> matches = CreateGlobCandidates(directory, matcher, cancellationToken);
+        return Task.FromResult<AIContent>(CreateTextContent(callId, [.. matches.Select(static result => result.RelativePath)]));
     }
 
     private static TextContent CreateTextContent(string callId, IReadOnlyList<string> relativePathList)
@@ -63,22 +62,15 @@ internal static class AgentWorkspaceGlobToolResultFactory
         return new TextContent(builder.ToString());
     }
 
-    private static IReadOnlyList<GlobCandidate> CreateCandidates(AgentWorkspaceDirectory directory, CancellationToken cancellationToken)
+    private static IReadOnlyList<GlobCandidate> CreateGlobCandidates(AgentWorkspaceDirectory directory, Matcher matcher, CancellationToken cancellationToken)
     {
-        ArrayBuilder<GlobCandidate> candidates = new();
+        Dictionary<string, GlobCandidate> candidatesByRelativePath = [with(StringComparer.OrdinalIgnoreCase)];
         foreach (AgentWorkspaceFile file in directory.EnumerateFiles("*", recurseSubdirectories: true))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            candidates.Add(GlobCandidate.Create(directory, file));
+            GlobCandidate candidate = GlobCandidate.Create(directory, file);
+            candidatesByRelativePath.Add(candidate.RelativePath, candidate);
         }
-
-        return candidates.ToReadOnlyListAndClear();
-    }
-
-    private static IReadOnlyList<GlobCandidate> CreateMatches(Matcher matcher, AgentWorkspaceDirectory directory, IReadOnlyList<GlobCandidate> candidates)
-    {
-        Dictionary<string, GlobCandidate> candidatesByRelativePath = candidates
-            .ToDictionary(static candidate => candidate.RelativePath, StringComparer.OrdinalIgnoreCase);
 
         PatternMatchingResult matchResult = matcher.Match(directory.FullPath, candidatesByRelativePath.Keys);
         if (!matchResult.HasMatches)
@@ -92,6 +84,7 @@ internal static class AgentWorkspaceGlobToolResultFactory
             results.Add(candidatesByRelativePath[match.Path]);
         }
 
+        results.Sort(GlobCandidate.Comparer);
         return results.ToReadOnlyListAndClear();
     }
 
