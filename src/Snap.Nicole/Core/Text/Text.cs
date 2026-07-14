@@ -2,7 +2,7 @@ using System.Text;
 
 namespace Snap.Nicole.Core.Text;
 
-internal readonly struct Text
+internal readonly struct Text : IEquatable<Text>
 {
     public Text(string value)
     {
@@ -18,6 +18,16 @@ internal readonly struct Text
 
     public int LineEndingCount { get; }
 
+    public static bool operator ==(Text left, Text right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(Text left, Text right)
+    {
+        return !left.Equals(right);
+    }
+
     public int IndexOf(Text value, int startIndex, StringComparison comparisonType)
     {
         return Value.IndexOf(value.Value, startIndex, comparisonType);
@@ -26,6 +36,26 @@ internal readonly struct Text
     public string Replace(Text oldValue, Text newValue)
     {
         return Value.Replace(oldValue.Value, newValue.Value);
+    }
+
+    public bool Equals(Text other)
+    {
+        return Value.Equals(other.Value);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is Text text && Equals(text);
+    }
+
+    public override int GetHashCode()
+    {
+        return Value.GetHashCode();
+    }
+
+    public string ToString(TextSpan span)
+    {
+        return Value.Substring(span.Start, span.Length);
     }
 
     private static string NormalizeLineEndings(string value, out int lineEndingCount)

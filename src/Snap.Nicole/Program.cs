@@ -110,7 +110,7 @@ internal static class Program
 
         Application.Start(static ignored =>
         {
-            using SentryDiagnosticSpan xamlSpan = SentryDiagnostics.StartSpan(SentryOperations.AppXamlStart, "StartIndex XAML application");
+            using SentryDiagnosticSpan xamlSpan = SentryDiagnostics.StartSpan(SentryOperations.AppXamlStart, "Start XAML application");
 
             SynchronizationContextPolyfill context = new(DispatcherQueue.GetForCurrentThread());
             SynchronizationContext.SetSynchronizationContext(context);

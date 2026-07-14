@@ -109,6 +109,7 @@ src
 
 ### Implementation choices
 
+- Passing a struct to a parameter typed as an interface always causes boxing. If the struct is used only at such call site, change it to a class.
 - Perfer uisng `System.Security.Cryptography.CryptographicOperations` for general oneshot usage over certain types like `SHA256`,`MD5`
 
 ### Resources and reuse

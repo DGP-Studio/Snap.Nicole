@@ -1,3 +1,4 @@
+using Snap.Nicole.Core.Collections.Generic;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -23,20 +24,20 @@ internal sealed class TextLineCollection : IReadOnlyList<TextLine>
 
     public TextLine this[int index] { get => lines[index]; }
 
-    public static TextLineCollection FromText(string value)
+    public static TextLineCollection FromText(string value, bool trimTrailingEmptyLine = false)
     {
-        return FromText(new Text(value));
+        return FromText(new Text(value), trimTrailingEmptyLine);
     }
 
-    public static TextLineCollection FromText(Text value)
+    public static TextLineCollection FromText(Text value, bool trimTrailingEmptyLine = false)
     {
-        if (value.IsEmpty)
+        if (trimTrailingEmptyLine && value.IsEmpty)
         {
             return Empty;
         }
 
-        List<TextLine> lines = [];
-        int lineIndex = 0;
+        ArrayBuilder<TextLine> lines = new();
+        int lineNumber = 0;
         int lineStartIndex = 0;
         for (int i = 0; i < value.Length; i++)
         {
@@ -45,47 +46,73 @@ internal sealed class TextLineCollection : IReadOnlyList<TextLine>
                 continue;
             }
 
-            lines.Add(new(value, lineIndex, lineStartIndex, i - lineStartIndex));
-            lineIndex++;
+            lines.Add(new(value, lineNumber, lineStartIndex, i - lineStartIndex));
+            lineNumber++;
             lineStartIndex = i + 1;
         }
 
-        if (lineStartIndex < value.Length)
+        if (!trimTrailingEmptyLine || lineStartIndex < value.Length)
         {
-            lines.Add(new(value, lineIndex, lineStartIndex, value.Length - lineStartIndex));
+            lines.Add(new(value, lineNumber, lineStartIndex, value.Length - lineStartIndex));
         }
 
-        return new([.. lines]);
+        return new(lines.ToArrayAndClear());
     }
 
-    public TextLineCollection Slice(int startIndex, int count)
+    public int IndexOf(int position)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(startIndex);
-        ArgumentOutOfRangeException.ThrowIfNegative(count);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(startIndex, lines.Length);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(count, lines.Length - startIndex);
+        ArgumentOutOfRangeException.ThrowIfNegative(position);
 
-        if (count is 0)
+        if (lines.Length is 0 || position < lines[0].Start || position > lines[^1].End)
         {
-            return Empty;
+            throw new ArgumentOutOfRangeException(nameof(position));
         }
 
-        if (startIndex is 0 && count == lines.Length)
-        {
-            return this;
-        }
-
-        return new(lines.AsSpan(startIndex, count).ToArray());
+        int index = lines.AsSpan().BinarySearch(new TextLinePositionComparable(position));
+        return index >= 0 ? index : ~index - 1;
     }
 
-    public TextLineCollection WithoutTrailingEmptyLine()
+    public TextLine GetLineFromPosition(int position)
     {
-        if (lines.Length is 0 || lines[^1].Length is not 0)
+        return lines[IndexOf(position)];
+    }
+
+    public LinePosition GetLinePosition(int position)
+    {
+        TextLine line = GetLineFromPosition(position);
+        return new(line.LineNumber, position - line.Start);
+    }
+
+    public LinePositionSpan GetLinePositionSpan(TextSpan span)
+    {
+        return new(GetLinePosition(span.Start), GetLinePosition(span.End));
+    }
+
+    public int GetPosition(LinePosition position)
+    {
+        if (lines.Length is 0)
         {
-            return this;
+            throw new ArgumentOutOfRangeException(nameof(position));
         }
 
-        return new(lines[..^1]);
+        int relativeLine = position.Line - lines[0].LineNumber;
+        if (relativeLine < 0 || relativeLine >= lines.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(position));
+        }
+
+        TextLine line = lines[relativeLine];
+        if (position.Character > line.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(position));
+        }
+
+        return line.Start + position.Character;
+    }
+
+    public TextSpan GetTextSpan(LinePositionSpan span)
+    {
+        return TextSpan.FromBounds(GetPosition(span.Start), GetPosition(span.End));
     }
 
     public IEnumerator<TextLine> GetEnumerator()
@@ -93,55 +120,18 @@ internal sealed class TextLineCollection : IReadOnlyList<TextLine>
         return ((IEnumerable<TextLine>)lines).GetEnumerator();
     }
 
-    public int GetTextOffset(TextPosition position)
-    {
-        if (lines.Length is 0)
-        {
-            return 0;
-        }
-
-        int relativeLine = position.Line - lines[0].LineIndex;
-        if (relativeLine < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(position), "Position line cannot be before the collection start line.");
-        }
-
-        if (position.Column < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(position), "Position column cannot be negative.");
-        }
-
-        if (relativeLine >= lines.Length)
-        {
-            return lines[^1].EndIndex - lines[0].StartIndex;
-        }
-
-        TextLine line = lines[relativeLine];
-        if (position.Column > line.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(position), "Position column cannot be beyond the line length.");
-        }
-
-        return line.StartIndex - lines[0].StartIndex + position.Column;
-    }
-
-    public string ToText()
-    {
-        if (lines.Length is 0)
-        {
-            return string.Empty;
-        }
-
-        TextLine firstLine = lines[0];
-        int startIndex = firstLine.StartIndex;
-        int length = lines[^1].EndIndex - startIndex;
-
-        // Substring returns original instance if startIndex is 0 and length is equal to the string length
-        return firstLine.SourceText.Value.Substring(startIndex, length);
-    }
-
     IEnumerator IEnumerable.GetEnumerator()
     {
         return GetEnumerator();
+    }
+
+    private sealed class TextLinePositionComparable(int position) : IComparable<TextLine>
+    {
+        private readonly int position = position;
+
+        public int CompareTo(TextLine other)
+        {
+            return position.CompareTo(other.Start);
+        }
     }
 }

@@ -2,43 +2,68 @@ namespace Snap.Nicole.Core.Text;
 
 internal readonly struct TextLine
 {
-    private readonly Text sourceText;
+    private readonly Text text;
     private readonly TextSpan span;
-    private readonly LinePositionSpan positionSpan;
 
-    public TextLine(Text sourceText, int lineIndex, int startIndex, int length)
+    public TextLine(Text text, int lineNumber, int start, int length)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(lineIndex);
+        ArgumentOutOfRangeException.ThrowIfNegative(lineNumber);
 
-        TextSpan span = new(startIndex, length);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(span.End, sourceText.Length);
+        TextSpan span = new(start, length);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(span.End, text.Length);
 
-        this.sourceText = sourceText;
+        this.text = text;
         this.span = span;
-        positionSpan = new(new(lineIndex, 0), new(lineIndex, length));
-        LineIndex = lineIndex;
+        LineNumber = lineNumber;
     }
 
-    public Text SourceText { get => sourceText; }
+    public Text Text { get => text; }
 
-    public int LineIndex { get; }
+    public int LineNumber { get; }
 
-    public int LineNumber { get => LineIndex + 1; }
+    public int Start { get => span.Start; }
+
+    public int End { get => span.End; }
 
     public TextSpan Span { get => span; }
 
-    public LinePositionSpan PositionSpan { get => positionSpan; }
-
-    public int StartIndex { get => span.Start; }
-
-    public int EndIndex { get => span.End; }
-
     public int Length { get => span.Length; }
 
-    public string Value { get => sourceText.Value.Substring(span.Start, span.Length); }
+    public string Value { get => text.ToString(span); }
+
+    public static bool operator ==(TextLine left, TextLine right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(TextLine left, TextLine right)
+    {
+        return !left.Equals(right);
+    }
+
+    public bool Equals(TextLine other)
+    {
+        // Same text and same span means same line.
+        return other.text == text && other.span == span;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is TextLine line && Equals(line);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(text.GetHashCode(), span.GetHashCode());
+    }
 
     public override string ToString()
     {
-        return Value;
+        if (text.IsEmpty)
+        {
+            return string.Empty;
+        }
+
+        return text.ToString(span);
     }
 }

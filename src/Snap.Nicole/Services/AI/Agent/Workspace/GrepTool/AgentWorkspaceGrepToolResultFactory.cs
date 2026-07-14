@@ -263,7 +263,7 @@ internal static class AgentWorkspaceGrepToolResultFactory
 
     private static GrepFileMatch CreateLineMatch(Text content, Regex regex)
     {
-        TextLineCollection lines = TextLineCollection.FromText(content);
+        TextLineCollection lines = TextLineCollection.FromText(content, trimTrailingEmptyLine: true);
         List<GrepLineMatch> matches = [];
         int matchCount = 0;
         foreach (TextLine line in lines)
@@ -301,7 +301,7 @@ internal static class AgentWorkspaceGrepToolResultFactory
 
     private static GrepFileMatch CreateMultilineMatch(Text content, Regex regex)
     {
-        TextLineCollection lines = TextLineCollection.FromText(content);
+        TextLineCollection lines = TextLineCollection.FromText(content, trimTrailingEmptyLine: true);
         MatchCollection textMatches = regex.Matches(content.Value);
         if (textMatches.Count is 0)
         {
@@ -354,13 +354,13 @@ internal static class AgentWorkspaceGrepToolResultFactory
     {
         if (match.Length is 0)
         {
-            return match.Index >= line.StartIndex && match.Index <= line.EndIndex;
+            return match.Index >= line.Start && match.Index <= line.End;
         }
 
         int matchStart = match.Index;
         int matchEnd = match.Index + match.Length;
-        int lineEnd = Math.Max(line.EndIndex, line.StartIndex + 1);
-        return matchStart < lineEnd && matchEnd > line.StartIndex;
+        int lineEnd = Math.Max(line.End, line.Start + 1);
+        return matchStart < lineEnd && matchEnd > line.Start;
     }
 
     private static void AppendFileOutput(ArrayBuilder<string> output, string displayPath, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
@@ -404,13 +404,13 @@ internal static class AgentWorkspaceGrepToolResultFactory
 
     private static void AppendContentOutput(ArrayBuilder<string> output, string displayPath, GrepFileMatch match, AgentWorkspaceGrepToolOptions options)
     {
-        int previousLineNumber = 0;
+        int previousLineNumber = -1;
         HashSet<int> writtenLineNumbers = [];
         foreach (GrepLineMatch lineMatch in match.Matches)
         {
-            int firstLineNumber = Math.Max(1, lineMatch.Line.LineNumber - options.BeforeContext);
-            int lastLineNumber = Math.Min(match.Lines.Count, lineMatch.Line.LineNumber + options.AfterContext);
-            if (previousLineNumber > 0 && firstLineNumber > previousLineNumber + 1)
+            int firstLineNumber = Math.Max(0, lineMatch.Line.LineNumber - options.BeforeContext);
+            int lastLineNumber = Math.Min(match.Lines.Count - 1, lineMatch.Line.LineNumber + options.AfterContext);
+            if (previousLineNumber >= 0 && firstLineNumber > previousLineNumber + 1)
             {
                 output.Add("--");
             }
@@ -422,7 +422,7 @@ internal static class AgentWorkspaceGrepToolResultFactory
                     continue;
                 }
 
-                TextLine line = match.Lines[lineNumber - 1];
+                TextLine line = match.Lines[lineNumber];
                 bool isMatchLine = lineNumber == lineMatch.Line.LineNumber;
                 output.Add(CreateContentOutputLine(displayPath, line, isMatchLine, options.ShowLineNumbers));
                 previousLineNumber = lineNumber;
