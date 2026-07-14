@@ -4,6 +4,4 @@ internal enum AgentWorkspaceShellKind
 {
     PowerShell,
     Cmd,
-    Bash,
-    Sh,
 }

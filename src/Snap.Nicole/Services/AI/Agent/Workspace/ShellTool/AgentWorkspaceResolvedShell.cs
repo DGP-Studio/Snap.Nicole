@@ -20,8 +20,7 @@ internal readonly struct AgentWorkspaceResolvedShell
         {
             AgentWorkspaceShellKind.PowerShell => ["-NoProfile", "-NoLogo", "-NonInteractive", "-Command", command],
             AgentWorkspaceShellKind.Cmd => ["/d", "/c", command],
-            AgentWorkspaceShellKind.Sh => ["-c", command],
-            _ => ["--noprofile", "--norc", "-c", command],
+            _ => throw new NotSupportedException($"Unsupported shell kind: {Kind}"),
         };
     }
 }

@@ -15,27 +15,22 @@ internal static class AgentWorkspaceShellResolver
             return ClassifyExplicit(overrideShell);
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            if (TryFindOnPath("pwsh", out string pwshPath))
-            {
-                return new(pwshPath, AgentWorkspaceShellKind.PowerShell);
-            }
-
-            if (TryFindOnPath("powershell", out string powershellPath))
-            {
-                return new(powershellPath, AgentWorkspaceShellKind.PowerShell);
-            }
-
-            return new(Path.Combine(SystemRoot(), "System32", "cmd.exe"), AgentWorkspaceShellKind.Cmd);
+            throw new PlatformNotSupportedException("ShellTool supports only Windows PowerShell and CMD.");
         }
 
-        if (File.Exists("/bin/bash"))
+        if (TryFindOnPath("pwsh", out string pwshPath))
         {
-            return new("/bin/bash", AgentWorkspaceShellKind.Bash);
+            return new(pwshPath, AgentWorkspaceShellKind.PowerShell);
         }
 
-        return new("/bin/sh", AgentWorkspaceShellKind.Sh);
+        if (TryFindOnPath("powershell", out string powershellPath))
+        {
+            return new(powershellPath, AgentWorkspaceShellKind.PowerShell);
+        }
+
+        return new(Path.Combine(SystemRoot(), "System32", "cmd.exe"), AgentWorkspaceShellKind.Cmd);
     }
 
     private static AgentWorkspaceResolvedShell ClassifyExplicit(string path)
@@ -49,8 +44,7 @@ internal static class AgentWorkspaceShellResolver
         {
             "PWSH" or "POWERSHELL" => AgentWorkspaceShellKind.PowerShell,
             "CMD" => AgentWorkspaceShellKind.Cmd,
-            "BASH" => AgentWorkspaceShellKind.Bash,
-            _ => AgentWorkspaceShellKind.Sh,
+            _ => throw new InvalidOperationException($"The {EnvironmentVariableName} environment variable supports only PowerShell and CMD."),
         };
     }
 

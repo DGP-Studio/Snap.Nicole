@@ -7,10 +7,10 @@ internal sealed class AgentWorkspaceShellOutputBuffer
 {
     private readonly int cap;
     private readonly int headCap;
-    private readonly int tailCap;
     private readonly List<byte> head = [];
     private readonly Queue<byte[]> tail = [];
 
+    private bool isHeadComplete;
     private int tailBytes;
     private long totalBytes;
 
@@ -18,7 +18,6 @@ internal sealed class AgentWorkspaceShellOutputBuffer
     {
         this.cap = Math.Max(cap, 0);
         headCap = this.cap / 2;
-        tailCap = this.cap - headCap;
     }
 
     public void AppendLine(string line)
@@ -68,9 +67,11 @@ internal sealed class AgentWorkspaceShellOutputBuffer
         Span<byte> destination = stackalloc byte[4];
         foreach (Rune rune in value.EnumerateRunes())
         {
+            // Encode this rune to its UTF-8 bytes (1-4 bytes).
             int byteCount = rune.EncodeToUtf8(destination);
             totalBytes += byteCount;
-            if (head.Count + byteCount <= headCap)
+
+            if (!isHeadComplete && head.Count + byteCount <= headCap)
             {
                 for (int i = 0; i < byteCount; i++)
                 {
@@ -80,10 +81,15 @@ internal sealed class AgentWorkspaceShellOutputBuffer
                 continue;
             }
 
+            isHeadComplete = true;
+
+            // Preserve this and all subsequent runes in the tail to keep their order.
             byte[] item = destination[..byteCount].ToArray();
             tail.Enqueue(item);
             tailBytes += byteCount;
-            while (tailBytes > tailCap && tail.Count > 0)
+
+            // Evict whole runes from the front of the tail until we fit.
+            while (tailBytes > cap - head.Count)
             {
                 byte[] removed = tail.Dequeue();
                 tailBytes -= removed.Length;
