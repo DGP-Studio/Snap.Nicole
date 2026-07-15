@@ -2,17 +2,11 @@ using System.Collections.Generic;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.ShellTool;
 
-internal readonly struct AgentWorkspaceResolvedShell
+internal readonly struct AgentWorkspaceResolvedShell(string binary, AgentWorkspaceShellKind kind)
 {
-    public AgentWorkspaceResolvedShell(string binary, AgentWorkspaceShellKind kind)
-    {
-        Binary = binary;
-        Kind = kind;
-    }
+    public string Binary { get; } = binary;
 
-    public string Binary { get; }
-
-    public AgentWorkspaceShellKind Kind { get; }
+    public AgentWorkspaceShellKind Kind { get; } = kind;
 
     public IReadOnlyList<string> CreateArguments(string command)
     {

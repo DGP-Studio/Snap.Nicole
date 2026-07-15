@@ -2,29 +2,19 @@ using System.Text;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.ShellTool;
 
-internal sealed class AgentWorkspaceShellResult
+internal sealed class AgentWorkspaceShellResult(string stdout, string stderr, int exitCode, TimeSpan duration, bool truncated, bool timedOut)
 {
-    public AgentWorkspaceShellResult(string stdout, string stderr, int exitCode, TimeSpan duration, bool truncated, bool timedOut)
-    {
-        Stdout = stdout;
-        Stderr = stderr;
-        ExitCode = exitCode;
-        Duration = duration;
-        Truncated = truncated;
-        TimedOut = timedOut;
-    }
+    public string Stdout { get; } = stdout;
 
-    public string Stdout { get; }
+    public string Stderr { get; } = stderr;
 
-    public string Stderr { get; }
+    public int ExitCode { get; } = exitCode;
 
-    public int ExitCode { get; }
+    public TimeSpan Duration { get; } = duration;
 
-    public TimeSpan Duration { get; }
+    public bool Truncated { get; } = truncated;
 
-    public bool Truncated { get; }
-
-    public bool TimedOut { get; }
+    public bool TimedOut { get; } = timedOut;
 
     public string FormatForModel()
     {

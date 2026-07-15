@@ -17,6 +17,10 @@ internal sealed class ArrayBuilder<T>
         array = ArrayPool<T>.Shared.Rent(initialCapacity);
     }
 
+    public int Count { get => count; }
+
+    public ReadOnlySpan<T> AsSpan() => array.AsSpan(0, count);
+
     public void Add(T item)
     {
         if (array is null)

@@ -115,6 +115,11 @@ internal sealed class TextLineCollection : IReadOnlyList<TextLine>
         return TextSpan.FromBounds(GetPosition(span.Start), GetPosition(span.End));
     }
 
+    public TextLineCollection Slice(int start, int length)
+    {
+        return new(lines.AsSpan(start, length).ToArray());
+    }
+
     public IEnumerator<TextLine> GetEnumerator()
     {
         return ((IEnumerable<TextLine>)lines).GetEnumerator();

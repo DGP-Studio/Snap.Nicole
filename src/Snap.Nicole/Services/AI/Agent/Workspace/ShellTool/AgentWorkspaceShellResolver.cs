@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -5,16 +6,10 @@ namespace Snap.Nicole.Services.AI.Agent.Workspace.ShellTool;
 
 internal static class AgentWorkspaceShellResolver
 {
-    private const string EnvironmentVariableName = "AGENT_FRAMEWORK_SHELL";
+    private static readonly IReadOnlyList<string> Extensions = [".exe", ".cmd", ".bat", string.Empty];
 
     public static AgentWorkspaceResolvedShell Resolve()
     {
-        string? overrideShell = Environment.GetEnvironmentVariable(EnvironmentVariableName);
-        if (!string.IsNullOrWhiteSpace(overrideShell))
-        {
-            return ClassifyExplicit(overrideShell);
-        }
-
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             throw new PlatformNotSupportedException("ShellTool supports only Windows PowerShell and CMD.");
@@ -30,22 +25,8 @@ internal static class AgentWorkspaceShellResolver
             return new(powershellPath, AgentWorkspaceShellKind.PowerShell);
         }
 
-        return new(Path.Combine(SystemRoot(), "System32", "cmd.exe"), AgentWorkspaceShellKind.Cmd);
-    }
-
-    private static AgentWorkspaceResolvedShell ClassifyExplicit(string path)
-    {
-        return new(path, ClassifyKind(path));
-    }
-
-    private static AgentWorkspaceShellKind ClassifyKind(string path)
-    {
-        return Path.GetFileNameWithoutExtension(path).ToUpperInvariant() switch
-        {
-            "PWSH" or "POWERSHELL" => AgentWorkspaceShellKind.PowerShell,
-            "CMD" => AgentWorkspaceShellKind.Cmd,
-            _ => throw new InvalidOperationException($"The {EnvironmentVariableName} environment variable supports only PowerShell and CMD."),
-        };
+        string systemRoot = Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows";
+        return new(Path.Combine(systemRoot, "System32", "cmd.exe"), AgentWorkspaceShellKind.Cmd);
     }
 
     private static bool TryFindOnPath(string name, out string fullPath)
@@ -57,7 +38,6 @@ internal static class AgentWorkspaceShellResolver
             return false;
         }
 
-        string[] extensions = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? [".exe", ".cmd", ".bat", string.Empty] : [string.Empty];
         string[] directories = path.Split(Path.PathSeparator);
         foreach (string directory in directories)
         {
@@ -66,9 +46,9 @@ internal static class AgentWorkspaceShellResolver
                 continue;
             }
 
-            foreach (string extension in extensions)
+            foreach (string extension in Extensions)
             {
-                string candidatePath = Path.Combine(directory, name + extension);
+                string candidatePath = Path.Combine(directory, $"{name}{extension}");
                 if (File.Exists(candidatePath))
                 {
                     fullPath = candidatePath;
@@ -79,10 +59,5 @@ internal static class AgentWorkspaceShellResolver
 
         fullPath = string.Empty;
         return false;
-    }
-
-    private static string SystemRoot()
-    {
-        return Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows";
     }
 }

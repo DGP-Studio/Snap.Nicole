@@ -8,17 +8,11 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace.ShellTool;
 
-internal sealed class AgentWorkspaceShellTool(AgentWorkspaceContext context) : AgentWorkspaceTool(context)
+internal sealed partial class AgentWorkspaceShellTool(AgentWorkspaceContext context) : AgentWorkspaceTool(context)
 {
     private const int MaxOutputBytes = 65536;
 
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
-    private static readonly Regex[] DenyRegexes =
-    [
-        new(@"(^|[;&|]\s*)rm\b(?=.*\s-rf\b|.*\s-fr\b|.*\s-r\b.*\s-f\b|.*\s-f\b.*\s-r\b)\s+[/\\]?(?=\s|$)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant),
-        new(@"(^|[;&|]\s*)Remove-Item\b(?=.*\b(-Recurse|-r)\b)(?=.*\b(-Force|-fo)\b)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant),
-        new(@"(^|[;&|]\s*)format(\.com)?\b", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant),
-    ];
 
     private readonly AgentWorkspaceResolvedShell shell = AgentWorkspaceShellResolver.Resolve();
 
@@ -141,8 +135,8 @@ internal sealed class AgentWorkspaceShellTool(AgentWorkspaceContext context) : A
 
         stopwatch.Stop();
         process.WaitForExit();
-        var (stdout, stdoutTruncated) = stdoutBuffer.ToFinalString();
-        var (stderr, stderrTruncated) = stderrBuffer.ToFinalString();
+        (string stdout, bool stdoutTruncated) = stdoutBuffer.ToFinalString();
+        (string stderr, bool stderrTruncated) = stderrBuffer.ToFinalString();
         return new(stdout, stderr, timedOut ? 124 : process.ExitCode, stopwatch.Elapsed, stdoutTruncated || stderrTruncated, timedOut);
     }
 
@@ -154,7 +148,7 @@ internal sealed class AgentWorkspaceShellTool(AgentWorkspaceContext context) : A
             return "Command rejected by policy: empty command";
         }
 
-        foreach (Regex denyRegex in DenyRegexes)
+        foreach (Regex denyRegex in AgentWorkspaceShellDenyRegex.GetDenyRegexList())
         {
             if (denyRegex.IsMatch(trimmedCommand))
             {
