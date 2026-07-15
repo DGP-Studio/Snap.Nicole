@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspaceFile : AgentWorkspacePath, IEquatable<AgentWorkspaceFile>
+internal sealed class AgentWorkspaceFile : AgentWorkspacePath
 {
     public bool Exists { get => File.Exists(FullPath); }
 
@@ -90,7 +90,7 @@ internal sealed class AgentWorkspaceFile : AgentWorkspacePath, IEquatable<AgentW
         return File.WriteAllTextAsync(FullPath, contents, encoding, cancellationToken);
     }
 
-    public bool Equals(AgentWorkspaceFile? other)
+    public bool PathEquals(AgentWorkspaceFile? other)
     {
         if (other is null)
         {

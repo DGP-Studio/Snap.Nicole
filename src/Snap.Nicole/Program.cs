@@ -69,7 +69,6 @@ internal static class Program
                     .AddSingleton<INotifyIcon, NotifyIcon>()
                     .AddSingleton<AgentChatClientFactory>()
                     .AddSingleton<IAgentService, AgentService>()
-                    .AddSingleton<AgentWorkspaceProvider>()
                     .AddSingleton<IAgentWorkspaceInteractionService, AgentWorkspaceInteractionService>()
                     .AddSingleton<IAgentConversationProvider, AgentConversationFileProvider>()
                     .AddSingleton<IModelProfileService, ModelProfileService>()

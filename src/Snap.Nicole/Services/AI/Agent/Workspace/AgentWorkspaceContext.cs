@@ -1,4 +1,5 @@
 using Snap.Nicole.Core;
+using Snap.Nicole.Core.Collections.Generic;
 using Snap.Nicole.Core.IO;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -16,6 +17,40 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
     private readonly Dictionary<string, ulong> readFileHashes = [with(StringComparer.OrdinalIgnoreCase)];
 
     public IReadOnlyList<AgentWorkspaceRootDirectory> RootDirectories { get; } = CreateRootDirectories(workingDirectories);
+
+    public static string? FindSimilarFile(AgentWorkspaceFile file)
+    {
+        try
+        {
+            string fileBaseName = file.NameWithoutExtension;
+            foreach (AgentWorkspaceFile candidateFile in file.Directory.EnumerateFiles($"{fileBaseName}.*", false))
+            {
+                if (string.Equals(candidateFile.NameWithoutExtension, fileBaseName, StringComparison.OrdinalIgnoreCase) && !candidateFile.PathEquals(file))
+                {
+                    return candidateFile.Name;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is DirectoryNotFoundException or FileNotFoundException or IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+
+        return null;
+    }
+
+    public string? SuggestPathUnderWorkspaceRoots(AgentWorkspaceFile file)
+    {
+        foreach (AgentWorkspaceRootDirectory rootDirectory in RootDirectories)
+        {
+            if (SuggestPathUnderWorkspaceRoot(rootDirectory, file) is { } suggestedPath)
+            {
+                return suggestedPath;
+            }
+        }
+
+        return null;
+    }
 
     public bool TryGetShellWorkingDirectory([NotNullWhen(true)] out string? workingDirectory, [NotNullWhen(false)] out string? message)
     {
@@ -37,7 +72,7 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
             return $"File path must be absolute: {path}";
         }
 
-        if (!TryGetFullPath(trimmedPath, "File path", path, out string? fullPath, out string? message))
+        if (!TryGetFullPath(trimmedPath, path, out string? fullPath, out string? message))
         {
             return message;
         }
@@ -80,7 +115,7 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
             return $"Directory path must be absolute: {path}";
         }
 
-        return ResolveAbsoluteDirectoryPath(trimmedPath);
+        return ResolvePath(trimmedPath, AgentWorkspaceDirectory.Create);
     }
 
     public MessageResult<AgentWorkspacePath> ResolveGrepPath(string? path)
@@ -93,7 +128,7 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
         string trimmedPath = path.Trim();
         if (Path.IsPathFullyQualified(trimmedPath))
         {
-            return ResolveAbsoluteSearchPath(trimmedPath);
+            return ResolvePath<AgentWorkspacePath>(trimmedPath, static (rootDirectory, fullPath) => File.Exists(fullPath) ? AgentWorkspaceFile.Create(rootDirectory, fullPath) : AgentWorkspaceDirectory.Create(rootDirectory, fullPath));
         }
 
         return $"Search path must be absolute: {path}";
@@ -123,40 +158,6 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
         return await file.ComputeHashAsync(cancellationToken) != readFileHash;
     }
 
-    public static string? FindSimilarFile(AgentWorkspaceFile file)
-    {
-        try
-        {
-            string fileBaseName = file.NameWithoutExtension;
-            foreach (AgentWorkspaceFile candidateFile in file.Directory.EnumerateFiles($"{fileBaseName}.*", false))
-            {
-                if (string.Equals(candidateFile.NameWithoutExtension, fileBaseName, StringComparison.OrdinalIgnoreCase) && !candidateFile.Equals(file))
-                {
-                    return candidateFile.Name;
-                }
-            }
-        }
-        catch (Exception ex) when (ex is DirectoryNotFoundException or FileNotFoundException or IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-
-        return null;
-    }
-
-    public string? SuggestPathUnderWorkspaceRoots(AgentWorkspaceFile file)
-    {
-        foreach (AgentWorkspaceRootDirectory rootDirectory in RootDirectories)
-        {
-            if (SuggestPathUnderWorkspaceRoot(rootDirectory, file) is { } suggestedPath)
-            {
-                return suggestedPath;
-            }
-        }
-
-        return null;
-    }
-
     private static string? SuggestPathUnderWorkspaceRoot(AgentWorkspaceRootDirectory rootDirectory, AgentWorkspaceFile file)
     {
         // This method is used to suggest a path under the workspace root directory for a file that is under the parent of the workspace root directory.
@@ -175,58 +176,7 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
         return File.Exists(correctedPath) ? correctedPath : null;
     }
 
-    private MessageResult<AgentWorkspaceDirectory> ResolveAbsoluteDirectoryPath(string path)
-    {
-        if (!TryGetFullPath(path, "Directory path", path, out string? fullPath, out string? message))
-        {
-            return message;
-        }
-
-        foreach (AgentWorkspaceRootDirectory rootDirectory in RootDirectories)
-        {
-            if (!rootDirectory.Contains(fullPath))
-            {
-                continue;
-            }
-
-            if (!TryValidateNoReparsePoint(rootDirectory, fullPath, out message))
-            {
-                return message;
-            }
-
-            return AgentWorkspaceDirectory.Create(rootDirectory, fullPath);
-        }
-
-        return $"Directory path must be under a workspace root: {path}";
-    }
-
-    private MessageResult<AgentWorkspacePath> ResolveAbsoluteSearchPath(string path)
-    {
-        if (!TryGetFullPath(path, "Search path", path, out string? fullPath, out string? message))
-        {
-            return message;
-        }
-
-        foreach (AgentWorkspaceRootDirectory rootDirectory in RootDirectories)
-        {
-            if (!rootDirectory.Contains(fullPath))
-            {
-                continue;
-            }
-
-            if (!TryValidateNoReparsePoint(rootDirectory, fullPath, out message))
-            {
-                return message;
-            }
-
-            AgentWorkspacePath searchPath = File.Exists(fullPath) ? AgentWorkspaceFile.Create(rootDirectory, fullPath) : AgentWorkspaceDirectory.Create(rootDirectory, fullPath);
-            return searchPath;
-        }
-
-        return $"Search path must be under a workspace root: {path}";
-    }
-
-    private MessageResult<AgentWorkspaceDirectory> CreateWorkspaceDirectoryFromRelativePath(AgentWorkspaceRootDirectory rootDirectory, string relativePath)
+    private static MessageResult<AgentWorkspaceDirectory> CreateWorkspaceDirectoryFromRelativePath(AgentWorkspaceRootDirectory rootDirectory, string relativePath)
     {
         if (!TryResolveSafeFullPath(rootDirectory, relativePath, out string? fullPath, out string? message))
         {
@@ -244,14 +194,14 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
             string localPath = relativePath.Replace('/', Path.DirectorySeparatorChar);
             combinedPath = Path.Combine(rootDirectory.FullPath, localPath);
         }
-        catch (Exception ex) when (IsPathException(ex))
+        catch (Exception ex) when (AgentWorkspaceProvider.IsWorkspaceException(ex))
         {
             fullPath = null;
             message = $"Invalid path: '{relativePath}'. {ex.Message}";
             return false;
         }
 
-        if (!TryGetFullPath(combinedPath, "Path", relativePath, out fullPath, out message))
+        if (!TryGetFullPath(combinedPath, relativePath, out fullPath, out message))
         {
             return false;
         }
@@ -313,7 +263,7 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
             catch (DirectoryNotFoundException)
             {
             }
-            catch (Exception ex) when (IsPathException(ex))
+            catch (Exception ex) when (AgentWorkspaceProvider.IsWorkspaceException(ex))
             {
                 message = $"Unable to validate path: {fullPath}. {ex.Message}";
                 return false;
@@ -332,7 +282,7 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
         return true;
     }
 
-    private static bool TryGetFullPath(string path, string pathDescription, string originalPath, [NotNullWhen(true)] out string? fullPath, [NotNullWhen(false)] out string? message)
+    private static bool TryGetFullPath(string path, string originalPath, [NotNullWhen(true)] out string? fullPath, [NotNullWhen(false)] out string? message)
     {
         try
         {
@@ -340,22 +290,22 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
             message = null;
             return true;
         }
-        catch (Exception ex) when (IsPathException(ex))
+        catch (Exception ex) when (AgentWorkspaceProvider.IsWorkspaceException(ex))
         {
             fullPath = null;
-            message = $"{pathDescription} is invalid: {originalPath}. {ex.Message}";
+            message = $"Invalid path: {originalPath}. {ex.Message}";
             return false;
         }
     }
 
-    private static List<AgentWorkspaceRootDirectory> CreateRootDirectories(IReadOnlyList<string> workingDirectories)
+    private static IReadOnlyList<AgentWorkspaceRootDirectory> CreateRootDirectories(IReadOnlyList<string> workingDirectories)
     {
         if (workingDirectories is null || workingDirectories.Count is 0)
         {
             throw new ArgumentException(NoWorkspaceRootsMessage, nameof(workingDirectories));
         }
 
-        List<AgentWorkspaceRootDirectory> rootDirectories = [];
+        ArrayBuilder<AgentWorkspaceRootDirectory> rootDirectories = new();
         for (int i = 0; i < workingDirectories.Count; i++)
         {
             string rawDirectory = workingDirectories[i];
@@ -370,11 +320,32 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
             rootDirectories.Add(new(directory));
         }
 
-        return rootDirectories;
+        return rootDirectories.ToReadOnlyListAndClear();
     }
 
-    private static bool IsPathException(Exception ex)
+    private MessageResult<T> ResolvePath<T>(string path, Func<AgentWorkspaceRootDirectory, string, T> resultFactory)
+        where T : class
     {
-        return ex is ArgumentException or IOException or NotSupportedException or UnauthorizedAccessException;
+        if (!TryGetFullPath(path, path, out string? fullPath, out string? message))
+        {
+            return message;
+        }
+
+        foreach (AgentWorkspaceRootDirectory rootDirectory in RootDirectories)
+        {
+            if (!rootDirectory.Contains(fullPath))
+            {
+                continue;
+            }
+
+            if (!TryValidateNoReparsePoint(rootDirectory, fullPath, out message))
+            {
+                return message;
+            }
+
+            return resultFactory(rootDirectory, fullPath);
+        }
+
+        return $"Path must be under a workspace root: {path}";
     }
 }

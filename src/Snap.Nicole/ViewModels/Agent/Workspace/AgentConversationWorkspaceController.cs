@@ -13,7 +13,6 @@ namespace Snap.Nicole.ViewModels.Agent.Workspace;
 
 internal sealed class AgentConversationWorkspaceController(IServiceProvider serviceProvider)
 {
-    private readonly AgentWorkspaceProvider workspaceProvider = serviceProvider.GetRequiredService<AgentWorkspaceProvider>();
     private readonly AgentConversationPersistenceController persistenceController = serviceProvider.GetRequiredService<AgentConversationPersistenceController>();
     private readonly IAgentWorkspaceInteractionService interactionService = serviceProvider.GetRequiredService<IAgentWorkspaceInteractionService>();
 
@@ -36,7 +35,7 @@ internal sealed class AgentConversationWorkspaceController(IServiceProvider serv
 
     public string GetWorkspaceDisplayPath(AgentConversationViewModel conversation)
     {
-        List<string> displayPaths = [GetDisplayPath(workspaceProvider.GetAppManagedWorkingDirectory(conversation.Id))];
+        List<string> displayPaths = [GetDisplayPath(AgentWorkspaceProvider.GetAppManagedWorkingDirectory(conversation.Id))];
         foreach (string path in conversation.ExternalDirectories)
         {
             displayPaths.Add(GetDisplayPath(path));
@@ -55,7 +54,7 @@ internal sealed class AgentConversationWorkspaceController(IServiceProvider serv
 
         try
         {
-            IReadOnlyList<string> normalizedDirectories = workspaceProvider.NormalizeExternalDirectories(selectedDirectories);
+            IReadOnlyList<string> normalizedDirectories = AgentWorkspaceProvider.NormalizeExternalDirectories(selectedDirectories);
             bool confirmed = await interactionService.ConfirmExternalFoldersAsync(normalizedDirectories, cancellationToken);
             if (!confirmed)
             {
@@ -83,7 +82,7 @@ internal sealed class AgentConversationWorkspaceController(IServiceProvider serv
     {
         try
         {
-            AgentWorkspaceSnapshot workspace = workspaceProvider.CreateSnapshot(conversation.Id, conversation.ExternalDirectories);
+            AgentWorkspaceSnapshot workspace = AgentWorkspaceProvider.CreateSnapshot(conversation.Id, conversation.ExternalDirectories);
             foreach (string workingDirectory in workspace.WorkingDirectories)
             {
                 interactionService.OpenFolder(workingDirectory);

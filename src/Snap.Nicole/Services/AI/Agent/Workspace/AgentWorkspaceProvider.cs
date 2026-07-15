@@ -1,4 +1,5 @@
 
+using Snap.Nicole.Core.Collections.Generic;
 using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Core.IO;
 using System.Collections.Generic;
@@ -6,13 +7,13 @@ using System.IO;
 
 namespace Snap.Nicole.Services.AI.Agent.Workspace;
 
-internal sealed class AgentWorkspaceProvider
+internal static class AgentWorkspaceProvider
 {
     private const string AgentWorkspacesDirectoryName = "AgentWorkspaces";
     private const string WorkingDirectoryName = "working";
     private const string MemoryDirectoryName = "memory";
 
-    public AgentWorkspaceSnapshot CreateSnapshot(Guid conversationId, IReadOnlyList<string> externalDirectories)
+    public static AgentWorkspaceSnapshot CreateSnapshot(Guid conversationId, IReadOnlyList<string> externalDirectories)
     {
         ArgumentNullException.ThrowIfNull(externalDirectories);
 
@@ -31,45 +32,16 @@ internal sealed class AgentWorkspaceProvider
         };
     }
 
-    public string GetAppManagedWorkingDirectory(Guid conversationId)
+    public static string GetAppManagedWorkingDirectory(Guid conversationId)
     {
         return Path.Combine(GetAppManagedWorkspaceRoot(conversationId), WorkingDirectoryName);
     }
 
-    public string GetMemoryDirectory()
+    public static IReadOnlyList<string> NormalizeExternalDirectories(IEnumerable<string> paths)
     {
-        return Path.Combine(GetAppManagedWorkspacesRoot(), MemoryDirectoryName);
-    }
+        ArrayBuilder<string> normalizedPaths = new();
+        HashSet<string> seenPaths = [];
 
-    public string NormalizeExternalDirectory(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            throw new DirectoryNotFoundException("External workspace directory is not configured.");
-        }
-
-        string fullPath = Path.GetFullPath(path.Trim());
-        DirectoryInfo directory = new(fullPath);
-        if (!directory.Exists)
-        {
-            throw new DirectoryNotFoundException($"External workspace directory does not exist: {fullPath}");
-        }
-
-        if ((directory.Attributes & FileAttributes.Directory) == 0)
-        {
-            throw new IOException($"External workspace path is not a directory: {fullPath}");
-        }
-
-        EnsureDirectoryAccessible(fullPath);
-        return fullPath;
-    }
-
-    public IReadOnlyList<string> NormalizeExternalDirectories(IEnumerable<string> paths)
-    {
-        ArgumentNullException.ThrowIfNull(paths);
-
-        List<string> normalizedPaths = [];
-        HashSet<string> seenPaths = new();
         foreach (string path in paths)
         {
             string normalizedPath = NormalizeExternalDirectory(path);
@@ -84,10 +56,10 @@ internal sealed class AgentWorkspaceProvider
             throw new DirectoryNotFoundException("External workspace directory is not configured.");
         }
 
-        return normalizedPaths;
+        return normalizedPaths.ToReadOnlyListAndClear();
     }
 
-    public void DeleteAppManagedWorkspace(Guid conversationId)
+    public static void DeleteAppManagedWorkspace(Guid conversationId)
     {
         string directory = GetAppManagedWorkspaceRoot(conversationId);
         try
@@ -107,7 +79,38 @@ internal sealed class AgentWorkspaceProvider
 
     public static bool IsWorkspaceException(Exception ex)
     {
-        return ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException;
+        return ex is ArgumentException or IOException or NotSupportedException or UnauthorizedAccessException;
+    }
+
+    private static string NormalizeExternalDirectory(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            throw new DirectoryNotFoundException("External workspace directory is not configured.");
+        }
+
+        string fullPath = Path.GetFullPath(path.Trim());
+        DirectoryInfo directory = new(fullPath);
+        if (!directory.Exists)
+        {
+            throw new DirectoryNotFoundException($"External workspace directory does not exist: {fullPath}");
+        }
+
+        if ((directory.Attributes & FileAttributes.Directory) == 0)
+        {
+            throw new IOException($"External workspace path is not a directory: {fullPath}");
+        }
+
+        // Ensure directory accessible
+        using IEnumerator<string> enumerator = Directory.EnumerateFileSystemEntries(fullPath).GetEnumerator();
+        _ = enumerator.MoveNext();
+
+        return fullPath;
+    }
+
+    private static string GetMemoryDirectory()
+    {
+        return Path.Combine(GetAppManagedWorkspacesRoot(), MemoryDirectoryName);
     }
 
     private static string GetAppManagedWorkspaceRoot(Guid conversationId)
@@ -118,11 +121,5 @@ internal sealed class AgentWorkspaceProvider
     private static string GetAppManagedWorkspacesRoot()
     {
         return Path.Combine(WellKnownLocations.Cache, AgentWorkspacesDirectoryName);
-    }
-
-    private static void EnsureDirectoryAccessible(string path)
-    {
-        using IEnumerator<string> enumerator = Directory.EnumerateFileSystemEntries(path).GetEnumerator();
-        _ = enumerator.MoveNext();
     }
 }

@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace Snap.Nicole.Core;
 
 [Union]
-internal readonly struct MessageResult<T>: IUnion
+internal readonly struct MessageResult<T> : IUnion
     where T : class
 {
     private readonly string? message;

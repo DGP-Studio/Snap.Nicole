@@ -12,7 +12,6 @@ namespace Snap.Nicole.ViewModels.Agent;
 internal sealed class AgentConversationRuntimeController(IServiceProvider serviceProvider)
 {
     private readonly IAgentService agentService = serviceProvider.GetRequiredService<IAgentService>();
-    private readonly AgentWorkspaceProvider workspaceProvider = serviceProvider.GetRequiredService<AgentWorkspaceProvider>();
     private readonly JsonSerializerOptions jsonOptions = serviceProvider.GetRequiredKeyedService<JsonSerializerOptions>(JsonSerializerOptionsKey.AgentConversation);
 
     public async ValueTask<HarnessAgent> EnsureConversationAgentAsync(AgentConversationViewModel conversation, ExtendedAgentOptions requestOptions, CancellationToken cancellationToken)
@@ -21,7 +20,7 @@ internal sealed class AgentConversationRuntimeController(IServiceProvider servic
         AgentWorkspaceSnapshot workspace;
         try
         {
-            workspace = workspaceProvider.CreateSnapshot(conversation.Id, conversation.ExternalDirectories);
+            workspace = AgentWorkspaceProvider.CreateSnapshot(conversation.Id, conversation.ExternalDirectories);
         }
         catch (Exception ex) when (AgentWorkspaceProvider.IsWorkspaceException(ex))
         {
