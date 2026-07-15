@@ -23,6 +23,13 @@ internal readonly struct MessageResult<T>: IUnion
         tag = 2;
     }
 
+    private MessageResult(string? message, T? result, long tag)
+    {
+        this.message = message;
+        this.result = result;
+        this.tag = tag;
+    }
+
     [MemberNotNullWhen(true, nameof(Value))]
     public bool HasValue { get => tag is not 0; }
 
@@ -34,6 +41,12 @@ internal readonly struct MessageResult<T>: IUnion
             2 => result,
             _ => null,
         };
+    }
+
+    public static MessageResult<T> CastUp<TDerived>(MessageResult<TDerived> value)
+        where TDerived : class, T
+    {
+        return new(value.message, value.result, value.tag);
     }
 
     public bool TryGetValue([NotNullWhen(true)] out string? value)

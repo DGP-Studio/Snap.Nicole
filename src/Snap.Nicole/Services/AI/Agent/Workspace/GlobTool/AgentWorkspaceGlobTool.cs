@@ -28,7 +28,7 @@ internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
             return new TextContent("Glob pattern cannot be empty.");
         }
 
-        MessageResult<AgentWorkspaceDirectory> result = Context.ResolveGlobDirectoryPath(path);
+        MessageResult<AgentWorkspaceDirectory> result = Context.ResolveGlobPath(path);
         if (result is string message)
         {
             return new TextContent(message);
@@ -36,7 +36,7 @@ internal sealed class AgentWorkspaceGlobTool(AgentWorkspaceContext context)
 
         if (result is not AgentWorkspaceDirectory directory)
         {
-            throw new InvalidOperationException("Unexpected result from ResolveGlobDirectoryPath.");
+            throw new InvalidOperationException("Unexpected result from ResolveGlobPath.");
         }
 
         return await AgentWorkspaceGlobToolResultFactory.CreateAsync(CallId, directory, pattern, cancellationToken);

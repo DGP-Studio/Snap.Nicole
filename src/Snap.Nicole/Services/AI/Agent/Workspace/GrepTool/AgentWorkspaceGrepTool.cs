@@ -45,7 +45,7 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
             throw new InvalidOperationException("Unexpected result from AgentWorkspaceGrepToolOptions.Create.");
         }
 
-        MessageResult<AgentWorkspacePath> searchPathResult = Context.ResolveGrepSearchPath(path);
+        MessageResult<AgentWorkspacePath> searchPathResult = Context.ResolveGrepPath(path);
         if (searchPathResult is string searchPathMessage)
         {
             return new TextContent(searchPathMessage);
@@ -53,7 +53,7 @@ internal sealed class AgentWorkspaceGrepTool(AgentWorkspaceContext context)
 
         if (searchPathResult is not AgentWorkspacePath searchPath)
         {
-            throw new InvalidOperationException("Unexpected result from ResolveGrepSearchPath.");
+            throw new InvalidOperationException("Unexpected result from ResolveGrepPath.");
         }
 
         return await AgentWorkspaceGrepToolResultFactory.CreateAsync(CallId, searchPath, options, cancellationToken);

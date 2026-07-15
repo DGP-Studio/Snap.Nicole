@@ -67,7 +67,7 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
         return $"File path must be under a workspace root: {path}";
     }
 
-    public MessageResult<AgentWorkspaceDirectory> ResolveGlobDirectoryPath(string? path)
+    public MessageResult<AgentWorkspaceDirectory> ResolveGlobPath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -75,30 +75,19 @@ internal sealed class AgentWorkspaceContext(IReadOnlyList<string> workingDirecto
         }
 
         string trimmedPath = path.Trim();
-        if (Path.IsPathFullyQualified(trimmedPath))
+        if (!Path.IsPathFullyQualified(trimmedPath))
         {
-            return ResolveAbsoluteDirectoryPath(trimmedPath);
+            return $"Directory path must be absolute: {path}";
         }
 
-        return $"Directory path must be absolute: {path}";
+        return ResolveAbsoluteDirectoryPath(trimmedPath);
     }
 
-    public MessageResult<AgentWorkspacePath> ResolveGrepSearchPath(string? path)
+    public MessageResult<AgentWorkspacePath> ResolveGrepPath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            MessageResult<AgentWorkspaceDirectory> directoryResult = CreateWorkspaceDirectoryFromRelativePath(RootDirectories[0], string.Empty);
-            if (directoryResult is string message)
-            {
-                return message;
-            }
-
-            if (directoryResult is not AgentWorkspaceDirectory directory)
-            {
-                throw new InvalidOperationException("Unexpected result from CreateWorkspaceDirectoryFromRelativePath.");
-            }
-
-            return directory;
+            return MessageResult<AgentWorkspacePath>.CastUp(CreateWorkspaceDirectoryFromRelativePath(RootDirectories[0], string.Empty));
         }
 
         string trimmedPath = path.Trim();
