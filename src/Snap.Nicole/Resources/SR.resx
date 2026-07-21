@@ -333,6 +333,36 @@
   <data name="UIXamlPagesAgentPageLabelContext" xml:space="preserve">
     <value>上下文</value>
   </data>
+  <data name="UIXamlPagesAgentPageLabelWorkspace" xml:space="preserve">
+    <value>工作目录</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelDefaultWorkspace" xml:space="preserve">
+    <value>默认工作目录</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelMultipleWorkspaces" xml:space="preserve">
+    <value>{0} 个外部目录</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelChooseWorkspaceFolder" xml:space="preserve">
+    <value>选择外部目录</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelOpenWorkspaceFolder" xml:space="preserve">
+    <value>打开目录</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelResetWorkspace" xml:space="preserve">
+    <value>清除外部目录</value>
+  </data>
+  <data name="UIXamlPagesAgentPageMessageExternalWorkspaceConfirmTitle" xml:space="preserve">
+    <value>确认外部目录</value>
+  </data>
+  <data name="UIXamlPagesAgentPageMessageExternalWorkspaceConfirmContent" xml:space="preserve">
+    <value>Agent 将能在以下外部目录内读取和修改文件。Shell 命令仍会从默认工作目录运行：{0}</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelConfirmWorkspace" xml:space="preserve">
+    <value>确认</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelCancelWorkspace" xml:space="preserve">
+    <value>取消</value>
+  </data>
   <data name="UIXamlPagesAgentPageLabelMessages" xml:space="preserve">
     <value>消息</value>
   </data>
@@ -605,6 +635,9 @@
   </data>
   <data name="UIXamlControlsChatToolApprovalRequestSegmentViewLabelDeny" xml:space="preserve">
     <value>拒绝</value>
+  </data>
+  <data name="UIXamlControlsChatToolApprovalRequestSegmentViewLabelWorkingDirectory" xml:space="preserve">
+    <value>工作目录</value>
   </data>
   <data name="UIXamlControlsChatMarkdownSegmentViewToolTipCopyText" xml:space="preserve">
     <value>复制文本</value>

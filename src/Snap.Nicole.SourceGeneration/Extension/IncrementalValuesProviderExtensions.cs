@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Snap.Nicole.SourceGeneration.Model;
 using System;
 using System.Collections.Generic;
@@ -20,7 +20,7 @@ internal static class IncrementalValuesProviderExtensions
     {
         return source.Collect().SelectMany((item, token) =>
         {
-            Dictionary<TKey, ImmutableArray<TElement>.Builder> map = new();
+            Dictionary<TKey, ImmutableArray<TElement>.Builder> map = [];
 
             foreach ((TLeft, TRight) pair in item)
             {
@@ -59,7 +59,7 @@ internal static class IncrementalValuesProviderExtensions
     {
         return source.Collect().SelectMany((item, token) =>
         {
-            Dictionary<TKey, ImmutableArray<TElement>.Builder> map = new();
+            Dictionary<TKey, ImmutableArray<TElement>.Builder> map = [];
 
             foreach (TElement source in item)
             {

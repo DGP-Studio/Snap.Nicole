@@ -129,7 +129,7 @@ internal sealed class CopyFromGenerator : IIncrementalGenerator
 
         private static EquatableArray<CopyFromSourceInfo> GetSources(INamedTypeSymbol targetType, ImmutableArray<AttributeData> attributes, Compilation compilation, CancellationToken token)
         {
-            HashSet<string> sourceTypeNames = new(StringComparer.Ordinal);
+            HashSet<string> sourceTypeNames = [with(StringComparer.Ordinal)];
             ImmutableArray<CopyFromSourceInfo>.Builder builder = ImmutableArray.CreateBuilder<CopyFromSourceInfo>();
 
             foreach (AttributeData attribute in attributes)
@@ -191,7 +191,7 @@ internal sealed class CopyFromGenerator : IIncrementalGenerator
 
         private static Dictionary<string, IPropertySymbol> GetSourceProperties(ITypeSymbol sourceType, CancellationToken token)
         {
-            Dictionary<string, IPropertySymbol> result = new(StringComparer.Ordinal);
+            Dictionary<string, IPropertySymbol> result = [with(StringComparer.Ordinal)];
 
             foreach (IPropertySymbol property in sourceType.GetMembers().OfType<IPropertySymbol>())
             {

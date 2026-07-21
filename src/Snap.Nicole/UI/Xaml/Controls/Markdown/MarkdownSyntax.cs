@@ -1,12 +1,11 @@
 using Snap.Nicole.Core;
-using System.Buffers;
+using Snap.Nicole.Core.Text;
 using System.Text;
 
 namespace Snap.Nicole.UI.Xaml.Controls.Markdown;
 
 internal static class MarkdownSyntax
 {
-    private static readonly SearchValues<char> LineEndings = SearchValues.Create("\r\f\u0085\u2028\u2029\n");
     private const int ListIndentColumnsPerLevel = 2;
     private const int TabIndentColumns = 4;
 
@@ -26,7 +25,7 @@ internal static class MarkdownSyntax
 
     internal static bool TryReadCompleteLine(ReadOnlySpan<char> markdown, ref int lineStart, out MarkdownLine line)
     {
-        int offset = markdown[lineStart..].IndexOfAny(LineEndings);
+        int offset = LineEnding.IndexOfNewLine(markdown[lineStart..]);
         if (offset < 0)
         {
             line = default;

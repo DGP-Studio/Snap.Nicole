@@ -62,18 +62,23 @@ internal sealed partial class SettingsModelConfigurationViewModel(IServiceProvid
 
     private static void MergeModelProfiles(ObservableSettingsCollection<ModelProfile, Guid> destination, IReadOnlyList<ModelProfile> source)
     {
-        // There can potentially be models with the same ModelId, so we didn't use ToDictionary.
-        Dictionary<string, ModelProfile> existingMap = new(StringComparer.Ordinal);
-        foreach (ModelProfile destModelProfile in destination)
+        bool shouldSelectFirstFetched = destination.CurrentItem is null || string.IsNullOrWhiteSpace(destination.CurrentItem.ModelId);
+        for (int i = destination.Count - 1; i >= 0; i--)
         {
-            if (!string.IsNullOrWhiteSpace(destModelProfile.ModelId))
+            if (string.IsNullOrWhiteSpace(destination[i].ModelId))
             {
-                existingMap.TryAdd(destModelProfile.ModelId, destModelProfile);
+                destination.RemoveAt(i);
             }
         }
 
-        HashSet<string> visitedModelIds = new(StringComparer.Ordinal);
-        bool shouldSelectFirstFetched = destination.CurrentItem is null || string.IsNullOrWhiteSpace(destination.CurrentItem.ModelId);
+        // There can potentially be models with the same ModelId, so we didn't use ToDictionary.
+        Dictionary<string, ModelProfile> existingMap = [with(StringComparer.Ordinal)];
+        foreach (ModelProfile destModelProfile in destination)
+        {
+            existingMap.TryAdd(destModelProfile.ModelId, destModelProfile);
+        }
+
+        HashSet<string> visitedModelIds = [with(StringComparer.Ordinal)];
         ModelProfile? firstFetched = null;
         int targetIndex = 0;
 

@@ -3,6 +3,7 @@ namespace Snap.Nicole.Core.Diagnostics;
 internal static class SentryOperations
 {
     public const string AgentConversationLoad = "agent.conversation.load";
+    public const string AgentWorkspaceDelete = "agent.workspace.delete";
     public const string AIChatSend = "ai.chat.send";
     public const string AIChatStream = "ai.chat.stream";
     public const string AIToolCurrentTime = "ai.tool.current_time";

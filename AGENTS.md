@@ -4,11 +4,53 @@ The user might execute `git add`/`git restore` actively to observable/review you
 
 ## Explore external C# symbols
 
-- Extensively use/load the `ilspycmd-find-implementation` skill when writing C# codes and you are not sure about any external symbol's behavior
+Extensively use/load the `ilspycmd-find-implementation` skill when writing C# codes and you are not sure about any external symbol's behavior
 
 ## Line Ending Normalization
 
 `normalize-line-endings` skill requires be use/load and you may follow the instructions in that skill before completing the givin task.
+
+# C# Type Members Layout Order
+
+**IMPORTANT**:
+
+<type-member-layout>
+When writing new code or editing existing code, arrange type members in the following order:
+
+- Fields
+- Constructors
+- Destructor
+- Nested Delegates
+- Events
+- Nested Enums
+- Nested Interfaces
+- Properties
+- Indexeres
+- Conversion operators
+- Other Operators
+- Method
+- Record Struct/Struct
+- Record (Class)/Class
+
+Then, within each member type, arrange members by accessibility modifier:
+
+- public
+- internal
+- protected internal
+- protected
+- private protected
+- private
+
+Then, within the same accessibility and member type, arrange members in the following order:
+
+- const
+- static readonly
+- readonly
+- normal
+</type-member-layout>
+
+Keep related members as close together as possible without violating the rules above.
+**Note**: this is only guidance for member placement order and does not necessarily mean every member type must be present in a type
 
 # Project Structure
 
@@ -28,6 +70,7 @@ src
 ### Architecture and patterns
 
 - A SDK style project
+- `global using` declarations are configured in `Program.cs`
 - Extensively adopt Microsoft.Extensions.Hosting and Microsoft.Extensions.DependencyInjection to manage the lifetime of applications, services, and objects. Services are registered at `Program.cs`.
 - Extensively adopt the Model-View-ViewModel (MVVM) pattern to handle data presentation and user interactions.
 - Extensively adopt Sentry to utilize it's error tracking and performance monitoring features.
@@ -40,7 +83,9 @@ src
 
 ### Syntax and style
 
-**IMPORTANT**: When writing code, find the best balance between **high performance** and **clean code**.
+**IMPORTANT**: Balance **high performance** with **clean code** when writing.
+**IMPORTANT**: Avoid useless micro-abstraction.
+**IMPORTANT**: This project is in early development/close beta; forward/backward compatibility is not a concern.
 
 - Always try your best to avoid memory leak. Especially when:
 	- Subscribing events, which is extremely dangerous when not properly unsubscribed.
@@ -48,25 +93,29 @@ src
 
 - DO
 	- Always normalize strings to uppercase before comparison when case-insensitive matching is required and `StringComparison.OrdinalIgnoreCase` is unavailable.
-	- Always organize method arguments in single line, no matter how long they are. Wrap related arguments into context class/struct/record if necessary (Consider this when having more the 4 arguments).
-	- When comparing an object with `null`, use `==` `!=` for WinRT Projection objects and the `is` `is not` pattern for all other types.
-	- For read-only properties, do not use direct expression-bodied declarations like `Property => value;`; use an expression get accessor instead, for example `Property { get => value; }`. Keep accessors in the same line whenever possible.
-	- For non-constant `string` or `string?` values that need an empty string, use `string.Empty` instead of `""`. Empty string literals are allowed only for constants (especially inside `[Attribute]` where `string.Empty` is not applicable) or the `is pattern`.
-	- Use `Interlocked.Exchange` for atomic read-modify-write operations: `if (Interlocked.Exchange(ref value, true)) { return; }` instead of separate read and write operations:`if (value) { return; } value = true;`
-	- When resolving multiple services from DI, single `IServiceProvider serviceProvider` argument is recommended, and resolve services from that serviceProvider, unless some parameters must be directly injected.
+	- Always organize method arguments in single line, unless they already in multiple lines when editing files.
+	- Always add braces to `using` statements, except for single-line `using` declarations.
+	- Wrap related arguments into context class/struct/record if necessary (Consider this when having more the 4 arguments).
+	- Prefer expression Property getter and setter, for example `Property { get => value; }`. Keep accessors in the same line whenever possible.
+	- Prefer FrozenSet/FrozenDictionary when creating immutable set/map for fast lookup operations.
+	- For non-constant `string` or `string?` values that need an empty string, use `string.Empty`. Empty string literal (`""`) is only allowed for constants (especially inside `[Attribute]` where `string.Empty` is not applicable) or the `is` `is not` pattern.
+	- When comparing an object with `null`, use `==` `!=` for WinRT Projection objects and the `is` `is not` pattern for other types.
+	- When resolving multiple services from DI,  use single `IServiceProvider serviceProvider` parameter, unless some parameters must be directly injected.
+
 - DO NOT
-	- Do not use expression-bodied syntax for methods, constructors, operators, or conversions. Lambdas or expressions inside method/property bodies are unaffected.
-	- Avoid closures that capture more than 4 variables. Closures should generally be minimized; when a method has an overload that accepts a state argument, prefer that overload.
-	- Non-static local functions should generally be avoided for the same reason as closures.
+	- Do not use `await using` when the actual type implments both `IDisposable` & `IAsyncDisposable`.
+	- Do not use expression body syntax for methods, constructors, operators, or conversions. Lambdas or expressions inside method/property bodies are unaffected.
+	- Avoid closures that capture more than 4 variables. Closures should generally be minimized; prefer method overload that accepts a state argument. Non-static local functions should generally be avoided.
 
 ### Implementation choices
 
+- Passing a struct to a parameter typed as an interface always causes boxing. If the struct is used only at such call site, change it to a class.
 - Perfer uisng `System.Security.Cryptography.CryptographicOperations` for general oneshot usage over certain types like `SHA256`,`MD5`
 
 ### Resources and reuse
 
 - In `.resx` resources, single-line user-visible text should not end with a sentence-ending period. Preserve meaningful punctuation such as ellipses, URLs, file extensions, or multi-line prose.
-- Do not reinvent the wheel when runtime libraries already provide equivalent functionality; use the `ilspycmd` command-line tool extensively to verify existing implementations before adding new code.
+- Do not reinvent the wheel when runtime libraries already provide equivalent functionality; use the `ilspycmd` command-line tool extensively to verify existing implementations.
 
 ### How to build `Snap.Nicole`
 

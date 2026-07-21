@@ -4,10 +4,12 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:cwc="using:CommunityToolkit.WinUI.Converters"
     xmlns:snuxcc="using:Snap.Nicole.UI.Xaml.Controls.ChatElements"
+    xmlns:snuxd="using:Snap.Nicole.UI.Xaml.Data"
     xmlns:snuxm="using:Snap.Nicole.UI.Xaml.Markup">
 
     <UserControl.Resources>
         <cwc:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <snuxd:EmptyStringToVisibilityConverter x:Key="TextVisibilityConverter" />
         <snuxcc:ChatToolApprovalResultToObjectConverter
             x:Key="ApprovalBackgroundBrushConverter"
             ApprovedValue="{ThemeResource SystemFillColorSuccessBackgroundBrush}"
@@ -68,6 +70,25 @@
             </Grid>
 
             <snuxcc:ChatToolCallSegmentView ToolCall="{x:Bind ToolApprovalRequest.ToolCall, Mode=OneWay}" Visibility="{x:Bind ToolApprovalRequest.IsHandled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=True}" />
+
+            <Grid ColumnSpacing="6" Visibility="{x:Bind ToolApprovalRequest.WorkingDirectory, Mode=OneWay, Converter={StaticResource TextVisibilityConverter}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock
+                    Grid.Column="0"
+                    Opacity="0.7"
+                    Style="{ThemeResource CaptionTextBlockStyle}"
+                    Text="{snuxm:StringResource Name=UIXamlControlsChatToolApprovalRequestSegmentViewLabelWorkingDirectory}" />
+                <TextBlock
+                    Grid.Column="1"
+                    Opacity="0.8"
+                    Style="{ThemeResource CaptionTextBlockStyle}"
+                    Text="{x:Bind ToolApprovalRequest.WorkingDirectory, Mode=OneWay}"
+                    TextWrapping="WrapWholeWords" />
+            </Grid>
 
             <StackPanel
                 Orientation="Horizontal"

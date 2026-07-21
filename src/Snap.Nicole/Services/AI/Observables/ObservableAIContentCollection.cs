@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Snap.Nicole.Services.AI.Observables.BuiltInTools;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text.Json;
@@ -75,6 +76,9 @@ internal sealed class ObservableAIContentCollection : ObservableCollection<Obser
             case ObservableFunctionCallContent lastFunctionCall when newContent is ObservableFunctionCallContent newFunctionCall && lastFunctionCall.CallId == newFunctionCall.CallId:
                 lastFunctionCall.Update(newFunctionCall);
                 return;
+            case ObservableFunctionResultContent lastFunctionResult when newContent is ObservableFunctionResultContent newFunctionResult && ShouldReplaceFunctionResult(lastFunctionResult, newFunctionResult):
+                Items[^1] = newFunctionResult;
+                return;
             case ObservableFunctionResultContent lastFunctionResult when newContent is ObservableFunctionResultContent newFunctionResult && lastFunctionResult.CallId == newFunctionResult.CallId:
                 lastFunctionResult.Update(newFunctionResult);
                 return;
@@ -94,5 +98,10 @@ internal sealed class ObservableAIContentCollection : ObservableCollection<Obser
                 Add(newContent);
                 return;
         }
+    }
+
+    private static bool ShouldReplaceFunctionResult(ObservableFunctionResultContent currentContent, ObservableFunctionResultContent newContent)
+    {
+        return currentContent.CallId == newContent.CallId && currentContent.GetType() != newContent.GetType() && newContent is ObservableEditToolResultContent or ObservableGlobToolResultContent or ObservableGrepToolResultContent or ObservableReadToolResultContent or ObservableWriteToolResultContent;
     }
 }

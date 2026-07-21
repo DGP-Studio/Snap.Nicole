@@ -272,6 +272,36 @@
   <data name="UIXamlPagesAgentPageLabelContext" xml:space="preserve">
     <value>Context</value>
   </data>
+  <data name="UIXamlPagesAgentPageLabelWorkspace" xml:space="preserve">
+    <value>Workspace</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelDefaultWorkspace" xml:space="preserve">
+    <value>Default workspace</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelMultipleWorkspaces" xml:space="preserve">
+    <value>{0} external folders</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelChooseWorkspaceFolder" xml:space="preserve">
+    <value>Choose external folders</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelOpenWorkspaceFolder" xml:space="preserve">
+    <value>Open folders</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelResetWorkspace" xml:space="preserve">
+    <value>Clear external folders</value>
+  </data>
+  <data name="UIXamlPagesAgentPageMessageExternalWorkspaceConfirmTitle" xml:space="preserve">
+    <value>Confirm external folders</value>
+  </data>
+  <data name="UIXamlPagesAgentPageMessageExternalWorkspaceConfirmContent" xml:space="preserve">
+    <value>The agent will be able to read and modify files in these external folders. Shell commands will continue to run from the default workspace: {0}</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelConfirmWorkspace" xml:space="preserve">
+    <value>Confirm</value>
+  </data>
+  <data name="UIXamlPagesAgentPageLabelCancelWorkspace" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
   <data name="UIXamlPagesAgentPageLabelMessages" xml:space="preserve">
     <value>Messages</value>
   </data>
@@ -544,6 +574,9 @@
   </data>
   <data name="UIXamlControlsChatToolApprovalRequestSegmentViewLabelDeny" xml:space="preserve">
     <value>Deny</value>
+  </data>
+  <data name="UIXamlControlsChatToolApprovalRequestSegmentViewLabelWorkingDirectory" xml:space="preserve">
+    <value>Working directory</value>
   </data>
   <data name="UIXamlControlsChatMarkdownSegmentViewToolTipCopyText" xml:space="preserve">
     <value>Copy Text</value>

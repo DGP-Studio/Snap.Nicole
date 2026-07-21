@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Snap.Nicole.Core;
 using Snap.Nicole.Resources;
+using Snap.Nicole.Services.AI.Agent.Models;
 using Snap.Nicole.Services.AI.Models;
 using System.Collections.Generic;
 using System.ComponentModel;

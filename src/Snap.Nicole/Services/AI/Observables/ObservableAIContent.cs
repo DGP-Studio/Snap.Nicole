@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.AI;
+using Snap.Nicole.Services.AI.Observables.BuiltInTools;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -9,9 +10,12 @@ namespace Snap.Nicole.Services.AI.Observables;
 [JsonDerivedType(typeof(ObservableCodeInterpreterToolCallContent), "code_interpreter_tool_call")]
 [JsonDerivedType(typeof(ObservableCodeInterpreterToolResultContent), "code_interpreter_tool_result")]
 [JsonDerivedType(typeof(ObservableDataContent), "data")]
+[JsonDerivedType(typeof(ObservableEditToolResultContent), "edit_tool_result")]
 [JsonDerivedType(typeof(ObservableErrorContent), "error")]
 [JsonDerivedType(typeof(ObservableFunctionCallContent), "function_call")]
 [JsonDerivedType(typeof(ObservableFunctionResultContent), "function_result")]
+[JsonDerivedType(typeof(ObservableGlobToolResultContent), "glob_tool_result")]
+[JsonDerivedType(typeof(ObservableGrepToolResultContent), "grep_tool_result")]
 [JsonDerivedType(typeof(ObservableHostedFileContent), "hosted_file")]
 [JsonDerivedType(typeof(ObservableHostedVectorStoreContent), "hosted_vector_store")]
 [JsonDerivedType(typeof(ObservableImageGenerationToolCallContent), "image_generation_tool_call")]
@@ -20,6 +24,7 @@ namespace Snap.Nicole.Services.AI.Observables;
 [JsonDerivedType(typeof(ObservableInputResponseContent), "input_response")]
 [JsonDerivedType(typeof(ObservableMcpServerToolCallContent), "mcp_server_tool_call")]
 [JsonDerivedType(typeof(ObservableMcpServerToolResultContent), "mcp_server_tool_result")]
+[JsonDerivedType(typeof(ObservableReadToolResultContent), "read_tool_result")]
 [JsonDerivedType(typeof(ObservableTextContent), "text")]
 [JsonDerivedType(typeof(ObservableTextReasoningContent), "text_reasoning")]
 [JsonDerivedType(typeof(ObservableToolApprovalRequestContent), "tool_approval_request")]
@@ -30,6 +35,7 @@ namespace Snap.Nicole.Services.AI.Observables;
 [JsonDerivedType(typeof(ObservableUsageContent), "usage")]
 [JsonDerivedType(typeof(ObservableWebSearchToolCallContent), "web_search_tool_call")]
 [JsonDerivedType(typeof(ObservableWebSearchToolResultContent), "web_search_tool_result")]
+[JsonDerivedType(typeof(ObservableWriteToolResultContent), "write_tool_result")]
 internal class ObservableAIContent : ObservableObject
 {
     public static ObservableAIContent? Create(AIContent content, JsonSerializerOptions jsonOptions)

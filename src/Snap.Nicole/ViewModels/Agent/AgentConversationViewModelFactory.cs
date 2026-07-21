@@ -1,14 +1,16 @@
-using Snap.Nicole.Services.AI.Models;
+using Snap.Nicole.Services.AI.Agent.Models;
+using Snap.Nicole.ViewModels.Agent.Workspace;
 
 namespace Snap.Nicole.ViewModels.Agent;
 
-internal sealed class AgentConversationViewModelFactory(AgentConversationTurnController conversationTurnController)
+internal sealed class AgentConversationViewModelFactory(AgentConversationTurnController conversationTurnController, AgentConversationWorkspaceController conversationWorkspaceController)
 {
     private readonly AgentConversationTurnController conversationTurnController = conversationTurnController;
+    private readonly AgentConversationWorkspaceController conversationWorkspaceController = conversationWorkspaceController;
 
     public AgentConversationViewModel Create(IAgentConversationDeleteHandler conversationDeleteHandler)
     {
-        return new(conversationDeleteHandler, conversationTurnController);
+        return new(conversationDeleteHandler, conversationTurnController, conversationWorkspaceController);
     }
 
     public AgentConversationViewModel Create(AgentConversation data, IAgentConversationDeleteHandler conversationDeleteHandler)
@@ -19,7 +21,8 @@ internal sealed class AgentConversationViewModelFactory(AgentConversationTurnCon
         conversation.CreatedAt = data.CreatedAt;
         conversation.UpdatedAt = data.UpdatedAt;
         conversation.Runtime.SerializedSessionState = data.SerializedSessionState?.Clone();
-        conversation.Messages = new(data.Messages);
+        conversation.ExternalDirectories = [.. data.ExternalDirectories];
+        conversation.Messages = [with(data.Messages)];
         conversation.ToolApprovalRequest = data.ToolApprovalRequest;
         conversation.UpdateConversationStatistics();
         return conversation;

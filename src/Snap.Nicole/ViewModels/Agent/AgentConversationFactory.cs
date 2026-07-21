@@ -1,4 +1,4 @@
-using Snap.Nicole.Services.AI.Models;
+using Snap.Nicole.Services.AI.Agent.Models;
 
 namespace Snap.Nicole.ViewModels.Agent;
 
@@ -15,8 +15,9 @@ internal static class AgentConversationFactory
             ModelProviderProfileId = conversation.ModelProviderProfile?.Id,
             ModelProfileId = conversation.ModelProfile?.Id,
             SerializedSessionState = conversation.Runtime.SerializedSessionState?.Clone(),
+            ExternalDirectories = [.. conversation.ExternalDirectories],
             ToolApprovalRequest = conversation.ToolApprovalRequest,
-            Messages = new(conversation.Messages),
+            Messages = [with(conversation.Messages)],
         };
     }
 }

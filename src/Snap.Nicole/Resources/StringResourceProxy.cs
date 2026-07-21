@@ -2,7 +2,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.Windows.Globalization;
+using Snap.Nicole.Core.ComponentModel;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 
 namespace Snap.Nicole.Resources;
@@ -32,7 +34,7 @@ internal sealed class StringResourceProxy : ObservableObject
             CultureInfo.CurrentUICulture = value;
 
             ApplicationLanguages.PrimaryLanguageOverride = value.Name;
-            OnPropertyChanged("Item[]");
+            OnPropertyChanged(PropertyChangedEventArgs.Indexer);
         }
     } = CultureInfo.CurrentCulture;
 

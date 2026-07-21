@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Snap.Nicole.Services.AI.Observables;
+using Snap.Nicole.Services.AI.Observables.BuiltInTools;
 
 namespace Snap.Nicole.UI.Xaml.Controls.ChatElements;
 
@@ -8,13 +9,23 @@ internal sealed class ChatToolResultTemplateSelector : DataTemplateSelector
 {
     public DataTemplate? CodeInterpreterTemplate { get; set; }
 
+    public DataTemplate? EditTemplate { get; set; }
+
     public DataTemplate? FunctionTemplate { get; set; }
+
+    public DataTemplate? GlobTemplate { get; set; }
+
+    public DataTemplate? GrepTemplate { get; set; }
 
     public DataTemplate? ImageGenerationTemplate { get; set; }
 
     public DataTemplate? McpServerTemplate { get; set; }
 
+    public DataTemplate? ReadTemplate { get; set; }
+
     public DataTemplate? WebSearchTemplate { get; set; }
+
+    public DataTemplate? WriteTemplate { get; set; }
 
     public DataTemplate? FallbackTemplate { get; set; }
 
@@ -23,6 +34,11 @@ internal sealed class ChatToolResultTemplateSelector : DataTemplateSelector
         return item switch
         {
             ObservableCodeInterpreterToolResultContent => CodeInterpreterTemplate,
+            ObservableEditToolResultContent => EditTemplate,
+            ObservableGlobToolResultContent => GlobTemplate,
+            ObservableGrepToolResultContent => GrepTemplate,
+            ObservableReadToolResultContent => ReadTemplate,
+            ObservableWriteToolResultContent => WriteTemplate,
             ObservableFunctionResultContent => FunctionTemplate,
             ObservableImageGenerationToolResultContent => ImageGenerationTemplate,
             ObservableMcpServerToolResultContent => McpServerTemplate,

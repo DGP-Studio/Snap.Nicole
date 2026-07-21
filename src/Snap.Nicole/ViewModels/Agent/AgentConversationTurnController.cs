@@ -4,8 +4,9 @@ using Sentry;
 using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Core.Text.Json;
 using Snap.Nicole.Resources;
-using Snap.Nicole.Services.AI;
-using Snap.Nicole.Services.AI.Models;
+using Snap.Nicole.Services.AI.Agent;
+using Snap.Nicole.Services.AI.Agent.Models;
+using Snap.Nicole.Services.AI.Agent.Workspace;
 using Snap.Nicole.Services.AI.Observables;
 using Snap.Nicole.Services.Settings;
 using System.Runtime.Serialization;
@@ -168,8 +169,9 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             throw new AgentConversationException(SRName.UIXamlPagesAgentPageMessageConfigureApiKey);
         }
 
-        HarnessAgent agent = await runtimeController.EnsureConversationAgentAsync(conversation.Runtime, requestOptions, cancellationToken);
+        HarnessAgent agent = await runtimeController.EnsureConversationAgentAsync(conversation, requestOptions, cancellationToken);
         AgentSession session = await runtimeController.EnsureConversationSessionAsync(conversation.Runtime, agent, cancellationToken);
+        AgentWorkspaceSnapshot workspace = conversation.Runtime.Workspace ?? throw new InvalidOperationException("Agent workspace is unavailable.");
         AgentRunStreamingContext streamingContext = new()
         {
             Conversation = conversation,
@@ -177,6 +179,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
             Agent = agent,
             Session = session,
             Options = requestOptions,
+            Workspace = workspace,
             TargetResponseMessage = ApplyToolApprovalState(conversation, operation.ToolApprovalState),
         };
 

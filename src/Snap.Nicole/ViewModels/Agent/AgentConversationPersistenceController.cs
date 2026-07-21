@@ -1,5 +1,6 @@
-using Snap.Nicole.Services.AI;
-using Snap.Nicole.Services.AI.Models;
+using Snap.Nicole.Services.AI.Agent;
+using Snap.Nicole.Services.AI.Agent.Models;
+using Snap.Nicole.Services.AI.Agent.Workspace;
 using System.Collections.Generic;
 
 namespace Snap.Nicole.ViewModels.Agent;
@@ -21,5 +22,6 @@ internal sealed class AgentConversationPersistenceController(IAgentConversationP
     public void DeleteConversation(AgentConversationViewModel conversation)
     {
         conversationProvider.DeleteConversation(conversation.Id);
+        AgentWorkspaceProvider.DeleteAppManagedWorkspace(conversation.Id);
     }
 }

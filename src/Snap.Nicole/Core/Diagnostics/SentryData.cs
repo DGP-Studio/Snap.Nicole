@@ -3,6 +3,7 @@ namespace Snap.Nicole.Core.Diagnostics;
 internal static class SentryData
 {
     public const string AgentConversationFile = "agent.conversation.file";
+    public const string AgentWorkspaceDirectory = "agent.workspace.directory";
     public const string AIModelCount = "ai.model_count";
     public const string AIResponseAdded = "ai.response_added";
     public const string IsOpen = "is_open";

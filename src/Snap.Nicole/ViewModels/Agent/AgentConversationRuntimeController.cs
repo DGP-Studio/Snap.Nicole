@@ -1,7 +1,8 @@
 using Microsoft.Agents.AI;
 using Snap.Nicole.Core.Text.Json;
-using Snap.Nicole.Services.AI;
-using Snap.Nicole.Services.AI.Models;
+using Snap.Nicole.Services.AI.Agent;
+using Snap.Nicole.Services.AI.Agent.Models;
+using Snap.Nicole.Services.AI.Agent.Workspace;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,15 +14,26 @@ internal sealed class AgentConversationRuntimeController(IServiceProvider servic
     private readonly IAgentService agentService = serviceProvider.GetRequiredService<IAgentService>();
     private readonly JsonSerializerOptions jsonOptions = serviceProvider.GetRequiredKeyedService<JsonSerializerOptions>(JsonSerializerOptionsKey.AgentConversation);
 
-    public async ValueTask<HarnessAgent> EnsureConversationAgentAsync(AgentConversationRuntime runtime, ExtendedAgentOptions requestOptions, CancellationToken cancellationToken)
+    public async ValueTask<HarnessAgent> EnsureConversationAgentAsync(AgentConversationViewModel conversation, ExtendedAgentOptions requestOptions, CancellationToken cancellationToken)
     {
-        if (runtime.Agent is not null && requestOptions.AgentEquals(runtime.AgentOptions))
+        AgentConversationRuntime runtime = conversation.Runtime;
+        AgentWorkspaceSnapshot workspace;
+        try
+        {
+            workspace = AgentWorkspaceProvider.CreateSnapshot(conversation.Id, conversation.ExternalDirectories);
+        }
+        catch (Exception ex) when (AgentWorkspaceProvider.IsWorkspaceException(ex))
+        {
+            throw new AgentConversationException(ex.Message);
+        }
+
+        if (runtime.Agent is not null && requestOptions.AgentEquals(runtime.AgentOptions) && workspace.AgentEquals(runtime.Workspace))
         {
             return runtime.Agent;
         }
 
-        HarnessAgent agent = await agentService.CreateAgentAsync(requestOptions, cancellationToken);
-        runtime.Reset(agent, requestOptions);
+        HarnessAgent agent = await agentService.CreateAgentAsync(requestOptions, workspace, cancellationToken);
+        runtime.Reset(agent, requestOptions, workspace);
         return agent;
     }
 
