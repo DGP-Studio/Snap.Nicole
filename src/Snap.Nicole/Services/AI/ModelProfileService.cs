@@ -101,7 +101,7 @@ internal sealed class ModelProfileService : IModelProfileService
             };
 
             ModelListPage page = await client.Models.List(@params, cancellationToken);
-            await foreach(ModelInfo model in page.Paginate(cancellationToken))
+            await foreach(ModelInfo model in new ModelListPageAdapter(page).Paginate(cancellationToken))
             {
                 if (string.IsNullOrWhiteSpace(model.ID))
                 {
@@ -118,4 +118,30 @@ internal sealed class ModelProfileService : IModelProfileService
     // internal IDictionary<string, BinaryData> SerializedAdditionalRawData
     [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "get_SerializedAdditionalRawData")]
     private static extern IDictionary<string, BinaryData> GetSerializedAdditionalRawData(OpenAIModel model);
+
+    private sealed class ModelListPageAdapter(ModelListPage page) : IPage<ModelInfo>
+    {
+        private readonly ModelListPage page = page;
+
+        public IReadOnlyList<ModelInfo> Items { get => page.Items; }
+
+        public bool HasNext()
+        {
+            return page.HasNext() && GetResponse(page).HasMore;
+        }
+
+        public Task<IPage<ModelInfo>> Next(CancellationToken cancellationToken = default)
+        {
+            return ((IPage<ModelInfo>)page).Next(cancellationToken);
+        }
+
+        public void Validate()
+        {
+            page.Validate();
+        }
+
+        // private ModelListPageResponse <response>P
+        [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "<response>P")]
+        private static extern ref ModelListPageResponse GetResponse(ModelListPage page);
+    }
 }
