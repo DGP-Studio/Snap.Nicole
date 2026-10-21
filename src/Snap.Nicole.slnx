@@ -11,4 +11,5 @@
     <Platform Project="x64" />
     <Deploy />
   </Project>
+  <Project Path="Snap.Nicole.Tests/Snap.Nicole.Tests.csproj" />
 </Solution>

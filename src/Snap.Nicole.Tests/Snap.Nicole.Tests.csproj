@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);MAAI001;SCME0001;MEAI001;OPENAI001</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Snap.Nicole/Services/Settings/JsonSettingsProvider.cs" Link="Production/Services/Settings/JsonSettingsProvider.cs" />
+    <Compile Include="../Snap.Nicole/Services/Settings/ISettingsProvider.cs" Link="Production/Services/Settings/ISettingsProvider.cs" />
+    <Compile Include="../Snap.Nicole/Services/Settings/ObservableObjectHierarchyObserver.cs" Link="Production/Services/Settings/ObservableObjectHierarchyObserver.cs" />
+    <Compile Include="../Snap.Nicole/Services/Settings/IObservableChildrenProvider.cs" Link="Production/Services/Settings/IObservableChildrenProvider.cs" />
+    <Compile Include="../Snap.Nicole/Core/ICopyFrom.cs" Link="Production/Core/ICopyFrom.cs" />
+    <Compile Include="../Snap.Nicole/Core/BooleanTrueScope.cs" Link="Production/Core/BooleanTrueScope.cs" />
+    <Compile Include="../Snap.Nicole/Core/IO/FileExtensions.cs" Link="Production/Core/IO/FileExtensions.cs" />
+    <Compile Include="../Snap.Nicole/Core/StringBuilderExtensions.cs" Link="Production/Core/StringBuilderExtensions.cs" />
+    <Compile Include="../Snap.Nicole/Services/AI/AgentEndpoint.cs" Link="Production/Services/AI/AgentEndpoint.cs" />
+    <Compile Include="../Snap.Nicole/Services/AI/ExtendedAgentResponseUpdate.cs" Link="Production/Services/AI/ExtendedAgentResponseUpdate.cs" />
+    <Compile Include="../Snap.Nicole/Services/AI/Models/AgentConversation.cs" Link="Production/Services/AI/Models/AgentConversation.cs" />
+    <Compile Include="../Snap.Nicole/Services/AI/Observables/*.cs" Link="Production/Services/AI/Observables/*.cs" />
+    <Compile Include="../Snap.Nicole/Services/AI/Compatibility/OpenAIChatCompletion/RoundTripInMemoryChatHistoryProvider.cs" Link="Production/Services/AI/Compatibility/OpenAIChatCompletion/RoundTripInMemoryChatHistoryProvider.cs" />
+    <Compile Include="../Snap.Nicole/Core/ObjectPool/*.cs" Link="Production/Core/ObjectPool/*.cs" />
+    <Compile Include="../Snap.Nicole/Core/Diagnostics/SentryDiagnostics.cs" Link="Production/Core/Diagnostics/SentryDiagnostics.cs" />
+    <Compile Include="../Snap.Nicole/Core/Diagnostics/SentryDiagnosticSpan.cs" Link="Production/Core/Diagnostics/SentryDiagnosticSpan.cs" />
+    <Compile Include="../Snap.Nicole/Core/Diagnostics/SentryTagValues.cs" Link="Production/Core/Diagnostics/SentryTagValues.cs" />
+    <Compile Include="../Snap.Nicole/Core/Diagnostics/SentryOperations.cs" Link="Production/Core/Diagnostics/SentryOperations.cs" />
+    <Compile Include="../Snap.Nicole/Core/Diagnostics/SentryTags.cs" Link="Production/Core/Diagnostics/SentryTags.cs" />
+    <Compile Include="../Snap.Nicole/Core/Diagnostics/SentryData.cs" Link="Production/Core/Diagnostics/SentryData.cs" />
+    <Compile Include="../Snap.Nicole/Core/Diagnostics/SentryBreadcrumbCategories.cs" Link="Production/Core/Diagnostics/SentryBreadcrumbCategories.cs" />
+    <Compile Include="../Snap.Nicole/Core/Diagnostics/SentryBreadcrumbTypes.cs" Link="Production/Core/Diagnostics/SentryBreadcrumbTypes.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.25.0" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="10.0.13" />
+    <PackageReference Include="Sentry" Version="6.12.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.5.1" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.5.1" />
+  </ItemGroup>
+</Project>

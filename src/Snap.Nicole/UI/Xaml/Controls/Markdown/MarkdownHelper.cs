@@ -4,7 +4,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -654,33 +653,14 @@ internal static partial class MarkdownHelper
 
     private static void AddImage(InlineCollection inlines, string altText, string url, string title)
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri))
+        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
         {
             AddImageFallback(inlines, altText, url, title);
             return;
         }
 
-        Image image = new()
-        {
-            MaxHeight = 240,
-            MaxWidth = 360,
-            Source = new BitmapImage
-            {
-                UriSource = uri,
-            },
-            Stretch = Stretch.Uniform,
-        };
-
-        string tooltip = string.IsNullOrEmpty(title) ? altText : title;
-        if (!string.IsNullOrEmpty(tooltip))
-        {
-            ToolTipService.SetToolTip(image, tooltip);
-        }
-
-        inlines.Add(new InlineUIContainer
-        {
-            Child = image,
-        });
+        // Model output must not initiate requests to arbitrary image hosts.
+        AddLink(inlines, string.IsNullOrWhiteSpace(altText) ? url : altText, url, title);
     }
 
     private static void AddImageFallback(InlineCollection inlines, string altText, string url, string title)

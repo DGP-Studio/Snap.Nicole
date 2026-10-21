@@ -61,7 +61,7 @@ internal sealed class AgentChatClientFactory(IServiceProvider serviceProvider)
     {
         return new(new ApiKeyCredential(options.ApiKey!), new()
         {
-            Endpoint = options.Endpoint.ToUri(),
+            Endpoint = AgentEndpoint.Validate(options.Endpoint),
         });
     }
 
@@ -70,7 +70,7 @@ internal sealed class AgentChatClientFactory(IServiceProvider serviceProvider)
         return new(new ClientOptions
         {
             ApiKey = options.ApiKey,
-            BaseUrl = string.IsNullOrWhiteSpace(options.Endpoint) ? EnvironmentUrl.Production : options.Endpoint,
+            BaseUrl = AgentEndpoint.Validate(options.Endpoint)?.AbsoluteUri ?? EnvironmentUrl.Production,
         });
     }
 }

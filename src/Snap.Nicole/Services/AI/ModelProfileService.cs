@@ -58,7 +58,7 @@ internal sealed class ModelProfileService : IModelProfileService
         ApiKeyCredential apiKeyCredential = new(providerProfile.ApiKey!);
         OpenAIClientOptions options = new()
         {
-            Endpoint = providerProfile.Endpoint.ToUri(),
+            Endpoint = AgentEndpoint.Validate(providerProfile.Endpoint),
         };
 
         OpenAIModelClient client = new OpenAIClient(apiKeyCredential, options).GetOpenAIModelClient();
@@ -89,7 +89,7 @@ internal sealed class ModelProfileService : IModelProfileService
         ClientOptions clientOptions = new()
         {
             ApiKey = providerProfile.ApiKey,
-            BaseUrl = string.IsNullOrWhiteSpace(providerProfile.Endpoint) ? EnvironmentUrl.Production : providerProfile.Endpoint,
+            BaseUrl = AgentEndpoint.Validate(providerProfile.Endpoint)?.AbsoluteUri ?? EnvironmentUrl.Production,
         };
 
         using (AnthropicClient client = new(clientOptions))

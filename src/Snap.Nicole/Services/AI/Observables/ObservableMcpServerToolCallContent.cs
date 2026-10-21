@@ -38,8 +38,9 @@ internal sealed partial class ObservableMcpServerToolCallContent : ObservableToo
         {
             return JsonSerializer.Serialize(value, jsonOptions);
         }
-        catch
+        catch (Exception exception)
         {
+            global::Snap.Nicole.Core.Diagnostics.SentryDiagnostics.CaptureException(exception, "ai.tool_content.serialize");
             return value?.ToString();
         }
     }

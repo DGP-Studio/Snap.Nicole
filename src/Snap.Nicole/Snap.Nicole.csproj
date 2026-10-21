@@ -62,19 +62,23 @@
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Converters" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Media" Version="8.2.251219" />
-    <PackageReference Include="Microsoft.Agents.AI.Anthropic" Version="1.9.0-preview.260603.1" />
-    <PackageReference Include="Microsoft.Agents.AI.Harness" Version="1.9.0-preview.260603.1" />
-    <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.9.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.8" />
-    <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="10.0.8" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.1839" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.1.3" />
-    <PackageReference Include="Sentry" Version="6.6.0" />
-    <PackageReference Include="Sentry.Extensions.Logging" Version="6.6.0" />
+    <PackageReference Include="Microsoft.Agents.AI.Anthropic" Version="1.25.0" />
+    <PackageReference Include="Microsoft.Agents.AI.Harness" Version="1.25.0" />
+    <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.25.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools.MSIX" Version="1.7.260930100">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <PackageReference Include="Sentry" Version="6.12.1" />
+    <PackageReference Include="Sentry.Extensions.Logging" Version="6.12.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Snap.Nicole.Native\Snap.Nicole.Native.vcxproj">
-      <ReferenceOutputAssembly>True</ReferenceOutputAssembly>
+      <ReferenceOutputAssembly>False</ReferenceOutputAssembly>
     </ProjectReference>
     <ProjectReference Include="..\Snap.Nicole.SourceGeneration\Snap.Nicole.SourceGeneration.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SetTargetFramework="TargetFramework=netstandard2.0" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained">
       <PrivateAssets>all</PrivateAssets>

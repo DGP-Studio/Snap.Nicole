@@ -1,4 +1,4 @@
-using Microsoft.Agents.AI;
+﻿using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ObjectPool;
@@ -116,26 +116,28 @@ internal sealed class ExtendedAgentOptions
         int maxOutputTokens = Math.Clamp(MaxOutputTokens ?? DefaultMaxOutputTokens, 1, int.MaxValue - 1);
         int maxContextWindowTokens = Math.Clamp(MaxContextWindowTokens ?? ((MaxInputTokens ?? DefaultMaxInputTokens) + maxOutputTokens), maxOutputTokens + 1, int.MaxValue);
 
-        HarnessAgentOptions harnessOptions = CreateHarnessAgentOptions(tools, serviceProvider, maxOutputTokens);
-        return chatClient.AsHarnessAgent(maxContextWindowTokens, maxOutputTokens, harnessOptions, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>(), services: serviceProvider);
+        HarnessAgentOptions harnessOptions = CreateHarnessAgentOptions(tools, serviceProvider, maxContextWindowTokens, maxOutputTokens);
+        return chatClient.AsHarnessAgent(harnessOptions, loggerFactory: serviceProvider.GetRequiredService<ILoggerFactory>(), services: serviceProvider);
     }
 
-    private HarnessAgentOptions CreateHarnessAgentOptions(IList<AITool>? tools, IServiceProvider serviceProvider, int maxOutputTokens)
+    private HarnessAgentOptions CreateHarnessAgentOptions(IList<AITool>? tools, IServiceProvider serviceProvider, int maxContextWindowTokens, int maxOutputTokens)
     {
         return new()
         {
             ChatOptions = CreateHarnessChatOptions(tools, maxOutputTokens),
             ChatHistoryProvider = CreateChatHistoryProvider(serviceProvider),
             HarnessInstructions = string.Empty,
+            MaxContextWindowTokens = maxContextWindowTokens,
             MaximumIterationsPerRequest = MaximumIterationsPerRequest,
-            DisableToolApproval = false,
+            MaxOutputTokens = maxOutputTokens,
             DisableFileMemory = true,
-            DisableFileAccess = true,
             DisableWebSearch = true,
             DisableTodoProvider = true,
             DisableAgentModeProvider = true,
             DisableAgentSkillsProvider = true,
             DisableOpenTelemetry = true,
+            // All tool decisions are collected explicitly by the conversation UI.
+            DisableToolAutoApproval = true,
         };
     }
 

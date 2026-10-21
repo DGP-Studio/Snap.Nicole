@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.AI;
+using System.Collections.Generic;
+using System.Linq;
 using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Resources;
 using Snap.Nicole.Services.AI.Models;
@@ -16,6 +18,8 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
 {
     private readonly IAgentConversationDeleteHandler conversationDeleteHandler = conversationDeleteHandler;
     private readonly AgentConversationTurnController conversationTurnController = conversationTurnController;
+
+    public List<ObservableToolApprovalRequestContent> ToolApprovalRequests { get; } = [];
 
     private bool disposed;
 
@@ -191,9 +195,23 @@ internal sealed partial class AgentConversationViewModel(IAgentConversationDelet
             return;
         }
 
-        ToolApprovalRequestContent runtimeContent = request.RawRepresentation ?? throw new InvalidOperationException("Tool approval request content is unavailable.");
-        ToolApprovalResponseContent responseContent = reason is null ? runtimeContent.CreateResponse(approved) : runtimeContent.CreateResponse(approved, reason);
-        ChatMessage responseMessage = new(ChatRole.User, [responseContent])
+        request.Approved = approved;
+        request.Reason = reason;
+        request.IsHandled = true;
+        ToolApprovalRequest = ToolApprovalRequests.FirstOrDefault(static pending => pending.CanRespond);
+        if (ToolApprovalRequest is not null)
+        {
+            conversationTurnController.SaveApprovalProgress(this);
+            return;
+        }
+        // Keep the final decision retryable until the agent accepts the responses.
+        request.IsHandled = false;
+        ToolApprovalRequest = request;
+
+        List<AIContent> responses = ToolApprovalRequests.Select(static pending => (AIContent)(pending.RawRepresentation
+            ?? throw new InvalidOperationException("Tool approval request content is unavailable."))
+            .CreateResponse(pending.Approved == true, pending.Reason)).ToList();
+        ChatMessage responseMessage = new(ChatRole.User, responses)
         {
             CreatedAt = DateTimeOffset.Now,
             AuthorName = conversationTurnController.UserName,

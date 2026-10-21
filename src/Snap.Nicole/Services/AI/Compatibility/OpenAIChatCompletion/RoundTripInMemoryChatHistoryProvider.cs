@@ -30,6 +30,22 @@ internal sealed class RoundTripInMemoryChatHistoryProvider(ObjectPool<StringBuil
     protected override ValueTask<IEnumerable<ChatMessage>> ProvideChatHistoryAsync(InvokingContext context, CancellationToken cancellationToken = default)
     {
         State state = sessionState.GetOrInitializeState(context.Session);
+        // Raw SDK messages are not serialized by AIJsonUtilities. Rebuild their wire
+        // representation after restoring a session so reasoning_content is replayed.
+        foreach (ChatMessage message in state.Messages)
+        {
+            if (message.Role != ChatRole.Assistant || message.RawRepresentation is not null)
+            {
+                continue;
+            }
+            OpenAI.Chat.ChatMessage? raw = OpenAI.Chat.MicrosoftExtensionsAIChatExtensions.AsOpenAIChatMessages([message]).FirstOrDefault();
+            if (raw is not null)
+            {
+                WorkaroundReasoningContentRoundTrip(message, raw);
+                WorkaroundContentRoundTrip(raw);
+                message.RawRepresentation = raw;
+            }
+        }
         return ValueTask.FromResult<IEnumerable<ChatMessage>>(state.Messages);
     }
 
@@ -126,6 +142,11 @@ internal sealed class RoundTripInMemoryChatHistoryProvider(ObjectPool<StringBuil
 
                 normalizedParts.Add(part);
             }
+        }
+
+        if (contentBuilderLease.Value.Length > 0)
+        {
+            normalizedParts.Add(OpenAI.Chat.ChatMessageContentPart.CreateTextPart(contentBuilderLease.Value.ToStringAndClear()));
         }
 
         assistantChatMessage.Content.Clear();

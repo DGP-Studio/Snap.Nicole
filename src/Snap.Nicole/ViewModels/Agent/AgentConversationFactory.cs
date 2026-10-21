@@ -16,6 +16,7 @@ internal static class AgentConversationFactory
             ModelProfileId = conversation.ModelProfile?.Id,
             SerializedSessionState = conversation.Runtime.SerializedSessionState?.Clone(),
             ToolApprovalRequest = conversation.ToolApprovalRequest,
+            ToolApprovalRequests = [.. conversation.ToolApprovalRequests],
             Messages = new(conversation.Messages),
         };
     }

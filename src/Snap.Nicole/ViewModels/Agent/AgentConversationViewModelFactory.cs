@@ -1,4 +1,5 @@
 using Snap.Nicole.Services.AI.Models;
+using System.Linq;
 
 namespace Snap.Nicole.ViewModels.Agent;
 
@@ -20,7 +21,12 @@ internal sealed class AgentConversationViewModelFactory(AgentConversationTurnCon
         conversation.UpdatedAt = data.UpdatedAt;
         conversation.Runtime.SerializedSessionState = data.SerializedSessionState?.Clone();
         conversation.Messages = new(data.Messages);
-        conversation.ToolApprovalRequest = data.ToolApprovalRequest;
+        conversation.ToolApprovalRequests.AddRange(data.ToolApprovalRequests);
+        if (conversation.ToolApprovalRequests.Count == 0 && data.ToolApprovalRequest is { } legacyRequest)
+        {
+            conversation.ToolApprovalRequests.Add(legacyRequest);
+        }
+        conversation.ToolApprovalRequest = conversation.ToolApprovalRequests.FirstOrDefault(static request => request.CanRespond);
         conversation.UpdateConversationStatistics();
         return conversation;
     }

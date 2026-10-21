@@ -1,5 +1,7 @@
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using System.Collections.Generic;
+using System.Linq;
 using Sentry;
 using Snap.Nicole.Core.Diagnostics;
 using Snap.Nicole.Core.Text.Json;
@@ -24,6 +26,11 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
     private readonly AgentConversationPersistenceController persistenceController = serviceProvider.GetRequiredService<AgentConversationPersistenceController>();
     private readonly JsonSerializerOptions functionContentJsonOptions = serviceProvider.GetRequiredKeyedService<JsonSerializerOptions>(JsonSerializerOptionsKey.AIFunctionContent);
 
+    public void SaveApprovalProgress(AgentConversationViewModel conversation)
+    {
+        persistenceController.SaveConversation(conversation);
+    }
+
     public string UserName { get => AgentOptionsNormalizer.NormalizeUserName(settings.AgentOptions.UserName); }
 
     public static bool CanRespondToToolApproval(AgentConversationViewModel conversation)
@@ -44,20 +51,17 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
     public async Task SendMessageAsync(AgentConversationViewModel conversation, ChatMessage inputMessage, string? titleInput, CancellationToken cancellationToken)
     {
         ToolApprovalResponseContent? toolApprovalResponseContent = GetToolApprovalResponseContent(inputMessage);
-        AgentConversationToolApprovalTurnState? toolApprovalState = null;
+        List<AgentConversationToolApprovalTurnState>? toolApprovalState = null;
         if (toolApprovalResponseContent is not null)
         {
-            ObservableToolApprovalRequestContent? request = conversation.ToolApprovalRequest;
-            if (request is null || !CanRespondToToolApproval(conversation) || !ReferenceEquals(conversation.ToolApprovalRequest, request))
+            if (conversation.IsBusy) { return; }
+            toolApprovalState = [];
+            foreach (ToolApprovalResponseContent response in inputMessage.Contents.OfType<ToolApprovalResponseContent>())
             {
-                return;
+                ObservableToolApprovalRequestContent? request = conversation.ToolApprovalRequests.FirstOrDefault(pending => pending.RequestId == response.RequestId);
+                if (request is null) { throw new InvalidOperationException("Unknown tool approval response."); }
+                toolApprovalState.Add(new() { Request = request, ResponseContent = response });
             }
-
-            toolApprovalState = new()
-            {
-                Request = request,
-                ResponseContent = toolApprovalResponseContent,
-            };
         }
 
         AgentConversationTurnOperation operation = new()
@@ -99,7 +103,8 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
 
     private static ToolApprovalResponseContent? GetToolApprovalResponseContent(ChatMessage message)
     {
-        if (message.Contents is [ToolApprovalResponseContent responseContent])
+        if (message.Contents.Count > 0 && message.Contents.All(static content => content is ToolApprovalResponseContent)
+            && message.Contents[0] is ToolApprovalResponseContent responseContent)
         {
             return responseContent;
         }
@@ -120,21 +125,26 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         return title[..maxLength] + "...";
     }
 
-    private static ObservableChatMessage? ApplyToolApprovalState(AgentConversationViewModel conversation, AgentConversationToolApprovalTurnState? state)
+    private static ObservableChatMessage? ApplyToolApprovalState(AgentConversationViewModel conversation, List<AgentConversationToolApprovalTurnState>? states)
     {
-        if (state is null)
+        if (states is null)
         {
             return null;
         }
 
-        ObservableToolApprovalRequestContent request = state.Request;
-        ToolApprovalResponseContent responseContent = state.ResponseContent;
+        ObservableChatMessage? targetResponseMessage = null;
+        foreach (AgentConversationToolApprovalTurnState state in states)
+        {
+            ObservableToolApprovalRequestContent request = state.Request;
+            ToolApprovalResponseContent responseContent = state.ResponseContent;
 
-        request.IsHandled = true;
-        request.Approved = responseContent.Approved;
-        request.Reason = responseContent.Reason;
+            request.IsHandled = true;
+            request.Approved = responseContent.Approved;
+            request.Reason = responseContent.Reason;
 
-        ObservableChatMessage? targetResponseMessage = FindMessageById(conversation.Messages, request.TargetMessageId);
+            targetResponseMessage ??= FindMessageById(conversation.Messages, request.TargetMessageId);
+        }
+        conversation.ToolApprovalRequests.Clear();
         conversation.ToolApprovalRequest = null;
         return targetResponseMessage;
     }
@@ -197,8 +207,6 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
                 conversation.Title = CreateTitle(operation.TitleInput);
             }
 
-            await runtimeController.SerializeConversationSessionAsync(conversation.Runtime, streamingContext.Agent, streamingContext.Session, cancellationToken);
-            persistenceController.SaveConversation(conversation);
         }
         catch (OperationCanceledException)
         {
@@ -216,8 +224,16 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
         }
         finally
         {
-            conversation.UpdateConversationStatistics();
-            conversation.IsBusy = false;
+            try
+            {
+                await runtimeController.SerializeConversationSessionAsync(conversation.Runtime, streamingContext.Agent, streamingContext.Session, CancellationToken.None);
+                persistenceController.SaveConversation(conversation);
+            }
+            finally
+            {
+                conversation.UpdateConversationStatistics();
+                conversation.IsBusy = false;
+            }
         }
     }
 
@@ -227,7 +243,7 @@ internal sealed class AgentConversationTurnController(IServiceProvider servicePr
 
         public string? TitleInput { get; init; }
 
-        public AgentConversationToolApprovalTurnState? ToolApprovalState { get; init; }
+        public List<AgentConversationToolApprovalTurnState>? ToolApprovalState { get; init; }
     }
 
     private sealed class AgentConversationToolApprovalTurnState
